@@ -11,7 +11,10 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1.Subscription": schema_pkg_apis_app_v1alpha1_Subscription(ref),
+		"./pkg/apis/app/v1alpha1.Subscription":              schema_pkg_apis_app_v1alpha1_Subscription(ref),
+		"./pkg/apis/app/v1alpha1.SubscriptionRelease":       schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref),
+		"./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec":   schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref),
+		"./pkg/apis/app/v1alpha1.SubscriptionReleaseStatus": schema_pkg_apis_app_v1alpha1_SubscriptionReleaseStatus(ref),
 	}
 }
 
@@ -42,18 +45,85 @@ func schema_pkg_apis_app_v1alpha1_Subscription(ref common.ReferenceCallback) com
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1.SubscriptionSpec"),
+							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1.SubscriptionStatus"),
+							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1.SubscriptionSpec", "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1.SubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/app/v1alpha1.SubscriptionSpec", "./pkg/apis/app/v1alpha1.SubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionRelease is the Schema for the subscriptionreleases API",
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionReleaseStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec", "./pkg/apis/app/v1alpha1.SubscriptionReleaseStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionReleaseSpec defines the desired state of SubscriptionRelease",
+				Properties:  map[string]spec.Schema{},
+			},
+		},
+		Dependencies: []string{},
+	}
+}
+
+func schema_pkg_apis_app_v1alpha1_SubscriptionReleaseStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SubscriptionReleaseStatus defines the observed state of SubscriptionRelease",
+				Properties:  map[string]spec.Schema{},
+			},
+		},
+		Dependencies: []string{},
 	}
 }

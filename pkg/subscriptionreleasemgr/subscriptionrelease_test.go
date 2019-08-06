@@ -1,24 +1,12 @@
-package helmreleasemanager
+package subscriptionreleasemgr
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/ghodss/yaml"
-	"github.com/golang/glog"
-	uuid "github.com/nu7hatch/gouuid"
-	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"github.com/stretchr/testify/assert"
-	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription/pkg/apis/app/v1alpha1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/helm/pkg/repo"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
+	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 )
 
 const index = `
@@ -111,6 +99,35 @@ spec:
     - path: spec.values
       value: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
         minio\n  Region: us-east-1\n"
+`
+
+const sr = `
+apiVersion: app.ibm.com/v1alpha1
+kind: SubscriptionRelease
+metadata:
+  creationTimestamp: 2019-08-06T11:33:55Z
+  generation: 1
+  labels:
+    app: dev-sub-razee-ope
+    subscriptionName: dev-sub-razee-ope
+    subscriptionNamespace: default
+  name: dev-sub-razee-ope-sr
+  namespace: default
+  ownerReferences:
+  - apiVersion: app.ibm.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Subscription
+    name: dev-sub-razee-ope
+    uid: 293b92e4-b763-11e9-b55f-fa163e0cb658
+  resourceVersion: "2746558"
+  selfLink: /apis/app.ibm.com/v1alpha1/namespaces/default/subscriptionreleases/dev-sub-razee-ope-sr
+  uid: 130a26f2-b83e-11e9-b55f-fa163e0cb658
+spec:
+  chartName: ibm-razee-api
+  releaseName: ibm-razee-api
+  repoUrl: https://mycluster.icp:8443/helm-repo/charts
+  version: 0.2.3-015-20190725140717
 `
 
 // const index = `apiVersion: v1
@@ -224,11 +241,7 @@ spec:
 // `
 
 func TestRelease(t *testing.T) {
-	indexFile, err := loadIndex([]byte(index))
-	assert.NoError(t, err)
-	chartVersion := indexFile.Entries["ibm-razee-api"][0]
-	var s appv1alpha1.Subscription
-	fmt.Print("hello")
+	var s appv1alpha1.SubscriptionRelease
 	// config, err := rest.InClusterConfig()
 	// if err != nil {
 	// 	assert.NoError(t, err)
@@ -242,114 +255,13 @@ func TestRelease(t *testing.T) {
 	// 	assert.NoError(t, err)
 	// }
 
-	err = yaml.Unmarshal([]byte(sub), &s)
+	err := yaml.Unmarshal([]byte(sr), &s)
 	assert.NoError(t, err)
-	mgr, err := NewHelmManager(s, chartVersion)
+	mgr, err := NewHelmManager(s)
 	assert.NoError(t, err)
 	err = mgr.Sync(context.TODO())
 	assert.NoError(t, err)
 	_, err = mgr.InstallRelease(context.TODO())
 	assert.NoError(t, err)
 
-}
-
-func NewHelmManager(s appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (helmrelease.Manager, error) {
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	var channelName string
-	if s.Spec.Channel != "" {
-		strs := strings.Split(s.Spec.Channel, "/")
-		if len(strs) != 2 {
-			errmsg := "Illegal channel settings, want namespace/name, but get " + s.Spec.Channel
-			err := errors.New(errmsg)
-			glog.Error(err, "")
-			return nil, err
-		}
-		channelName = strs[1]
-	}
-
-	releaseName := chartVersion.GetName()
-	if channelName != "" {
-		releaseName = releaseName + "-" + channelName
-		fmt.Printf("%s-$s", releaseName+"-"+channelName)
-	}
-
-	o := &unstructured.Unstructured{}
-	o.SetGroupVersionKind(s.GroupVersionKind())
-	o.SetNamespace(s.GetNamespace())
-	o.SetName(releaseName)
-	// m := getOverrides(s, "ibm-razee-api")
-	// rn := o.GetName()
-	// glog.Info(rn)
-	uuid, err := uuid.NewV4()
-	if err != nil {
-		glog.Error(err, "Failed to generate a UUID.")
-		return nil, err
-	}
-	o.SetUID(types.UID(uuid.String()))
-	mgr, err := manager.New(cfg, manager.Options{
-		Namespace: s.GetNamespace(),
-		//		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
-	})
-	if err != nil {
-		glog.Error(err, "Failed to create a new manager.")
-		return nil, err
-	}
-
-	f := helmrelease.NewManagerFactory(mgr, chartDir)
-	helmManager, err := f.NewManager(o)
-	return helmManager, err
-}
-
-func loadIndex(data []byte) (*repo.IndexFile, error) {
-	i := &repo.IndexFile{}
-	if err := yaml.Unmarshal(data, i); err != nil {
-		return i, err
-	}
-	i.SortEntries()
-	if i.APIVersion == "" {
-		return i, repo.ErrNoAPIVersion
-	}
-	return i, nil
-}
-
-func getOverrides(s appv1alpha1.Subscription, packageName string) (m map[string]interface{}) {
-	dploverrides := make([]appv1alpha1.Overrides, 1)
-	for _, overrides := range s.Spec.PackageOverrides {
-		if overrides.PackageName == packageName {
-			glog.Infof("Overrides for package %s found", packageName)
-			dploverrides[0].PackageName = packageName
-			dploverrides[0].PackageOverrides = make([]appv1alpha1.PackageOverride, 0)
-			for _, override := range overrides.PackageOverrides {
-				packageOverride := appv1alpha1.PackageOverride{
-					RawExtension: runtime.RawExtension{
-						Raw: override.RawExtension.Raw,
-					},
-				}
-				dploverrides[0].PackageOverrides = append(dploverrides[0].PackageOverrides, packageOverride)
-			}
-			// data, err := yaml.Marshal(dploverrides[0].PackageOverrides[0].Raw)
-			// if err != nil {
-			// 	glog.Info(err)
-			// 	return nil
-			// }
-			var o map[string]interface{}
-			err := yaml.Unmarshal(dploverrides[0].PackageOverrides[0].Raw, &o)
-			if err != nil {
-				fmt.Print(err)
-				return nil
-			}
-			fmt.Print(o["value"])
-			err = yaml.Unmarshal([]byte(o["value"].(string)), &m)
-			if err != nil {
-				fmt.Print(err)
-				return nil
-			}
-			return m
-		}
-	}
-	return nil
 }
