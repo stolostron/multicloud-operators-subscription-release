@@ -3,7 +3,6 @@ package subscriptionrelease
 import (
 	"context"
 
-	"github.com/golang/glog"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/subscriptionreleasemgr"
 	corev1 "k8s.io/api/core/v1"
@@ -100,33 +99,37 @@ func (r *ReconcileSubscriptionRelease) Reconcile(request reconcile.Request) (rec
 	}
 
 	// Define a new Pod object
-	r.manageSubcriptionRelease(instance)
-
+	err = r.manageSubcriptionRelease(instance)
+	if err != nil {
+		reqLogger.Error(err, "Error processing subscription release - requeue the request")
+		return reconcile.Result{}, err
+	}
 	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.SubscriptionRelease) error {
-	glog.Infof("chart: %s\n%v", sr.Spec.ChartName, sr.Spec.Version)
+	srLogger := log.WithValues("SubscriptionRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
+	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
 	mgr, err := subscriptionreleasemgr.NewHelmManager(*sr)
 	if err != nil {
-		glog.Error("Failed to create NewHelmManager ", sr.Spec.ChartName, " err:", err)
+		srLogger.Error(err, "Failed to create NewHelmManager ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
 	}
 	err = mgr.Sync(context.TODO())
 	if err != nil {
-		glog.Error("Failed to while sync ", sr.Spec.ChartName, " err:", err)
+		srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
 	}
 	if mgr.IsInstalled() {
 		_, _, err = mgr.UpdateRelease(context.TODO())
 		if err != nil {
-			glog.Error("Failed to while installing ", sr.Spec.ChartName, " err:", err)
+			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
 			return err
 		}
 	} else {
 		_, err = mgr.InstallRelease(context.TODO())
 		if err != nil {
-			glog.Error("Failed to while installing ", sr.Spec.ChartName, " err:", err)
+			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
 			return err
 		}
 	}

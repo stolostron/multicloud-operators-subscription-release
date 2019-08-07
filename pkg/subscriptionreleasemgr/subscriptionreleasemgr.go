@@ -1,17 +1,24 @@
 package subscriptionreleasemgr
 
 import (
-	"github.com/golang/glog"
+	"errors"
+	"os"
+
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
+	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-const chartDir = "/Users/dvernier/Downloads/ibm-razee-api"
+const CHARTS_DIR = "CHARTS_DIR"
+
+var log = logf.Log.WithName("subscriptionreleasemgr")
 
 func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
+	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
@@ -28,10 +35,22 @@ func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, err
 		//		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
 	})
 	if err != nil {
-		glog.Error(err, "Failed to create a new manager.")
+		srLogger.Error(err, "Failed to create a new manager.")
 		return nil, err
 	}
 
+	chartsDir := os.Getenv(CHARTS_DIR)
+	if chartsDir == "" {
+		err = errors.New("Environment variable not set")
+		srLogger.Error(err, "Failed to create a new manager.", "Variable", CHARTS_DIR)
+		return nil, err
+	}
+	chartDir, err := utils.DownloadChart(chartsDir, s)
+	srLogger.Info("ChartDir", "ChartDir", chartDir)
+	if err != nil {
+		srLogger.Error(err, "Failed to download the tgz")
+		return nil, err
+	}
 	f := helmrelease.NewManagerFactory(mgr, chartDir)
 	helmManager, err := f.NewManager(o)
 	return helmManager, err

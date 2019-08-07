@@ -2,10 +2,9 @@ package v1alpha1
 
 import (
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	placementv1alpha1 "github.ibm.com/IBMMulticloudPlatform/placementrule/pkg/apis/app/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
-
-	placementv1alpha1 "github.ibm.com/IBMMulticloudPlatform/placementrule/pkg/apis/app/v1alpha1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!

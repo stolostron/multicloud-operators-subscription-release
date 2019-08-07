@@ -2,6 +2,7 @@ module github.ibm.com/IBMMulticloudPlatform/subscription-operator
 
 require (
 	github.com/blang/semver v3.5.1+incompatible
+	github.com/cameront/go-jsonpatch v0.0.0-20180223123257-a8710867776e
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
@@ -9,9 +10,11 @@ require (
 	github.com/operator-framework/operator-sdk v0.9.1-0.20190724001845-d6e1aba9fa51
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
+	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect
 	github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190730162031-372256eedb81
 	github.ibm.com/IBMMulticloudPlatform/subscription v0.0.0-20190802063328-ac8eeb15abc8
 	github.ibm.com/dominique-vernier/helm-operator-test v0.0.0-20190802151104-52d3fe62e417
+	golang.org/x/build v0.0.0-20190314133821-5284462c4bec
 	golang.org/x/tools v0.0.0-20190710153321-831012c29e42 // indirect
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad

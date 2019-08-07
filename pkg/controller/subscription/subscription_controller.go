@@ -2,16 +2,9 @@ package subscription
 
 import (
 	"context"
-	"crypto/sha1"
-	"crypto/tls"
-	"io/ioutil"
-	"net"
-	"net/http"
-	"strings"
-	"time"
+	"encoding/json"
 
 	"github.com/blang/semver"
-	"github.com/golang/glog"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -107,12 +100,14 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		reqLogger.Error(err, "Error reading the object - requeue the request")
 		return reconcile.Result{}, err
 	}
 
 	// Define a new Pod object
 	err = r.processSubscription(instance)
 	if err != nil {
+		reqLogger.Error(err, "Error processing subscription - requeue the request")
 		return reconcile.Result{}, err
 	}
 
@@ -122,9 +117,10 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 
 // do a helm repo subscriber
 func (r *ReconcileSubscription) processSubscription(s *appv1alpha1.Subscription) error {
-	httpClient, err := getHelmRepoClient(s)
+	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
+	httpClient, err := utils.GetHelmRepoClient()
 	if err != nil {
-		glog.Error(err, "Unable to create client for helm repo", s.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.Spec.CatalogSource)
 		return err
 	}
 	//Retrieve the helm repo
@@ -132,75 +128,22 @@ func (r *ReconcileSubscription) processSubscription(s *appv1alpha1.Subscription)
 	log.Info("Source: " + repoURL)
 	log.Info("name: " + s.GetName())
 
-	indexFile, _, err := getHelmRepoIndex(s, httpClient, repoURL)
+	indexFile, _, err := utils.GetHelmRepoIndex(s, httpClient, repoURL)
 	if err != nil {
-		glog.Error(err, "Unable to retrieve the helm repo index", s.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.Spec.CatalogSource)
+		return err
+	}
+	err = filterCharts(s, indexFile)
+	if err != nil {
+		subLogger.Error(err, "Unable to filter ", "s.Spec.CatalogSource", s.Spec.CatalogSource)
 		return err
 	}
 	return r.manageSubscription(s, indexFile, repoURL)
 }
 
-func getHelmRepoClient(s *appv1alpha1.Subscription) (*http.Client, error) {
-	client := http.DefaultClient
-	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-			DualStack: true,
-		}).DialContext,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	client.Transport = transport
-	return client, nil
-}
-
-//getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
-func getHelmRepoIndex(s *appv1alpha1.Subscription, client *http.Client, repoURL string) (indexFile *repo.IndexFile, hash string, err error) {
-	cleanRepoURL := strings.TrimSuffix(repoURL, "/")
-	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
-	if err != nil {
-		glog.Error(err, "Can not build request: ", cleanRepoURL)
-		return nil, "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		glog.Error(err, "Http request failed: ", cleanRepoURL)
-		return nil, "", err
-	}
-	glog.Infof("Get %s suceeded: ", cleanRepoURL)
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		glog.Error(err, "Unable to read body: ", cleanRepoURL)
-		return nil, "", err
-	}
-	hash = hashKey(body)
-	indexfile, err := utils.LoadIndex(body)
-	if err != nil {
-		glog.Error(err, "Unable to parse the indexfile: ", cleanRepoURL)
-		return nil, "", err
-	}
-	err = filterCharts(s, indexfile)
-	return indexfile, hash, err
-}
-
-//hashKey Calculate a hash key
-func hashKey(b []byte) string {
-	h := sha1.New()
-	h.Write(b)
-	return string(h.Sum(nil))
-}
-
 //filterCharts filters the indexFile by name, tillerVersion, version, digest
 func filterCharts(s *appv1alpha1.Subscription, indexFile *repo.IndexFile) (err error) {
+	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
 	//Removes all entries from the indexFile with non matching name
 	removeNoMatchingName(s, indexFile)
 	//Removes non matching version, tillerVersion, digest
@@ -208,7 +151,7 @@ func filterCharts(s *appv1alpha1.Subscription, indexFile *repo.IndexFile) (err e
 	//Keep only the lastest version if multiple remains after filtering.
 	err = takeLatestVersion(indexFile)
 	if err != nil {
-		glog.Error(err)
+		subLogger.Error(err, "Failed to takeLatestVersion")
 		return err
 	}
 	return nil
@@ -272,6 +215,7 @@ func checkDigest(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) b
 
 //checkTillerVersion Checks if the TillerVersion matches
 func checkTillerVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) bool {
+	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
 	if s != nil {
 		if s.Spec.PackageFilter != nil {
 			if s.Spec.PackageFilter.Annotations != nil {
@@ -280,12 +224,12 @@ func checkTillerVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVer
 					if tillerVersion != "" {
 						tillerVersionVersion, err := semver.ParseRange(tillerVersion)
 						if err != nil {
-							glog.Errorf("Error while parsing tillerVersion: %s of %s Error: %s", tillerVersion, chartVersion.GetName(), err.Error())
+							subLogger.Error(err, "Error while parsing", "tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
 							return false
 						}
 						filterTillerVersion, err := semver.Parse(filterTillerVersion)
 						if err != nil {
-							glog.Error(err)
+							subLogger.Error(err, "Failed to Parse ", filterTillerVersion)
 							return false
 						}
 						return tillerVersionVersion(filterTillerVersion)
@@ -299,18 +243,19 @@ func checkTillerVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVer
 
 //checkVersion checks if the version matches
 func checkVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) bool {
+	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
 	if s != nil {
 		if s.Spec.PackageFilter != nil {
 			if s.Spec.PackageFilter.Version != "" {
 				version := chartVersion.GetVersion()
 				versionVersion, err := semver.Parse(version)
 				if err != nil {
-					glog.Error(err)
+					subLogger.Error(err, "Failed to parse ", version)
 					return false
 				}
 				filterVersion, err := semver.ParseRange(s.Spec.PackageFilter.Version)
 				if err != nil {
-					glog.Error(err)
+					subLogger.Error(err, "Failed to parse range ", "s.Spec.PackageFilter.Version", s.Spec.PackageFilter.Version)
 					return false
 				}
 				return filterVersion(versionVersion)
@@ -331,7 +276,7 @@ func takeLatestVersion(indexFile *repo.IndexFile) (err error) {
 		// "*" is equivalent to ">=0.0.0"
 		chartVersion, err := indexFile.Get(k, ">=0.0.0")
 		if err != nil {
-			glog.Error(err)
+			log.Error(err, "Failed to get the latest version")
 			return err
 		}
 		indexFile.Entries[k] = []*repo.ChartVersion{chartVersion}
@@ -340,34 +285,39 @@ func takeLatestVersion(indexFile *repo.IndexFile) (err error) {
 }
 
 func (r *ReconcileSubscription) manageSubscription(s *appv1alpha1.Subscription, indexFile *repo.IndexFile, repoURL string) error {
+	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
 	//Loop on all packages selected by the subscription
-	for packageName, chartVersions := range indexFile.Entries {
+	for _, chartVersions := range indexFile.Entries {
 		if len(chartVersions) != 0 {
-			sr := newSubscriptionReleaseForCR(s, packageName, chartVersions[0], repoURL)
+			sr, err := newSubscriptionReleaseForCR(s, chartVersions[0])
+			if err != nil {
+				return err
+			}
 			// Set SubscriptionRelease instance as the owner and controller
 			if err := controllerutil.SetControllerReference(s, sr, r.scheme); err != nil {
 				return err
 			}
 			// Check if this Pod already exists
 			found := &appv1alpha1.SubscriptionRelease{}
-			err := r.client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
+			err = r.client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
-					glog.Info("Creating a new SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
+					subLogger.Info("Creating a new SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
 					err = r.client.Create(context.TODO(), sr)
 					if err != nil {
 						return err
 					}
 
 				} else {
-					glog.Info("Update a the SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
-					err = r.client.Update(context.TODO(), sr)
-					if err != nil {
-						return err
-					}
+					return err
 				}
 			} else {
-				return err
+				subLogger.Info("Update a the SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
+				sr.ObjectMeta = found.ObjectMeta
+				err = r.client.Update(context.TODO(), sr)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -375,42 +325,52 @@ func (r *ReconcileSubscription) manageSubscription(s *appv1alpha1.Subscription, 
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, packageName string, chartVersion *repo.ChartVersion, repoURL string) *appv1alpha1.SubscriptionRelease {
+func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
 	labels := map[string]string{
 		"app":                   s.Name,
 		"subscriptionName":      s.Name,
 		"subscriptionNamespace": s.Namespace,
 	}
-	var channelName string
-	if s.Spec.Channel != "" {
-		strs := strings.Split(s.Spec.Channel, "/")
-		if len(strs) != 2 {
-			errmsg := "Illegal channel settings, want namespace/name, but get " + s.Spec.Channel
-			glog.Error(errmsg)
-			return nil
-		}
-		channelName = strs[1]
-	}
-	//Compose release name
-	releaseName := packageName
-	if channelName != "" {
-		releaseName = releaseName + "-" + channelName
+	values, err := getValues(s, chartVersion)
+	if err != nil {
+		return nil, err
 	}
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name + "-sr",
+			Name:      s.Name + "-" + chartVersion.Name,
 			Namespace: s.Namespace,
 			Labels:    labels,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			RepoURL:     repoURL,
-			ChartName:   packageName,
-			ReleaseName: packageName,
+			URLs:        chartVersion.URLs,
+			ChartName:   chartVersion.Name,
+			ReleaseName: chartVersion.Name,
 			Version:     chartVersion.GetVersion(),
-			//TODO set values with override
-			//			Values:
+			Values:      values,
 		},
 	}
-	return sr
+	return sr, nil
+}
+
+func getValues(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (string, error) {
+	for _, packageElem := range s.Spec.PackageOverrides {
+		if packageElem.PackageName == chartVersion.Name {
+			for _, pathElem := range packageElem.PackageOverrides {
+				data, err := pathElem.MarshalJSON()
+				if err != nil {
+					return "", err
+				}
+				var m map[string]interface{}
+				err = json.Unmarshal(data, &m)
+				if err != nil {
+					return "", err
+				}
+				if v, ok := m["path"]; ok && v == "spec.values" {
+					return m["value"].(string), nil
+				}
+			}
+		}
+	}
+	return "", nil
 }

@@ -14,7 +14,7 @@ type SubscriptionReleaseSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	// RepoURL is the URL of the repository. Defaults to stable repo.
-	RepoURL string `json:"repoUrl,omitempty"`
+	URLs []string `json:"URLs,omitempty"`
 	// HelmRepoConfig contains client configuration to connect to the helm repo
 	HelmRepoConfig map[string]string `json:"helmRepoConfig,omitempty"`
 	// ChartName is the name of the chart within the repo
