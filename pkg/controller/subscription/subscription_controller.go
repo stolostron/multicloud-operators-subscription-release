@@ -3,6 +3,8 @@ package subscription
 import (
 	"context"
 	"encoding/json"
+	gerrors "errors"
+	"strings"
 
 	"github.com/blang/semver"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
@@ -335,17 +337,32 @@ func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, chartVersion *repo
 	if err != nil {
 		return nil, err
 	}
+
+	var channelName string
+	if s.Spec.Channel != "" {
+		strs := strings.Split(s.Spec.Channel, "/")
+		if len(strs) != 2 {
+			err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Spec.Channel)
+			return nil, err
+		}
+		channelName = strs[1]
+	}
+
+	releaseName := s.Name + "-" + chartVersion.Name
+	if channelName != "" {
+		releaseName = releaseName + "-" + channelName
+	}
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      s.Name + "-" + chartVersion.Name,
+			Name:      releaseName,
 			Namespace: s.Namespace,
 			Labels:    labels,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
 			URLs:        chartVersion.URLs,
 			ChartName:   chartVersion.Name,
-			ReleaseName: chartVersion.Name,
+			ReleaseName: releaseName,
 			Version:     chartVersion.GetVersion(),
 			Values:      values,
 		},

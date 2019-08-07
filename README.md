@@ -8,7 +8,7 @@ The User creates a Subscription CR.
 apiVersion: app.ibm.com/v1alpha1
 kind: Subscription
 metadata:
-  name: dev-sub-razee-ope
+  name: razee
   namespace: default
 spec:
   channel: default/ope
@@ -26,7 +26,7 @@ spec:
   source: https://mycluster.icp:8443/helm-repo/charts
 ```
 
-The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<subscription_name>-<chart_name>`.
+The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<subscription_name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
 
 To do so, the following steps are taken:
 
@@ -48,7 +48,7 @@ metadata:
     app: dev-sub-razee-ope
     subscriptionName: dev-sub-razee-ope
     subscriptionNamespace: default
-  name: dev-sub-razee-ope-ibm-razee-api
+  name: razee-ibm-razee-api-ope
   namespace: default
   ownerReferences:
   - apiVersion: app.ibm.com/v1alpha1
@@ -64,7 +64,7 @@ spec:
   URLs:
   - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-razee-api-0.2.3-015-20190725140717.tgz
   chartName: ibm-razee-api
-  releaseName: ibm-razee-api
+  releaseName: razee-ibm-razee-api-ope
   values: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
     minio\n  Region: us-east-1\n"
   version: 0.2.3-015-20190725140717

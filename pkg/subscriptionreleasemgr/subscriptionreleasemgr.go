@@ -27,7 +27,7 @@ func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, err
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
-	o.SetName(s.GetName())
+	o.SetName(s.Spec.ReleaseName)
 	o.SetUID(s.GetUID())
 
 	mgr, err := manager.New(cfg, manager.Options{
