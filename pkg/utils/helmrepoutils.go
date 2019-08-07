@@ -145,7 +145,7 @@ func DownloadChart(chartsDir string, s appv1alpha1.SubscriptionRelease) (chartDi
 			srLogger.Error(err, "Failed to open: ", "chartZip", chartZip)
 			return "", err
 		}
-		chartDirUnzip := filepath.Join(chartsDir, s.Name, s.Namespace)
+		chartDirUnzip := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace)
 		chartDir = filepath.Join(chartDirUnzip, s.Spec.ChartName)
 		os.RemoveAll(chartDirUnzip)
 		err = Untar(chartDirUnzip, r)

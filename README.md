@@ -26,7 +26,7 @@ spec:
   source: https://mycluster.icp:8443/helm-repo/charts
 ```
 
-The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<subscription_name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
+The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
 
 To do so, the following steps are taken:
 
@@ -75,7 +75,7 @@ Once the SubscriptionRelease is created or modified, the operator will deploy ea
 To do so, the following steps are taken:
 
 1) Download the chart tgz in the `$CHARTS_DIR`.
-2) Unzip the tgz in `$CHARTS_DIR/<subscription<subscription_namespace>/<chart_name>`
+2) Unzip the tgz in `$CHARTS_DIR/<sr.Spec.ReleaseName>/<sr.namespace>/<chart_name>`
 3) Merge the values provided in the SubscriptionRelease with the values.yaml present in the chart.
 4) Launch the deployment.
 
