@@ -5,9 +5,11 @@ require (
 	github.com/cameront/go-jsonpatch v0.0.0-20180223123257-a8710867776e
 	github.com/ghodss/yaml v1.0.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/martinlindhe/base36 v0.0.0-20180729042928-5cda0030da17
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	github.com/operator-framework/operator-sdk v0.9.1-0.20190724001845-d6e1aba9fa51
+	github.com/pborman/uuid v1.2.0
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f // indirect

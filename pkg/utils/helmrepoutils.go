@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"crypto/sha1"
 	"crypto/tls"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net"
@@ -153,42 +152,6 @@ func DownloadChart(chartsDir string, s appv1alpha1.SubscriptionRelease) (chartDi
 			srLogger.Error(err, "Failed to unzip: ", "chartZip", chartZip)
 			return "", err
 		}
-		//Add values.yaml file
-		valuesFileName := filepath.Join(chartDir, "values.yaml")
-		if s.Spec.Values != "" {
-			data, err := ioutil.ReadFile(valuesFileName)
-			if err != nil {
-				srLogger.Error(err, "Failed to read values from  ", "valuesFileName", valuesFileName)
-				return "", err
-			}
-			var valuesChart interface{}
-			err = yaml.Unmarshal(data, &valuesChart)
-			if err != nil {
-				srLogger.Error(err, "Failed to Unmarshal values from  ", "valuesFileName", valuesFileName)
-				return "", err
-			}
-			var valuesSub interface{}
-			err = yaml.Unmarshal([]byte(s.Spec.Values), &valuesSub)
-			if err != nil {
-				srLogger.Error(err, "Failed to Unmarshal values from  subscriptionRelease")
-				return "", err
-			}
-			values, err := merge(valuesSub, valuesChart)
-			if err != nil {
-				srLogger.Error(err, "Failed to merge values from  subscriptionRelease and from ", "valuesFileName", valuesFileName)
-				return "", err
-			}
-			data, err = yaml.Marshal(values)
-			if err != nil {
-				srLogger.Error(err, "Failed to marshal merged values")
-				return "", err
-			}
-			err = ioutil.WriteFile(valuesFileName, data, 0644)
-			if err != nil {
-				srLogger.Error(err, "Failed to write values to  ", "valuesFileName", valuesFileName)
-				return "", err
-			}
-		}
 	}
 	return chartDir, err
 }
@@ -262,59 +225,4 @@ func Untar(dst string, r io.Reader) error {
 			f.Close()
 		}
 	}
-}
-
-func merge(x1, x2 interface{}) (interface{}, error) {
-	data1, err := json.Marshal(x1)
-	if err != nil {
-		return nil, err
-	}
-	data2, err := json.Marshal(x2)
-	if err != nil {
-		return nil, err
-	}
-	var j1 interface{}
-	err = json.Unmarshal(data1, &j1)
-	if err != nil {
-		return nil, err
-	}
-	var j2 interface{}
-	err = json.Unmarshal(data2, &j2)
-	if err != nil {
-		return nil, err
-	}
-	return merge1(j1, j2), nil
-}
-
-func merge1(x1, x2 interface{}) interface{} {
-	switch x1 := x1.(type) {
-	case map[string]interface{}:
-		x2, ok := x2.(map[string]interface{})
-		if !ok {
-			return x1
-		}
-		for k, v2 := range x2 {
-			if v1, ok := x1[k]; ok {
-				x1[k] = merge1(v1, v2)
-			} else {
-				x1[k] = v2
-			}
-		}
-	case []interface{}:
-		x2, ok := x2.([]interface{})
-		if !ok {
-			return x1
-		}
-		for i := range x2 {
-			x1 = append(x1, x2[i])
-		}
-		return x1
-	case nil:
-		// merge(nil, map[string]interface{...}) -> map[string]interface{...}
-		x2, ok := x2.(map[string]interface{})
-		if ok {
-			return x2
-		}
-	}
-	return x1
 }

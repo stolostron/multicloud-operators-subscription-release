@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 
+	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
@@ -27,8 +28,13 @@ func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, err
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
-	o.SetName(s.Spec.ReleaseName)
+	o.SetName("sr")
 	o.SetUID(s.GetUID())
+	labels := map[string]string{
+		"subscriptionReleaseName":      s.Name,
+		"subscriptionReleaseNamespace": s.Namespace,
+	}
+	o.SetLabels(labels)
 
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: s.GetNamespace(),
@@ -52,6 +58,15 @@ func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, err
 		return nil, err
 	}
 	f := helmrelease.NewManagerFactory(mgr, chartDir)
+	if s.Spec.Values != "" {
+		var spec interface{}
+		err = yaml.Unmarshal([]byte(s.Spec.Values), &spec)
+		if err != nil {
+			srLogger.Error(err, "Failed to Unmarshal the values", "values", s.Spec.Values)
+			return nil, err
+		}
+		o.Object["spec"] = spec
+	}
 	helmManager, err := f.NewManager(o)
 	return helmManager, err
 }

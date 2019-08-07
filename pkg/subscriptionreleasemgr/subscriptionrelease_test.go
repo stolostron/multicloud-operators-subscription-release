@@ -244,18 +244,6 @@ spec:
 
 func TestRelease(t *testing.T) {
 	var s appv1alpha1.SubscriptionRelease
-	// config, err := rest.InClusterConfig()
-	// if err != nil {
-	// 	assert.NoError(t, err)
-	// }
-	// subClient, err := client.New(config, client.Options{})
-	// if err != nil {
-	// 	assert.NoError(t, err)
-	// }
-	// err = subClient.Get(context.TODO(), types.NamespacedName{Name: "dev", Namespace: "default"}, &s)
-	// if err != nil {
-	// 	assert.NoError(t, err)
-	// }
 
 	err := yaml.Unmarshal([]byte(sr), &s)
 	assert.NoError(t, err)
