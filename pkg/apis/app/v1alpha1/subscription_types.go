@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	placementv1alpha1 "github.ibm.com/IBMMulticloudPlatform/placementrule/pkg/apis/app/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -34,7 +35,9 @@ type Overrides struct {
 //// +k8s:openapi-gen=true
 type SubscriptionSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	// RepoURL is the URL of the repository. Defaults to stable repo.
 
 	// leverage and enhance subscription spec from operator lifecycle framework
 	// mapping of the fields:
@@ -52,6 +55,10 @@ type SubscriptionSpec struct {
 	PackageOverrides []*Overrides `json:"packageOverrides,omitempty"`
 	// For hub use only, to specify which clusters to go to
 	Placement *placementv1alpha1.Placement `json:"placement,omitempty"`
+	// Secret to use to access the helm-repo defined in the CatalogSource.
+	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
+	// Configuration parameters to access the helm-repo defined in the CatalogSource
+	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
 }
 
 // SubscriptionPhase defines the phasing of a Subscription

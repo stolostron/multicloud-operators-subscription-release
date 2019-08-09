@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,8 +16,6 @@ type SubscriptionReleaseSpec struct {
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	// RepoURL is the URL of the repository. Defaults to stable repo.
 	URLs []string `json:"URLs,omitempty"`
-	// HelmRepoConfig contains client configuration to connect to the helm repo
-	HelmRepoConfig map[string]string `json:"helmRepoConfig,omitempty"`
 	// ChartName is the name of the chart within the repo
 	ChartName string `json:"chartName,omitempty"`
 	// ReleaseName is the Name of the release given to Tiller. Defaults to namespace-name. Must not be changed after initial object creation.
@@ -25,6 +24,10 @@ type SubscriptionReleaseSpec struct {
 	Version string `json:"version,omitempty"`
 	// Values is a string containing (unparsed) YAML values
 	Values string `json:"values,omitempty"`
+	// Secret to use to access the helm-repo defined in the CatalogSource.
+	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
+	// Configuration parameters to access the helm-repo defined in the CatalogSource
+	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
 }
 
 // SubscriptionReleaseStatus defines the observed state of SubscriptionRelease

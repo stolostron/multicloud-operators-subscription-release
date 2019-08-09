@@ -2,12 +2,14 @@ package subscriptionreleasemgr
 
 import (
 	"errors"
+	"net/http"
 	"os"
 
 	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -18,7 +20,7 @@ const CHARTS_DIR = "CHARTS_DIR"
 
 var log = logf.Log.WithName("subscriptionreleasemgr")
 
-func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
+func NewHelmManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
 	if err != nil {
@@ -51,7 +53,7 @@ func NewHelmManager(s appv1alpha1.SubscriptionRelease) (helmrelease.Manager, err
 		srLogger.Error(err, "Failed to create a new manager.", "Variable", CHARTS_DIR)
 		return nil, err
 	}
-	chartDir, err := utils.DownloadChart(chartsDir, s)
+	chartDir, err := utils.DownloadChart(httpClient, secret, chartsDir, s)
 	srLogger.Info("ChartDir", "ChartDir", chartDir)
 	if err != nil {
 		srLogger.Error(err, "Failed to download the tgz")

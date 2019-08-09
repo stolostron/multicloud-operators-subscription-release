@@ -5,6 +5,7 @@ import (
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/subscriptionreleasemgr"
+	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -110,23 +111,38 @@ func (r *ReconcileSubscriptionRelease) Reconcile(request reconcile.Request) (rec
 func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.SubscriptionRelease) error {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
 	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
-	mgr, err := subscriptionreleasemgr.NewHelmManager(*sr)
+	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)
+	if err != nil {
+		srLogger.Error(err, "Failed to retrieve configMap ", "sr.Spec.ConfigMapRef.Name", sr.Spec.ConfigMapRef.Name)
+		return err
+	}
+	httpClient, err := utils.GetHelmRepoClient(r.client, sr.Namespace, configMap)
+	secret, err := utils.GetSecret(r.client, sr.Namespace, sr.Spec.SecretRef)
+	if err != nil {
+		srLogger.Error(err, "Failed to retrieve secret ", "sr.Spec.SecretRef.Name", sr.Spec.SecretRef.Name)
+		return err
+	}
+	srLogger.Info("Create Manager")
+	mgr, err := subscriptionreleasemgr.NewHelmManager(httpClient, secret, sr)
 	if err != nil {
 		srLogger.Error(err, "Failed to create NewHelmManager ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
 	}
+	srLogger.Info("Sync repo")
 	err = mgr.Sync(context.TODO())
 	if err != nil {
 		srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
 	}
 	if mgr.IsInstalled() {
+		srLogger.Info("Update chart", "sr.Spec.ChartName", sr.Spec.ChartName)
 		_, _, err = mgr.UpdateRelease(context.TODO())
 		if err != nil {
 			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
 			return err
 		}
 	} else {
+		srLogger.Info("Install chart", "sr.Spec.ChartName", sr.Spec.ChartName)
 		_, err = mgr.InstallRelease(context.TODO())
 		if err != nil {
 			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)

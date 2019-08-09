@@ -120,7 +120,12 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 // do a helm repo subscriber
 func (r *ReconcileSubscription) processSubscription(s *appv1alpha1.Subscription) error {
 	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	httpClient, err := utils.GetHelmRepoClient()
+	configMap, err := utils.GetConfigMap(r.client, s.Namespace, s.Spec.ConfigMapRef)
+	if err != nil {
+		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.Spec.ConfigMapRef.Name)
+		return err
+	}
+	httpClient, err := utils.GetHelmRepoClient(r.client, s.Namespace, configMap)
 	if err != nil {
 		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.Spec.CatalogSource)
 		return err
@@ -130,7 +135,12 @@ func (r *ReconcileSubscription) processSubscription(s *appv1alpha1.Subscription)
 	log.Info("Source: " + repoURL)
 	log.Info("name: " + s.GetName())
 
-	indexFile, _, err := utils.GetHelmRepoIndex(s, httpClient, repoURL)
+	secret, err := utils.GetSecret(r.client, s.Namespace, s.Spec.SecretRef)
+	if err != nil {
+		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
+		return err
+	}
+	indexFile, _, err := utils.GetHelmRepoIndex(httpClient, secret, s)
 	if err != nil {
 		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.Spec.CatalogSource)
 		return err
@@ -328,10 +338,9 @@ func (r *ReconcileSubscription) manageSubscription(s *appv1alpha1.Subscription, 
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
 func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
-	labels := map[string]string{
-		"app":                   s.Name,
-		"subscriptionName":      s.Name,
-		"subscriptionNamespace": s.Namespace,
+	annotations := map[string]string{
+		"app.ibm.com/hosting-deployable":   s.Spec.Channel,
+		"app.ibm.com/hosting-subscription": s.Namespace + "/" + s.Name,
 	}
 	values, err := getValues(s, chartVersion)
 	if err != nil {
@@ -355,16 +364,18 @@ func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, chartVersion *repo
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      releaseName,
-			Namespace: s.Namespace,
-			Labels:    labels,
+			Name:        releaseName,
+			Namespace:   s.Namespace,
+			Annotations: annotations,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			URLs:        chartVersion.URLs,
-			ChartName:   chartVersion.Name,
-			ReleaseName: releaseName,
-			Version:     chartVersion.GetVersion(),
-			Values:      values,
+			URLs:         chartVersion.URLs,
+			ConfigMapRef: s.Spec.ConfigMapRef,
+			SecretRef:    s.Spec.SecretRef,
+			ChartName:    chartVersion.Name,
+			ReleaseName:  releaseName,
+			Version:      chartVersion.GetVersion(),
+			Values:       values,
 		},
 	}
 	return sr, nil

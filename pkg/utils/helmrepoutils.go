@@ -3,6 +3,7 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"crypto/sha1"
 	"crypto/tls"
 	"io"
@@ -12,12 +13,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/helm/pkg/repo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
@@ -36,8 +42,10 @@ func LoadIndex(data []byte) (*repo.IndexFile, error) {
 	return i, nil
 }
 
-func GetHelmRepoClient() (*http.Client, error) {
-	client := http.DefaultClient
+func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *corev1.ConfigMap) (*http.Client, error) {
+	srLogger := log.WithValues("package", "utils", "method", "GetHelmRepoClient")
+
+	httpClient := http.DefaultClient
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -50,23 +58,90 @@ func GetHelmRepoClient() (*http.Client, error) {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
+			InsecureSkipVerify: false,
 		},
 	}
-	client.Transport = transport
-	return client, nil
+	if configMap != nil {
+		configData := configMap.Data
+		srLogger.Info("ConfigRef retrieved", "configMap.Data", configData)
+		if configData["insecureSkipVerify"] != "" {
+			b, err := strconv.ParseBool(configData["insecureSkipVerify"])
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return nil, nil
+				}
+				srLogger.Error(err, "Unable to parse", "insecureSkipVerify", configData["insecureSkipVerify"])
+				return nil, err
+			}
+			transport.TLSClientConfig.InsecureSkipVerify = b
+		} else {
+			srLogger.Info("insecureSkipVerify is not specified")
+		}
+	} else {
+		srLogger.Info("configMap is nil")
+	}
+	httpClient.Transport = transport
+	return httpClient, nil
+}
+
+func GetConfigMap(client client.Client, parentNamespace string, configMapRef *corev1.ObjectReference) (configMap *corev1.ConfigMap, err error) {
+	srLogger := log.WithValues("package", "utils", "method", "getConfigMap")
+	if configMapRef != nil {
+		srLogger.Info("Retrieve configMap ", "parentNamespace", parentNamespace, "configMapRef", configMapRef)
+		ns := configMapRef.Namespace
+		if ns == "" {
+			ns = parentNamespace
+		}
+		configMap = &corev1.ConfigMap{}
+		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: configMapRef.Name}, configMap)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return nil, nil
+			}
+			srLogger.Error(err, "Failed to get configMap ", "Name:", configMapRef.Name, " on namespace: ", configMapRef.Namespace)
+			return nil, err
+		}
+		srLogger.Info("ConfigMap Found ", "Name:", configMapRef.Name, " on namespace: ", configMapRef.Namespace)
+	} else {
+		srLogger.Info("no configMapRef defined ", "parentNamespace", parentNamespace)
+	}
+	return configMap, err
+}
+
+func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.ObjectReference) (secret *corev1.Secret, err error) {
+	srLogger := log.WithValues("package", "utils", "method", "getSecret")
+	if secretRef != nil {
+		srLogger.Info("Retreive secret", "parentNamespace", parentNamespace, "secretRef", secretRef)
+		ns := secretRef.Namespace
+		if ns == "" {
+			ns = parentNamespace
+		}
+		secret = &corev1.Secret{}
+		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: secretRef.Name}, secret)
+		if err != nil {
+			srLogger.Error(err, "Failed to get secret ", "Name:", secretRef.Name, " on namespace: ", secretRef.Namespace)
+			return nil, err
+		}
+		srLogger.Info("Secret found ", "Name:", secretRef.Name, " on namespace: ", secretRef.Namespace)
+	} else {
+		srLogger.Info("No secret defined", "parentNamespace", parentNamespace)
+	}
+	return secret, err
 }
 
 //getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
-func GetHelmRepoIndex(s *appv1alpha1.Subscription, client *http.Client, repoURL string) (indexFile *repo.IndexFile, hash string, err error) {
+func GetHelmRepoIndex(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.Subscription) (indexFile *repo.IndexFile, hash string, err error) {
 	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	cleanRepoURL := strings.TrimSuffix(repoURL, "/")
+	cleanRepoURL := strings.TrimSuffix(s.Spec.CatalogSource, "/")
 	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
 	if err != nil {
 		subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
 		return nil, "", err
 	}
-	resp, err := client.Do(req)
+	if secret != nil && secret.Data != nil {
+		req.SetBasicAuth(string(secret.Data["username"]), string(secret.Data["password"]))
+	}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		subLogger.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
 		return nil, "", err
@@ -95,13 +170,8 @@ func hashKey(b []byte) string {
 	return string(h.Sum(nil))
 }
 
-func DownloadChart(chartsDir string, s appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
+func DownloadChart(httpClient *http.Client, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
-	client, err := GetHelmRepoClient()
-	if err != nil {
-		srLogger.Error(err, "Unable to create helm repo client: ")
-		return "", err
-	}
 	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
 		err := os.MkdirAll(chartsDir, 0755)
 		if err != nil {
@@ -123,7 +193,10 @@ func DownloadChart(chartsDir string, s appv1alpha1.SubscriptionRelease) (chartDi
 				srLogger.Error(err, "Can not build request: ", "urlelem", urlelem)
 				return "", err
 			}
-			resp, err := client.Do(req)
+			if secret != nil && secret.Data != nil {
+				req.SetBasicAuth(string(secret.Data["username"]), string(secret.Data["password"]))
+			}
+			resp, err := httpClient.Do(req)
 			if err != nil {
 				srLogger.Error(err, "Http request failed: ", "urlelem", urlelem)
 				return "", err
