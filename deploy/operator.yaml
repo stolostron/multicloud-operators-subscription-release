@@ -13,21 +13,40 @@ spec:
         name: subscription-operator
     spec:
       serviceAccountName: subscription-operator
+      volumes:
+      - name: charts
+        emptyDir: {}
+      hostAliases:
+        - ip: 9.20.204.231
+          hostnames:
+            - mycluster.icp
       containers:
-        - name: subscription-operator
-          # Replace this with the built image name
-          image: REPLACE_IMAGE
-          command:
-          - subscription-operator
-          imagePullPolicy: Always
-          env:
-            - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: OPERATOR_NAME
-              value: "subscription-operator"
+      - name: subscription-operator
+        # Replace this with the built image name
+        image: mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
+        command:
+        - subscription-operator
+        imagePullPolicy: Always
+        env:
+        - name: CHARTS_DIR
+          value: "/charts"
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "subscription-operator"
+        volumeMounts:
+        - name: charts
+          mountPath: "/charts"
+        securityContext:
+          procMount: Default
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi

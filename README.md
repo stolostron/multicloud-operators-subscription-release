@@ -1,5 +1,30 @@
 # subscription-operator
 
+## Environment variable
+
+The environment variable `CHARTS_DIR` must be set when developping, it specifies the directory where the charts will be downloaded and expanded.
+
+## Launch Dev mode
+
+operator-sdk up local --verbose
+
+## Build
+
+operator-sdk build ibm/subscription-operator:latest
+docker tag ibm/subscription-operator:latest mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
+docker push mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
+
+## Environment deployment
+
+TODO to improve for ClusterRole
+
+1) Do `kubectl apply -f` on all files in deploy/crds.*-crd.yaml
+2) `kubectl apply -f service_account.yaml`
+3) `kubectl apply -f role.yaml`
+4) `kubectl apply -f role_binding.yaml`
+5) `kubectl apply -f operator.yaml`
+
+## Subscriptions
 The subscription operator watches `Subscription` and `SubscriptionRelease` CRs.
 
 The User creates a Subscription CR.
@@ -12,6 +37,8 @@ metadata:
   namespace: default
 spec:
   channel: default/ope
+  configRef:
+    name: mycluster-config
   name: ibm-razee-api
   packageFilter:
     annotations:
@@ -24,6 +51,18 @@ spec:
       value: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
         minio\n  Region: us-east-1\n"
   source: https://mycluster.icp:8443/helm-repo/charts
+  ```
+
+The configRef is a reference to a configMap which holds the parameters to the helm-repo.
+
+```yaml
+apiVersion: v1
+data:
+  insecureSkipVerify: "true"
+kind: ConfigMap
+metadata:
+  name: mycluster-config
+  namespace: default
 ```
 
 The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
@@ -37,17 +76,17 @@ To do so, the following steps are taken:
 
 The SubscriptionReleases are owned by the Subscription and so if the subscription is deleted the release is deleted too.
 
+The 
 
 ```yaml
 apiVersion: app.ibm.com/v1alpha1
 kind: SubscriptionRelease
 metadata:
-  creationTimestamp: 2019-08-07T09:15:15Z
+  annotations:
+    app.ibm.com/hosting-deployable: default/ope
+    app.ibm.com/hosting-subscription: default/razee
+  creationTimestamp: 2019-08-12T09:01:52Z
   generation: 1
-  labels:
-    app: dev-sub-razee-ope
-    subscriptionName: dev-sub-razee-ope
-    subscriptionNamespace: default
   name: razee-ibm-razee-api-ope
   namespace: default
   ownerReferences:
@@ -55,15 +94,17 @@ metadata:
     blockOwnerDeletion: true
     controller: true
     kind: Subscription
-    name: dev-sub-razee-ope
-    uid: b5ad9b54-b870-11e9-b55f-fa163e0cb658
-  resourceVersion: "2986792"
-  selfLink: /apis/app.ibm.com/v1alpha1/namespaces/default/subscriptionreleases/dev-sub-razee-ope-ibm-razee-api
-  uid: de3a5eb4-b8f3-11e9-b55f-fa163e0cb658
+    name: razee
+    uid: ec3c8f28-bcde-11e9-b55f-fa163e0cb658
+  resourceVersion: "3852059"
+  selfLink: /apis/app.ibm.com/v1alpha1/namespaces/default/subscriptionreleases/razee-ibm-razee-api-ope
+  uid: d35adca8-bcdf-11e9-b55f-fa163e0cb658
 spec:
   URLs:
   - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-razee-api-0.2.3-015-20190725140717.tgz
   chartName: ibm-razee-api
+  configRef:
+    name: mycluster-config
   releaseName: razee-ibm-razee-api-ope
   values: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
     minio\n  Region: us-east-1\n"
@@ -79,11 +120,9 @@ To do so, the following steps are taken:
 3) Create a manager with the values provided in the SubscriptionRelease
 4) Launch the deployment.
 
-## Environment variable
+The releaseName is the concatanation of the `<subscription-name>-<chartName>-<channel-name>`. The current implementation of the helm-operator which containates to the releasename a UUID and so some generated resources will have a longueur name than 52 characters such as `<releasename>-<UUID>-delete-registrations`. To avoid that issue the releasename will be shorten to 52-25-1-21=5.
 
-The environment variable `CHARTS_DIR` must be set, it specifies the director where the charts will be downloaded and expanded.
-
-## Launch Dev mode
-
-operator-sdk up local --verbose
-
+52: max available chars.
+25: UUID length
+1: dash separator
+21: length of `-delete-registrations`

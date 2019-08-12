@@ -30,13 +30,9 @@ func NewHelmManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alph
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
-	o.SetName("sr")
+	releaseName := s.Spec.ReleaseName[0:4]
+	o.SetName(releaseName)
 	o.SetUID(s.GetUID())
-	labels := map[string]string{
-		"subscriptionReleaseName":      s.Name,
-		"subscriptionReleaseNamespace": s.Namespace,
-	}
-	o.SetLabels(labels)
 
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: s.GetNamespace(),
