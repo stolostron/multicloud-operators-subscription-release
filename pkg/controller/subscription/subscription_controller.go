@@ -94,7 +94,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			reqLogger.Info("Subscription deleted but request already created")
+			reqLogger.Info("Subscription deleted but request already created, cleaning subscriber")
 			r.cleanSubscriber(subkey)
 			return reconcile.Result{}, nil
 		}
@@ -103,32 +103,32 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	myFinalizerName := "monitor.subscription.app.ibm.com"
-	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
-			reqLogger.Info("Add Finalizer")
-			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, myFinalizerName)
-			if err := r.client.Update(context.TODO(), instance); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
-	} else {
-		// The object is being deleted
-		if containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			reqLogger.Info("Subscription deleted, Finalizing!")
-			r.cleanSubscriber(subkey)
+	// myFinalizerName := "monitor.subscription.app.ibm.com"
+	// if instance.ObjectMeta.DeletionTimestamp.IsZero() {
+	// 	if !containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
+	// 		reqLogger.Info("Add Finalizer")
+	// 		instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, myFinalizerName)
+	// 		if err := r.client.Update(context.TODO(), instance); err != nil {
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 	}
+	// } else {
+	// 	// The object is being deleted
+	// 	if containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
+	// 		// our finalizer is present, so lets handle any external dependency
+	// 		reqLogger.Info("Subscription deleted, Finalizing!")
+	// 		r.cleanSubscriber(subkey)
 
-			// remove our finalizer from the list and update it.
-			instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, myFinalizerName)
-			if err := r.client.Update(context.Background(), instance); err != nil {
-				return reconcile.Result{}, err
-			}
-		}
+	// 		// remove our finalizer from the list and update it.
+	// 		instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, myFinalizerName)
+	// 		if err := r.client.Update(context.Background(), instance); err != nil {
+	// 			return reconcile.Result{}, err
+	// 		}
+	// 	}
 
-		return reconcile.Result{}, err
+	// 	return reconcile.Result{}, err
 
-	}
+	// }
 
 	subscriber := r.subscriberMap[subkey]
 	if subscriber == nil {
@@ -159,24 +159,24 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 }
 
 // Helper functions to check and remove string from a slice of strings.
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
+// func containsString(slice []string, s string) bool {
+// 	for _, item := range slice {
+// 		if item == s {
+// 			return true
+// 		}
+// 	}
+// 	return false
+// }
 
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
-}
+// func removeString(slice []string, s string) (result []string) {
+// 	for _, item := range slice {
+// 		if item == s {
+// 			continue
+// 		}
+// 		result = append(result, item)
+// 	}
+// 	return
+// }
 
 func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 	reqLogger := log.WithValues("subkey", subkey)
