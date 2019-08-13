@@ -246,7 +246,7 @@ func TestRelease(t *testing.T) {
 
 	// err := yaml.Unmarshal([]byte(sr), &s)
 	// assert.NoError(t, err)
-	// mgr, err := NewHelmManager(nil, s)
+	// mgr, err := NewManager(nil, s)
 	// assert.NoError(t, err)
 	// err = mgr.Sync(context.TODO())
 	// assert.NoError(t, err)

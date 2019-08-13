@@ -2,21 +2,13 @@ package subscription
 
 import (
 	"context"
-	"encoding/json"
-	gerrors "errors"
-	"strings"
 
-	"github.com/blang/semver"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
-	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
+	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/helmreposubscriber"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/helm/pkg/repo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -39,7 +31,8 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileSubscription{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	subscriberMap := make(map[string]appv1alpha1.Subscriber)
+	return &ReconcileSubscription{client: mgr.GetClient(), scheme: mgr.GetScheme(), subscriberMap: subscriberMap}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -76,8 +69,9 @@ var _ reconcile.Reconciler = &ReconcileSubscription{}
 type ReconcileSubscription struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client        client.Client
+	scheme        *runtime.Scheme
+	subscriberMap map[string]appv1alpha1.Subscriber
 }
 
 // Reconcile reads that state of the cluster for a Subscription object and makes changes based on the state read
@@ -93,12 +87,15 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 
 	// Fetch the Subscription instance
 	instance := &appv1alpha1.Subscription{}
+	subkey := request.NamespacedName.String()
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
+			reqLogger.Info("Subscription deleted but request already created")
+			r.cleanSubscriber(subkey)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -106,299 +103,87 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	err = r.processSubscription(instance)
+	myFinalizerName := "monitor.subscription.app.ibm.com"
+	if instance.ObjectMeta.DeletionTimestamp.IsZero() {
+		if !containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
+			reqLogger.Info("Add Finalizer")
+			instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, myFinalizerName)
+			if err := r.client.Update(context.TODO(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	} else {
+		// The object is being deleted
+		if containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
+			// our finalizer is present, so lets handle any external dependency
+			reqLogger.Info("Subscription deleted, Finalizing!")
+			r.cleanSubscriber(subkey)
+
+			// remove our finalizer from the list and update it.
+			instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, myFinalizerName)
+			if err := r.client.Update(context.Background(), instance); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+
+		return reconcile.Result{}, err
+
+	}
+
+	subscriber := r.subscriberMap[subkey]
+	if subscriber == nil {
+		reqLogger.Info("subscriber does not exist")
+		subscriber = &helmreposubscriber.HelmRepoSubscriber{
+			Client:       r.client,
+			Scheme:       r.scheme,
+			Subscription: instance,
+		}
+		reqLogger.Info("Subscription", "subscription.Name", instance.Name, "configMapRef", instance.Spec.ConfigMapRef)
+		r.subscriberMap[subkey] = subscriber
+		err = subscriber.Restart()
+	} else {
+		reqLogger.Info("subscriber does exist")
+		err = subscriber.Update(instance)
+	}
+	//If the subscriber didn't start then clean
+	if !subscriber.IsStarted() {
+		reqLogger.Info("Subscription didn't start")
+		r.cleanSubscriber(subkey)
+	}
 	if err != nil {
 		reqLogger.Error(err, "Error processing subscription - requeue the request")
 		return reconcile.Result{}, err
 	}
-
 	// Set Subscription instance as the owner and controller
 	return reconcile.Result{}, nil
 }
 
-// do a helm repo subscriber
-func (r *ReconcileSubscription) processSubscription(s *appv1alpha1.Subscription) error {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	configMap, err := utils.GetConfigMap(r.client, s.Namespace, s.Spec.ConfigMapRef)
-	if err != nil {
-		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.Spec.ConfigMapRef.Name)
-		return err
-	}
-	httpClient, err := utils.GetHelmRepoClient(r.client, s.Namespace, configMap)
-	if err != nil {
-		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.Spec.CatalogSource)
-		return err
-	}
-	//Retrieve the helm repo
-	repoURL := s.Spec.CatalogSource
-	log.Info("Source: " + repoURL)
-	log.Info("name: " + s.GetName())
-
-	secret, err := utils.GetSecret(r.client, s.Namespace, s.Spec.SecretRef)
-	if err != nil {
-		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
-		return err
-	}
-	indexFile, _, err := utils.GetHelmRepoIndex(httpClient, secret, s)
-	if err != nil {
-		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.Spec.CatalogSource)
-		return err
-	}
-	err = filterCharts(s, indexFile)
-	if err != nil {
-		subLogger.Error(err, "Unable to filter ", "s.Spec.CatalogSource", s.Spec.CatalogSource)
-		return err
-	}
-	return r.manageSubscription(s, indexFile, repoURL)
-}
-
-//filterCharts filters the indexFile by name, tillerVersion, version, digest
-func filterCharts(s *appv1alpha1.Subscription, indexFile *repo.IndexFile) (err error) {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	//Removes all entries from the indexFile with non matching name
-	removeNoMatchingName(s, indexFile)
-	//Removes non matching version, tillerVersion, digest
-	filterOnVersion(s, indexFile)
-	//Keep only the lastest version if multiple remains after filtering.
-	err = takeLatestVersion(indexFile)
-	if err != nil {
-		subLogger.Error(err, "Failed to takeLatestVersion")
-		return err
-	}
-	return nil
-}
-
-//removeNoMatchingName Deletes entries that the name doesn't match the name provided in the subscription
-func removeNoMatchingName(s *appv1alpha1.Subscription, indexFile *repo.IndexFile) {
-	if s != nil {
-		if s.Spec.Package != "" {
-			keys := make([]string, 0)
-			for k := range indexFile.Entries {
-				keys = append(keys, k)
-			}
-			for _, k := range keys {
-				if k != s.Spec.Package {
-					delete(indexFile.Entries, k)
-				}
-			}
+// Helper functions to check and remove string from a slice of strings.
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
 		}
 	}
+	return false
 }
 
-//filterOnVersion filters the indexFile with the version, tillerVersion and Digest provided in the subscription
-//The version provided in the subscription can be an expression like ">=1.2.3" (see https://github.com/blang/semver)
-//The tillerVersion and the digest provided in the subscription must be literals.
-func filterOnVersion(s *appv1alpha1.Subscription, indexFile *repo.IndexFile) {
-	keys := make([]string, 0)
-	for k := range indexFile.Entries {
-		keys = append(keys, k)
-	}
-	for _, k := range keys {
-		chartVersions := indexFile.Entries[k]
-		newChartVersions := make([]*repo.ChartVersion, 0)
-		for index, chartVersion := range chartVersions {
-			if checkDigest(s, chartVersion) && checkTillerVersion(s, chartVersion) && checkVersion(s, chartVersion) {
-				newChartVersions = append(newChartVersions, chartVersions[index])
-			}
+func removeString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
 		}
-		if len(newChartVersions) > 0 {
-			indexFile.Entries[k] = newChartVersions
-		} else {
-			delete(indexFile.Entries, k)
-		}
+		result = append(result, item)
 	}
+	return
 }
 
-//checkDigest Checks if the digest matches
-func checkDigest(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) bool {
-	if s != nil {
-		if s.Spec.PackageFilter != nil {
-			if s.Spec.PackageFilter.Annotations != nil {
-				if filterDigest, ok := s.Spec.PackageFilter.Annotations["digest"]; ok {
-					return filterDigest == chartVersion.Digest
-				}
-			}
-		}
+func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
+	reqLogger := log.WithValues("subkey", subkey)
+	subscriber := r.subscriberMap[subkey]
+	if subscriber != nil {
+		reqLogger.Info("Cleaning subscriber map and stopping subscriber")
+		subscriber.Stop()
+		delete(r.subscriberMap, subkey)
 	}
-	return true
-
-}
-
-//checkTillerVersion Checks if the TillerVersion matches
-func checkTillerVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	if s != nil {
-		if s.Spec.PackageFilter != nil {
-			if s.Spec.PackageFilter.Annotations != nil {
-				if filterTillerVersion, ok := s.Spec.PackageFilter.Annotations["tillerVersion"]; ok {
-					tillerVersion := chartVersion.GetTillerVersion()
-					if tillerVersion != "" {
-						tillerVersionVersion, err := semver.ParseRange(tillerVersion)
-						if err != nil {
-							subLogger.Error(err, "Error while parsing", "tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
-							return false
-						}
-						filterTillerVersion, err := semver.Parse(filterTillerVersion)
-						if err != nil {
-							subLogger.Error(err, "Failed to Parse ", filterTillerVersion)
-							return false
-						}
-						return tillerVersionVersion(filterTillerVersion)
-					}
-				}
-			}
-		}
-	}
-	return true
-}
-
-//checkVersion checks if the version matches
-func checkVersion(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	if s != nil {
-		if s.Spec.PackageFilter != nil {
-			if s.Spec.PackageFilter.Version != "" {
-				version := chartVersion.GetVersion()
-				versionVersion, err := semver.Parse(version)
-				if err != nil {
-					subLogger.Error(err, "Failed to parse ", version)
-					return false
-				}
-				filterVersion, err := semver.ParseRange(s.Spec.PackageFilter.Version)
-				if err != nil {
-					subLogger.Error(err, "Failed to parse range ", "s.Spec.PackageFilter.Version", s.Spec.PackageFilter.Version)
-					return false
-				}
-				return filterVersion(versionVersion)
-			}
-		}
-	}
-	return true
-}
-
-//takeLatestVersion if the indexFile contains multiple versions for a given chart, then
-//only the latest is kept.
-func takeLatestVersion(indexFile *repo.IndexFile) (err error) {
-	indexFile.SortEntries()
-	for k := range indexFile.Entries {
-		//Get return the latest version when version is empty but
-		//there is a bug in the masterminds semver used by helm
-		// "*" constraint is not working properly
-		// "*" is equivalent to ">=0.0.0"
-		chartVersion, err := indexFile.Get(k, ">=0.0.0")
-		if err != nil {
-			log.Error(err, "Failed to get the latest version")
-			return err
-		}
-		indexFile.Entries[k] = []*repo.ChartVersion{chartVersion}
-	}
-	return nil
-}
-
-func (r *ReconcileSubscription) manageSubscription(s *appv1alpha1.Subscription, indexFile *repo.IndexFile, repoURL string) error {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	//Loop on all packages selected by the subscription
-	for _, chartVersions := range indexFile.Entries {
-		if len(chartVersions) != 0 {
-			sr, err := newSubscriptionReleaseForCR(s, chartVersions[0])
-			if err != nil {
-				return err
-			}
-			// Set SubscriptionRelease instance as the owner and controller
-			if err := controllerutil.SetControllerReference(s, sr, r.scheme); err != nil {
-				return err
-			}
-			// Check if this Pod already exists
-			found := &appv1alpha1.SubscriptionRelease{}
-			err = r.client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
-			if err != nil {
-				if errors.IsNotFound(err) {
-					subLogger.Info("Creating a new SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
-					err = r.client.Create(context.TODO(), sr)
-					if err != nil {
-						return err
-					}
-
-				} else {
-					return err
-				}
-			} else {
-				subLogger.Info("Update a the SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
-				sr.ObjectMeta = found.ObjectMeta
-				err = r.client.Update(context.TODO(), sr)
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newSubscriptionReleaseForCR(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
-	annotations := map[string]string{
-		"app.ibm.com/hosting-deployable":   s.Spec.Channel,
-		"app.ibm.com/hosting-subscription": s.Namespace + "/" + s.Name,
-	}
-	values, err := getValues(s, chartVersion)
-	if err != nil {
-		return nil, err
-	}
-
-	var channelName string
-	if s.Spec.Channel != "" {
-		strs := strings.Split(s.Spec.Channel, "/")
-		if len(strs) != 2 {
-			err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Spec.Channel)
-			return nil, err
-		}
-		channelName = strs[1]
-	}
-
-	releaseName := s.Name + "-" + chartVersion.Name
-	if channelName != "" {
-		releaseName = releaseName + "-" + channelName
-	}
-	//Compose release name
-	sr := &appv1alpha1.SubscriptionRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        releaseName,
-			Namespace:   s.Namespace,
-			Annotations: annotations,
-		},
-		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			URLs:         chartVersion.URLs,
-			ConfigMapRef: s.Spec.ConfigMapRef,
-			SecretRef:    s.Spec.SecretRef,
-			ChartName:    chartVersion.Name,
-			ReleaseName:  releaseName,
-			Version:      chartVersion.GetVersion(),
-			Values:       values,
-		},
-	}
-	return sr, nil
-}
-
-func getValues(s *appv1alpha1.Subscription, chartVersion *repo.ChartVersion) (string, error) {
-	for _, packageElem := range s.Spec.PackageOverrides {
-		if packageElem.PackageName == chartVersion.Name {
-			for _, pathElem := range packageElem.PackageOverrides {
-				data, err := pathElem.MarshalJSON()
-				if err != nil {
-					return "", err
-				}
-				var m map[string]interface{}
-				err = json.Unmarshal(data, &m)
-				if err != nil {
-					return "", err
-				}
-				if v, ok := m["path"]; ok && v == "spec.values" {
-					return m["value"].(string), nil
-				}
-			}
-		}
-	}
-	return "", nil
 }

@@ -4,43 +4,25 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"crypto/sha1"
 	"crypto/tls"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/helm/pkg/repo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var log = logf.Log.WithName("utils")
-
-//LoadIndex loads data into a repo.IndexFile
-func LoadIndex(data []byte) (*repo.IndexFile, error) {
-	i := &repo.IndexFile{}
-	if err := yaml.Unmarshal(data, i); err != nil {
-		return i, err
-	}
-	i.SortEntries()
-	if i.APIVersion == "" {
-		return i, repo.ErrNoAPIVersion
-	}
-	return i, nil
-}
 
 func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *corev1.ConfigMap) (*http.Client, error) {
 	srLogger := log.WithValues("package", "utils", "method", "GetHelmRepoClient")
@@ -73,6 +55,7 @@ func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *
 				srLogger.Error(err, "Unable to parse", "insecureSkipVerify", configData["insecureSkipVerify"])
 				return nil, err
 			}
+			srLogger.Info("Set InsecureSkipVerify", "insecureSkipVerify", b)
 			transport.TLSClientConfig.InsecureSkipVerify = b
 		} else {
 			srLogger.Info("insecureSkipVerify is not specified")
@@ -81,13 +64,14 @@ func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *
 		srLogger.Info("configMap is nil")
 	}
 	httpClient.Transport = transport
+	srLogger.Info("InsecureSkipVerify equal", "InsecureSkipVerify", transport.TLSClientConfig.InsecureSkipVerify)
 	return httpClient, nil
 }
 
 func GetConfigMap(client client.Client, parentNamespace string, configMapRef *corev1.ObjectReference) (configMap *corev1.ConfigMap, err error) {
 	srLogger := log.WithValues("package", "utils", "method", "getConfigMap")
 	if configMapRef != nil {
-		srLogger.Info("Retrieve configMap ", "parentNamespace", parentNamespace, "configMapRef", configMapRef)
+		srLogger.Info("Retrieve configMap ", "parentNamespace", parentNamespace, "configMapRef.Name", configMapRef.Name)
 		ns := configMapRef.Namespace
 		if ns == "" {
 			ns = parentNamespace
@@ -96,12 +80,13 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: configMapRef.Name}, configMap)
 		if err != nil {
 			if errors.IsNotFound(err) {
+				srLogger.Error(err, "ConfigMap not found ", "Name:", configMapRef.Name, " on namespace: ", ns)
 				return nil, nil
 			}
-			srLogger.Error(err, "Failed to get configMap ", "Name:", configMapRef.Name, " on namespace: ", configMapRef.Namespace)
+			srLogger.Error(err, "Failed to get configMap ", "Name:", configMapRef.Name, " on namespace: ", ns)
 			return nil, err
 		}
-		srLogger.Info("ConfigMap Found ", "Name:", configMapRef.Name, " on namespace: ", configMapRef.Namespace)
+		srLogger.Info("ConfigMap found ", "Name:", configMapRef.Name, " on namespace: ", ns)
 	} else {
 		srLogger.Info("no configMapRef defined ", "parentNamespace", parentNamespace)
 	}
@@ -127,47 +112,6 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 		srLogger.Info("No secret defined", "parentNamespace", parentNamespace)
 	}
 	return secret, err
-}
-
-//getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
-func GetHelmRepoIndex(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.Subscription) (indexFile *repo.IndexFile, hash string, err error) {
-	subLogger := log.WithValues("Subscription.Namespace", s.Namespace, "Subscrption.Name", s.Name)
-	cleanRepoURL := strings.TrimSuffix(s.Spec.CatalogSource, "/")
-	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
-	if err != nil {
-		subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	if secret != nil && secret.Data != nil {
-		req.SetBasicAuth(string(secret.Data["username"]), string(secret.Data["password"]))
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		subLogger.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	subLogger.Info("Get suceeded", "cleanRepoURL", cleanRepoURL)
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		subLogger.Error(err, "Unable to read body: ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	hash = hashKey(body)
-	indexfile, err := LoadIndex(body)
-	if err != nil {
-		subLogger.Error(err, "Unable to parse the indexfile of ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	return indexfile, hash, err
-}
-
-//hashKey Calculate a hash key
-func hashKey(b []byte) string {
-	h := sha1.New()
-	h.Write(b)
-	return string(h.Sum(nil))
 }
 
 func DownloadChart(httpClient *http.Client, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {

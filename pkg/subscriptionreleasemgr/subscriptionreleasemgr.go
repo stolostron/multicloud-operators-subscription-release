@@ -20,7 +20,7 @@ const CHARTS_DIR = "CHARTS_DIR"
 
 var log = logf.Log.WithName("subscriptionreleasemgr")
 
-func NewHelmManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
+func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
 	if err != nil {

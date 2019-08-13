@@ -59,6 +59,8 @@ type SubscriptionSpec struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
+	// AutoUpgrade if true the helm-repo will be monitor and subscription recalculated if changed
+	AutoUpgrade bool `json:"autoUpgrade"`
 }
 
 // SubscriptionPhase defines the phasing of a Subscription
@@ -106,6 +108,14 @@ type SubscriptionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Subscription `json:"items"`
+}
+
+// Subscriber defines the interface for various channels
+type Subscriber interface {
+	Restart() error
+	Stop() error
+	Update(*Subscription) error
+	IsStarted() bool
 }
 
 func init() {
