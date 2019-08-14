@@ -14,6 +14,7 @@ import (
 // PackageFilter defines the reference to Channel
 type PackageFilter struct {
 	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty"`
+	Keywords      []string              `json:"keywords,omitempty"`
 	Annotations   map[string]string     `json:"annotations,omitempty"`
 	// +kubebuilder:validation:Pattern=([0-9]+)((\.[0-9]+)(\.[0-9]+)|(\.[0-9]+)?(\.[xX]))$
 	Version string `json:"version,omitempty"`

@@ -13,6 +13,7 @@ import (
 	gerrors "errors"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -219,9 +220,13 @@ func hashKey(b []byte) string {
 func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error) {
 	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
 	//Removes all entries from the indexFile with non matching name
-	s.removeNoMatchingName(indexFile)
+	err = s.removeNoMatchingName(indexFile)
+	if err != nil {
+		subLogger.Error(err, "Failed to removeNoMatchingName")
+		return err
+	}
 	//Removes non matching version, tillerVersion, digest
-	s.filterOnVersion(indexFile)
+	s.filterIndexFile(indexFile)
 	//Keep only the lastest version if multiple remains after filtering.
 	err = s.takeLatestVersion(indexFile)
 	if err != nil {
@@ -232,26 +237,31 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 }
 
 //removeNoMatchingName Deletes entries that the name doesn't match the name provided in the subscription
-func (s *HelmRepoSubscriber) removeNoMatchingName(indexFile *repo.IndexFile) {
+func (s *HelmRepoSubscriber) removeNoMatchingName(indexFile *repo.IndexFile) error {
 	if s.Subscription != nil {
 		if s.Subscription.Spec.Package != "" {
+			r, err := regexp.Compile(s.Subscription.Spec.Package)
+			if err != nil {
+				return err
+			}
 			keys := make([]string, 0)
 			for k := range indexFile.Entries {
 				keys = append(keys, k)
 			}
 			for _, k := range keys {
-				if k != s.Subscription.Spec.Package {
+				if !r.MatchString(k) {
 					delete(indexFile.Entries, k)
 				}
 			}
 		}
 	}
+	return nil
 }
 
-//filterOnVersion filters the indexFile with the version, tillerVersion and Digest provided in the subscription
+//filterIndexFile filters the indexFile with the version, tillerVersion and Digest provided in the subscription
 //The version provided in the subscription can be an expression like ">=1.2.3" (see https://github.com/blang/semver)
 //The tillerVersion and the digest provided in the subscription must be literals.
-func (s *HelmRepoSubscriber) filterOnVersion(indexFile *repo.IndexFile) {
+func (s *HelmRepoSubscriber) filterIndexFile(indexFile *repo.IndexFile) {
 	keys := make([]string, 0)
 	for k := range indexFile.Entries {
 		keys = append(keys, k)
@@ -260,7 +270,7 @@ func (s *HelmRepoSubscriber) filterOnVersion(indexFile *repo.IndexFile) {
 		chartVersions := indexFile.Entries[k]
 		newChartVersions := make([]*repo.ChartVersion, 0)
 		for index, chartVersion := range chartVersions {
-			if s.checkDigest(chartVersion) && s.checkTillerVersion(chartVersion) && s.checkVersion(chartVersion) {
+			if s.checkDigest(chartVersion) && s.checkKeywords(chartVersion) && s.checkTillerVersion(chartVersion) && s.checkVersion(chartVersion) {
 				newChartVersions = append(newChartVersions, chartVersions[index])
 			}
 		}
@@ -270,6 +280,23 @@ func (s *HelmRepoSubscriber) filterOnVersion(indexFile *repo.IndexFile) {
 			delete(indexFile.Entries, k)
 		}
 	}
+}
+
+//checkKeywords Checks if the charts has at least 1 keyword from the packageFilter.Keywords array
+func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool {
+	if s.Subscription != nil {
+		if s.Subscription.Spec.PackageFilter != nil {
+			for _, filterKeyword := range s.Subscription.Spec.PackageFilter.Keywords {
+				for _, chartKeyword := range chartVersion.Keywords {
+					if filterKeyword == chartKeyword {
+						return true
+					}
+				}
+			}
+			return false
+		}
+	}
+	return true
 }
 
 //checkDigest Checks if the digest matches
@@ -409,6 +436,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 		return nil, err
 	}
 
+	var channelNamespace string
 	var channelName string
 	if s.Subscription.Spec.Channel != "" {
 		strs := strings.Split(s.Subscription.Spec.Channel, "/")
@@ -416,12 +444,16 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 			err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
 			return nil, err
 		}
+		channelNamespace = strs[0]
 		channelName = strs[1]
 	}
 
 	releaseName := s.Subscription.Name + "-" + chartVersion.Name
 	if channelName != "" {
 		releaseName = releaseName + "-" + channelName
+	}
+	if channelNamespace != "" {
+		releaseName = releaseName + "-" + channelNamespace
 	}
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
