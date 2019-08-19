@@ -66,25 +66,23 @@ type SubscriptionSpec struct {
 	Status SubscriptionStatus `json:"status,omitempty"`
 }
 
-// SubscriptionPhase defines the phasing of a Subscription
-type SubscriptionPhase string
+// SubscriptionStatusEnum defines the status of a Subscription
+type SubscriptionStatusEnum string
 
 const (
-	// SubscriptionPropagated means this subscription is the "parent" sitting in hub
-	SubscriptionPropagated SubscriptionPhase = "Propagated"
-	// SubscriptionSubscribed means this subscription is the "parent" sitting in hub
-	SubscriptionSubscribed SubscriptionPhase = "Subscribed"
-	// SubscriptionFailed means this subscription is the "parent" sitting in hub
-	SubscriptionFailed SubscriptionPhase = "Failed"
+	// SubscriptionSuccess means this subscription Succeed
+	SubscriptionSuccess SubscriptionStatusEnum = "Success"
+	// SubscriptionFailed means this subscription Failed
+	SubscriptionFailed SubscriptionStatusEnum = "Failed"
 )
 
 // SubscriptionUnitStatus defines status of a unit (subscription or package)
 type SubscriptionUnitStatus struct {
 	// Phase are Propagated if it is in hub or Subscribed if it is in endpoint
-	Phase          SubscriptionPhase `json:"phase,omitempty"`
-	Message        string            `json:"message,omitempty"`
-	Reason         string            `json:"reason,omitempty"`
-	LastUpdateTime metav1.Time       `json:"lastUpdateTime"`
+	Status         SubscriptionStatusEnum `json:"status,omitempty"`
+	Message        string                 `json:"message,omitempty"`
+	Reason         string                 `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time            `json:"lastUpdateTime"`
 }
 
 // SubscriptionStatus defines the observed state of Subscription

@@ -57,7 +57,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
 				return true
 			}
-			if subRelNew.Status.Phase == subRelOld.Status.Phase {
+			if subRelNew.Status.Status == subRelOld.Status.Status {
 				return false
 			}
 			return true
@@ -180,7 +180,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue err
 	//Success
 	if issue == nil {
 		s.Status.Message = ""
-		s.Status.Phase = appv1alpha1.SubscriptionSubscribed
+		s.Status.Status = appv1alpha1.SubscriptionSuccess
 		s.Status.Reason = ""
 		s.Status.LastUpdateTime = metav1.Now()
 		err := r.client.Status().Update(context.Background(), s)
@@ -195,10 +195,10 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue err
 	var retryInterval time.Duration
 	//r.Recorder.Event(s, "Warning", "ProcessingError", issue.Error())
 	lastUpdate := s.Status.LastUpdateTime.Time
-	lastPhase := s.Status.Phase
+	lastPhase := s.Status.Status
 	s.Status.Message = "Error, retrying later"
 	s.Status.Reason = issue.Error()
-	s.Status.Phase = appv1alpha1.SubscriptionFailed
+	s.Status.Status = appv1alpha1.SubscriptionFailed
 	s.Status.LastUpdateTime = metav1.Now()
 
 	err := r.client.Status().Update(context.Background(), s)

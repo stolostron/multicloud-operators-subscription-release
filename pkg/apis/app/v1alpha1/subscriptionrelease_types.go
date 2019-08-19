@@ -8,20 +8,20 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// SubscriptionReleasePhase defines the phasing of a Subscription
-type SubscriptionReleaseStatuses string
+// SubscriptionReleaseStatusEnum defines the status of a Subscription release
+type SubscriptionReleaseStatusEnum string
 
 const (
 	// SubscriptionReleaseFailed means this subscription is the "parent" sitting in hub
-	SubscriptionReleaseFailed  SubscriptionReleaseStatuses = "Failed"
-	SubscriptionReleaseSuccess SubscriptionReleaseStatuses = "Success"
+	SubscriptionReleaseFailed  SubscriptionReleaseStatusEnum = "Failed"
+	SubscriptionReleaseSuccess SubscriptionReleaseStatusEnum = "Success"
 )
 
 type SubscriptionReleaseStatus struct {
-	Status         SubscriptionReleaseStatuses `json:"phase,omitempty"`
-	Message        string                      `json:"message,omitempty"`
-	Reason         string                      `json:"reason,omitempty"`
-	LastUpdateTime metav1.Time                 `json:"lastUpdate"`
+	Status         SubscriptionReleaseStatusEnum `json:"phase,omitempty"`
+	Message        string                        `json:"message,omitempty"`
+	Reason         string                        `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time                   `json:"lastUpdate"`
 }
 
 // SubscriptionReleaseSpec defines the desired state of SubscriptionRelease
