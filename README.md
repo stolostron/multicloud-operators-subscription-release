@@ -24,7 +24,18 @@ TODO to improve for ClusterRole
 4) `kubectl apply -f role_binding.yaml`
 5) `kubectl apply -f operator.yaml`
 
+## General process
+The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
+
+To do so, the following steps are taken:
+
+1) Read the index.yaml at the source address.
+2) Filter the index.yaml with the spec.Name and spec.packageFilter.
+3) Take the last version of a chart if multiple version are still present for the same chart after filtering.
+4) Create a SubscriptionRelease for each entries in the filtered index.yaml
+
 ## Subscriptions
+
 The subscription operator watches `Subscription` and `SubscriptionRelease` CRs.
 
 The User creates a Subscription CR.
@@ -37,10 +48,14 @@ metadata:
   namespace: default
 spec:
   channel: default/ope
+  secretRef:
+    name: mysecret
   configRef:
     name: mycluster-config
   name: ibm-razee-api
   packageFilter:
+    keywords:
+    - ICP
     annotations:
       tillerVersion: 2.4.0
     version: '>0.2.2'
@@ -52,6 +67,27 @@ spec:
         minio\n  Region: us-east-1\n"
   source: https://mycluster.icp:8443/helm-repo/charts
   ```
+  
+## Helm-charts filtering
+
+The optional spec.name defines the name of the helm-chart, it can be also a regex if multiple helm-charts must be deployed.
+
+The optional spec.packageFilter allows to filter the helm-charts.
+Filtering is done on:
+
+- the version of the helm-chart (semver expression), 
+- the tiller version of the helm-chart (Should may be removed as the operator has its own tiller)
+- the digest must match
+- the keywords, if the helm-chart has a least 1 listed keywords then it eligible for deployment.
+
+## Authentication
+
+A secretRef can be provided in the subscriptionRelease spec. It references a secret where the authentication parameter to access the helm-repo are set.
+The attributes are either `user` and `password` or `authHeader`. All values must be base64 encoded.
+The `authHeader` format is `<Auth_type> <token>` and so for example: 
+`Bearer xxxxxx`.
+
+## Helm-repo client configuration
 
 The configRef is a reference to a configMap which holds the parameters to the helm-repo.
 
@@ -65,18 +101,8 @@ metadata:
   namespace: default
 ```
 
-The operator generates `SubscriptionRelease` CR for each chart to deploy in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
-
-To do so, the following steps are taken:
-
-1) Read the index.yaml at the source address.
-2) Filter the index.yaml with the spec.Name and spec.packageFilter.
-3) Take the last version of a chart if multiple version are still present for the same chart after filtering.
-4) Create a SubscriptionRelease for each entries in the filtered index.yaml
 
 The SubscriptionReleases are owned by the Subscription and so if the subscription is deleted the release is deleted too.
-
-The 
 
 ```yaml
 apiVersion: app.ibm.com/v1alpha1
@@ -103,6 +129,8 @@ spec:
   URLs:
   - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-razee-api-0.2.3-015-20190725140717.tgz
   chartName: ibm-razee-api
+  secretRef:
+    name: mysecret
   configRef:
     name: mycluster-config
   releaseName: razee-ibm-razee-api-ope

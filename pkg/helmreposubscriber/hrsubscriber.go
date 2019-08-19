@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"encoding/json"
 	gerrors "errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -68,7 +69,10 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 	s.HelmRepoHash = ""
 
-	s.doSubscription()
+	err := s.doSubscription()
+	if err != nil {
+		return err
+	}
 
 	subLogger.Info("Check start helm-repo monitoring", "s.Subscription.Spec.AutoUpgrade", s.Subscription.Spec.AutoUpgrade)
 	if s.Subscription.Spec.AutoUpgrade {
@@ -99,8 +103,7 @@ func (s *HelmRepoSubscriber) Update(sub *appv1alpha1.Subscription) error {
 	if !s.Subscription.Spec.AutoUpgrade {
 		return s.Stop()
 	}
-	s.Restart()
-	return nil
+	return s.Restart()
 }
 
 //IsStarted is true if subscriber started
@@ -109,7 +112,7 @@ func (s *HelmRepoSubscriber) IsStarted() bool {
 }
 
 //TODO
-func (s *HelmRepoSubscriber) doSubscription() {
+func (s *HelmRepoSubscriber) doSubscription() error {
 	subLogger := log.WithValues("method", "doSubscription", "Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
 	subLogger.Info("start")
 	//Retrieve the helm repo
@@ -120,17 +123,20 @@ func (s *HelmRepoSubscriber) doSubscription() {
 	indexFile, hash, err := s.GetHelmRepoIndex()
 	if err != nil {
 		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.Subscription.Spec.CatalogSource)
+		return err
 	}
 	if hash != s.HelmRepoHash {
 		subLogger.Info("HelmRepo changed", "URL", repoURL)
 		err = s.processSubscription(indexFile)
 		if err != nil {
 			subLogger.Error(err, "Error processing subscription")
+			return err
 		}
 		s.HelmRepoHash = hash
 	} else {
 		subLogger.Info("HelmRepo didn't change", "URL", repoURL)
 	}
+	return nil
 }
 
 // do a helm repo subscriber
@@ -172,7 +178,17 @@ func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash
 		return nil, "", err
 	}
 	if secret != nil && secret.Data != nil {
-		req.SetBasicAuth(string(secret.Data["username"]), string(secret.Data["password"]))
+		if authHeader, ok := secret.Data["authHeader"]; ok {
+			req.Header.Set("Authorization", string(authHeader))
+		} else {
+			if user, ok := secret.Data["user"]; ok {
+				if password, ok := secret.Data["password"]; ok {
+					req.SetBasicAuth(string(user), string(password))
+				} else {
+					return nil, "", fmt.Errorf("Password not found in secret for basic authentication")
+				}
+			}
+		}
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {

@@ -62,6 +62,8 @@ type SubscriptionSpec struct {
 	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
 	// AutoUpgrade if true the helm-repo will be monitor and subscription recalculated if changed
 	AutoUpgrade bool `json:"autoUpgrade"`
+
+	Status SubscriptionStatus `json:"status,omitempty"`
 }
 
 // SubscriptionPhase defines the phasing of a Subscription
@@ -72,21 +74,27 @@ const (
 	SubscriptionPropagated SubscriptionPhase = "Propagated"
 	// SubscriptionSubscribed means this subscription is the "parent" sitting in hub
 	SubscriptionSubscribed SubscriptionPhase = "Subscribed"
+	// SubscriptionFailed means this subscription is the "parent" sitting in hub
+	SubscriptionFailed SubscriptionPhase = "Failed"
 )
+
+// SubscriptionUnitStatus defines status of a unit (subscription or package)
+type SubscriptionUnitStatus struct {
+	// Phase are Propagated if it is in hub or Subscribed if it is in endpoint
+	Phase          SubscriptionPhase `json:"phase,omitempty"`
+	Message        string            `json:"message,omitempty"`
+	Reason         string            `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time       `json:"lastUpdateTime"`
+}
 
 // SubscriptionStatus defines the observed state of Subscription
 //// +k8s:openapi-gen=true
 type SubscriptionStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+	SubscriptionUnitStatus `json:",inline"`
 
-	// Phase are Propagated if it is in hub or Subscribed if it is in endpoint
-	Phase   SubscriptionPhase `json:"phase,omitempty"`
-	Message string            `json:"message,omitempty"`
-	Reason  string            `json:"reason,omitempty"`
-
-	// For endpoint, it is the status of subscription, For hub, it aggregates all status, key is cluster name
-	Statuses map[string]operatorsv1alpha1.SubscriptionStatus `json:"status,omitempty"`
+	SubscriptionPackageStatus map[string]SubscriptionUnitStatus `json:"packages,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -2,15 +2,21 @@ package subscription
 
 import (
 	"context"
+	"math"
+	"reflect"
+	"time"
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/helmreposubscriber"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -44,7 +50,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource Subscription
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.Subscription{}}, &handler.EnqueueRequestForObject{})
+	p := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			subRelOld := e.ObjectOld.(*appv1alpha1.Subscription)
+			subRelNew := e.ObjectNew.(*appv1alpha1.Subscription)
+			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
+				return true
+			}
+			if subRelNew.Status.Phase == subRelOld.Status.Phase {
+				return false
+			}
+			return true
+		},
+	}
+	err = c.Watch(&source.Kind{Type: &appv1alpha1.Subscription{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -103,33 +122,6 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 		return reconcile.Result{}, err
 	}
 
-	// myFinalizerName := "monitor.subscription.app.ibm.com"
-	// if instance.ObjectMeta.DeletionTimestamp.IsZero() {
-	// 	if !containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
-	// 		reqLogger.Info("Add Finalizer")
-	// 		instance.ObjectMeta.Finalizers = append(instance.ObjectMeta.Finalizers, myFinalizerName)
-	// 		if err := r.client.Update(context.TODO(), instance); err != nil {
-	// 			return reconcile.Result{}, err
-	// 		}
-	// 	}
-	// } else {
-	// 	// The object is being deleted
-	// 	if containsString(instance.ObjectMeta.Finalizers, myFinalizerName) {
-	// 		// our finalizer is present, so lets handle any external dependency
-	// 		reqLogger.Info("Subscription deleted, Finalizing!")
-	// 		r.cleanSubscriber(subkey)
-
-	// 		// remove our finalizer from the list and update it.
-	// 		instance.ObjectMeta.Finalizers = removeString(instance.ObjectMeta.Finalizers, myFinalizerName)
-	// 		if err := r.client.Update(context.Background(), instance); err != nil {
-	// 			return reconcile.Result{}, err
-	// 		}
-	// 	}
-
-	// 	return reconcile.Result{}, err
-
-	// }
-
 	subscriber := r.subscriberMap[subkey]
 	if subscriber == nil {
 		reqLogger.Info("subscriber does not exist")
@@ -150,12 +142,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 		reqLogger.Info("Subscription didn't start")
 		r.cleanSubscriber(subkey)
 	}
-	if err != nil {
-		reqLogger.Error(err, "Error processing subscription - requeue the request")
-		return reconcile.Result{}, err
-	}
-	// Set Subscription instance as the owner and controller
-	return reconcile.Result{}, nil
+	return r.SetStatus(instance, err)
 }
 
 // Helper functions to check and remove string from a slice of strings.
@@ -186,4 +173,50 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 		subscriber.Stop()
 		delete(r.subscriberMap, subkey)
 	}
+}
+
+func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue error) (reconcile.Result, error) {
+	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
+	//Success
+	if issue == nil {
+		s.Status.Message = ""
+		s.Status.Phase = appv1alpha1.SubscriptionSubscribed
+		s.Status.Reason = ""
+		s.Status.LastUpdateTime = metav1.Now()
+		err := r.client.Status().Update(context.Background(), s)
+		if err != nil {
+			srLogger.Error(err, "unable to update status")
+			return reconcile.Result{
+				RequeueAfter: time.Second,
+			}, nil
+		}
+		return reconcile.Result{}, nil
+	}
+	var retryInterval time.Duration
+	//r.Recorder.Event(s, "Warning", "ProcessingError", issue.Error())
+	lastUpdate := s.Status.LastUpdateTime.Time
+	lastPhase := s.Status.Phase
+	s.Status.Message = "Error, retrying later"
+	s.Status.Reason = issue.Error()
+	s.Status.Phase = appv1alpha1.SubscriptionFailed
+	s.Status.LastUpdateTime = metav1.Now()
+
+	err := r.client.Status().Update(context.Background(), s)
+	if err != nil {
+		srLogger.Error(err, "unable to update status")
+		return reconcile.Result{
+			RequeueAfter: time.Second,
+		}, nil
+	}
+	if lastUpdate.IsZero() || lastPhase != appv1alpha1.SubscriptionFailed {
+		retryInterval = time.Second
+	} else {
+		//retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
+		retryInterval = s.Status.LastUpdateTime.Sub(lastUpdate).Round(time.Second)
+	}
+	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Hour.Nanoseconds()*6)))
+	srLogger.Info("requeueAfter", "->requeueAfter", requeueAfter)
+	return reconcile.Result{
+		RequeueAfter: requeueAfter,
+	}, nil
 }

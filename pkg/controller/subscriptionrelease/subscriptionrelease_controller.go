@@ -2,17 +2,23 @@ package subscriptionrelease
 
 import (
 	"context"
+	"math"
+	"reflect"
+	"time"
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/subscriptionreleasemgr"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -45,7 +51,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource SubscriptionRelease
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.SubscriptionRelease{}}, &handler.EnqueueRequestForObject{})
+	p := predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			subRelOld := e.ObjectOld.(*appv1alpha1.SubscriptionRelease)
+			subRelNew := e.ObjectNew.(*appv1alpha1.SubscriptionRelease)
+			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
+				return true
+			}
+			if subRelNew.Status.Status == subRelOld.Status.Status {
+				return false
+			}
+			return true
+		},
+	}
+	err = c.Watch(&source.Kind{Type: &appv1alpha1.SubscriptionRelease{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -101,20 +120,14 @@ func (r *ReconcileSubscriptionRelease) Reconcile(request reconcile.Request) (rec
 
 	// Define a new Pod object
 	err = r.manageSubcriptionRelease(instance)
-	if err != nil {
-		reqLogger.Error(err, "Error processing subscription release - requeue the request")
-		return reconcile.Result{}, err
-	}
-	return reconcile.Result{}, nil
+	return r.SetStatus(instance, err)
 }
 
 func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.SubscriptionRelease) error {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
 	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
-	srLogger.Info("GetConfigMap: ", "sr.Namespace", sr.Namespace, "sr.Spec.ConfigMapRef", sr.Spec.ConfigMapRef)
 	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)
 	if err != nil {
-		srLogger.Error(err, "Failed to retrieve configMap ", "sr.Spec.ConfigMapRef.Name", sr.Spec.ConfigMapRef.Name)
 		return err
 	}
 	httpClient, err := utils.GetHelmRepoClient(r.client, sr.Namespace, configMap)
@@ -155,4 +168,50 @@ func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.
 		}
 	}
 	return nil
+}
+
+func (r *ReconcileSubscriptionRelease) SetStatus(s *appv1alpha1.SubscriptionRelease, issue error) (reconcile.Result, error) {
+	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
+	//Success
+	if issue == nil {
+		s.Status.Message = ""
+		s.Status.Status = appv1alpha1.SubscriptionReleaseSuccess
+		s.Status.Reason = ""
+		s.Status.LastUpdateTime = metav1.Now()
+		err := r.client.Status().Update(context.Background(), s)
+		if err != nil {
+			srLogger.Error(err, "unable to update status")
+			return reconcile.Result{
+				RequeueAfter: time.Second,
+			}, nil
+		}
+		return reconcile.Result{}, nil
+	}
+	var retryInterval time.Duration
+	//r.Recorder.Event(s, "Warning", "ProcessingError", issue.Error())
+	lastUpdate := s.Status.LastUpdateTime.Time
+	lastStatus := s.Status.Status
+	s.Status.Message = "Error, retrying later"
+	s.Status.Reason = issue.Error()
+	s.Status.Status = appv1alpha1.SubscriptionReleaseFailed
+	s.Status.LastUpdateTime = metav1.Now()
+
+	err := r.client.Status().Update(context.Background(), s)
+	if err != nil {
+		srLogger.Error(err, "unable to update status")
+		return reconcile.Result{
+			RequeueAfter: time.Second,
+		}, nil
+	}
+	if lastUpdate.IsZero() || lastStatus != appv1alpha1.SubscriptionReleaseFailed {
+		retryInterval = time.Second
+	} else {
+		//retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
+		retryInterval = s.Status.LastUpdateTime.Sub(lastUpdate).Round(time.Second)
+	}
+	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Hour.Nanoseconds()*6)))
+	srLogger.Info("requeueAfter", "->requeueAfter", requeueAfter)
+	return reconcile.Result{
+		RequeueAfter: requeueAfter,
+	}, nil
 }

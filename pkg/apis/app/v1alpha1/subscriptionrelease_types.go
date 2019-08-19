@@ -8,6 +8,22 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+// SubscriptionReleasePhase defines the phasing of a Subscription
+type SubscriptionReleaseStatuses string
+
+const (
+	// SubscriptionReleaseFailed means this subscription is the "parent" sitting in hub
+	SubscriptionReleaseFailed  SubscriptionReleaseStatuses = "Failed"
+	SubscriptionReleaseSuccess SubscriptionReleaseStatuses = "Success"
+)
+
+type SubscriptionReleaseStatus struct {
+	Status         SubscriptionReleaseStatuses `json:"phase,omitempty"`
+	Message        string                      `json:"message,omitempty"`
+	Reason         string                      `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time                 `json:"lastUpdate"`
+}
+
 // SubscriptionReleaseSpec defines the desired state of SubscriptionRelease
 // +k8s:openapi-gen=true
 type SubscriptionReleaseSpec struct {
@@ -28,14 +44,6 @@ type SubscriptionReleaseSpec struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
-}
-
-// SubscriptionReleaseStatus defines the observed state of SubscriptionRelease
-// +k8s:openapi-gen=true
-type SubscriptionReleaseStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
