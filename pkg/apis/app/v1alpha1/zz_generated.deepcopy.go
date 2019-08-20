@@ -5,7 +5,6 @@
 package v1alpha1
 
 import (
-	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/placementrule/pkg/apis/app/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -273,11 +272,6 @@ func (in *SubscriptionSpec) DeepCopyInto(out *SubscriptionSpec) {
 				(*in).DeepCopyInto(*out)
 			}
 		}
-	}
-	if in.Placement != nil {
-		in, out := &in.Placement, &out.Placement
-		*out = new(appv1alpha1.Placement)
-		(*in).DeepCopyInto(*out)
 	}
 	if in.SecretRef != nil {
 		in, out := &in.SecretRef, &out.SecretRef

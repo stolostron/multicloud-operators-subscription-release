@@ -2,7 +2,6 @@ package v1alpha1
 
 import (
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	placementv1alpha1 "github.ibm.com/IBMMulticloudPlatform/placementrule/pkg/apis/app/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -55,7 +54,7 @@ type SubscriptionSpec struct {
 	// To provide flexibility to override package in channel with local input
 	PackageOverrides []*Overrides `json:"packageOverrides,omitempty"`
 	// For hub use only, to specify which clusters to go to
-	Placement *placementv1alpha1.Placement `json:"placement,omitempty"`
+	//	Placement *placementv1alpha1.Placement `json:"placement,omitempty"`
 	// Secret to use to access the helm-repo defined in the CatalogSource.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
