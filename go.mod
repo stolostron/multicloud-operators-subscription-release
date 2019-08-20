@@ -10,10 +10,7 @@ require (
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190809123943-df4f5c81cb3b // indirect
-	github.ibm.com/IBMMulticloudPlatform/channel v0.0.0-20190808153850-d99a492b6f53
-	github.ibm.com/IBMMulticloudPlatform/deployable v0.0.0-20190811201110-208b6dc03100
-	github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190730162031-372256eedb81
-	github.ibm.com/IBMMulticloudPlatform/subscription v0.0.0-20190812195659-baafc4fe6202
+	github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190815200043-1d0ba5315471
 	golang.org/x/tools v0.0.0-20190710153321-831012c29e42 // indirect
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad

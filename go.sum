@@ -395,6 +395,8 @@ github.ibm.com/IBMMulticloudPlatform/deployable v0.0.0-20190811201110-208b6dc031
 github.ibm.com/IBMMulticloudPlatform/deployable v0.0.0-20190811201110-208b6dc03100/go.mod h1:Ps15SsLyQlBqKWmXQfyZeEqmYmM5j+8IT2EGd17EUqU=
 github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190730162031-372256eedb81 h1:ltZnG2U2/QiXSZRhqIhOoxXQ5I8m0h8ZlLP2VBD/jts=
 github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190730162031-372256eedb81/go.mod h1:vlhAlUsMXLpg3IBMQJFIiGfdpmPc7GPmUKzVKtdPUv8=
+github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190815200043-1d0ba5315471 h1:KOdXiViFWwo/msj/WYacZ+xyinnY9GIVrKsATEgtBBE=
+github.ibm.com/IBMMulticloudPlatform/placementrule v0.0.0-20190815200043-1d0ba5315471/go.mod h1:vlhAlUsMXLpg3IBMQJFIiGfdpmPc7GPmUKzVKtdPUv8=
 github.ibm.com/IBMMulticloudPlatform/subscription v0.0.0-20190812195659-baafc4fe6202 h1:UDRbz8U99yHusAojUSxuz0q6zI7Y/gKMABtMGbkMKFo=
 github.ibm.com/IBMMulticloudPlatform/subscription v0.0.0-20190812195659-baafc4fe6202/go.mod h1:ifhnr72Kz+Fw9XYhFqOcbLL+9gMD9NPj7HrTIGNVUWQ=
 go.etcd.io/bbolt v1.3.3 h1:MUGmc65QhB3pIlaQ5bB4LwqSj6GIonVJXpZiaKNyaKk=
