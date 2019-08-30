@@ -165,7 +165,7 @@ func Test_MatchingDigest(t *testing.T) {
 			},
 		},
 	}
-	s.filterOnVersion(indexFile)
+	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(chartVersions))
@@ -185,7 +185,7 @@ func Test_MatchingTillerVersion(t *testing.T) {
 			},
 		},
 	}
-	s.filterOnVersion(indexFile)
+	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 2, len(versionedCharts))
@@ -205,7 +205,7 @@ func Test_MatchingTillerVersionNotFound(t *testing.T) {
 			},
 		},
 	}
-	s.filterOnVersion(indexFile)
+	s.filterCharts(indexFile)
 	assert.Equal(t, 0, len(indexFile.Entries))
 }
 
@@ -221,7 +221,7 @@ func Test_MatchingVersion(t *testing.T) {
 			},
 		},
 	}
-	s.filterOnVersion(indexFile)
+	s.filterCharts(indexFile)
 	assert.Equal(t, 2, len(indexFile.Entries))
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(versionedCharts))
