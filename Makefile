@@ -84,7 +84,7 @@ operator-sdk-install:
 	   fi; \
 	fi
 
-image:: operator-sdk-install generate
+image:: generate operator-sdk-install
 	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH)
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
@@ -93,7 +93,7 @@ image:: operator-sdk-install generate
        sed -i 's|REPLACE_IMAGE|$(IMAGE_REPO)/$(IMAGE_NAME):${RELEASE_TAG}|g' deploy/operator.yaml; \
     fi
 
-generate:
+generate: operator-sdk-install
 	operator-sdk generate k8s
 
 # Run tests
