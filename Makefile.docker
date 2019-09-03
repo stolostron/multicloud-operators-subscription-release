@@ -1,0 +1,95 @@
+###############################################################################
+# Licensed Materials - Property of IBM Copyright IBM Corporation 2019. All Rights Reserved.
+# U.S. Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP
+# Schedule Contract with IBM Corp.
+#
+# Contributors:
+#  IBM Corporation - initial API and implementation
+###############################################################################
+
+.DEFAULT_GOAL=image
+
+.PHONY: docker-login
+docker-login:
+ifndef $(and ARTIFACTORY_USER, ARTIFACTORY_PWD)
+	@echo -e "$(ARTIFACTORY_USER) $(ARTIFACTORY_PWD) $(DOCKER_SERVER)"
+	$(error ARTIFACTORY_USER and ARTIFACTORY_PWD must be defined, required for goal (docker-login))
+endif
+	@echo -e "$(ARTIFACTORY_USER) $(ARTIFACTORY_PWD) $(DOCKER_SERVER)"
+	@$(SELF) -s docker:login DOCKER_REGISTRY=hyc-cloud-private-scratch-docker-local.artifactory.swg-devops.com DOCKER_USER=$(ARTIFACTORY_USER) DOCKER_PASS=$(ARTIFACTORY_PWD)
+	@$(SELF) -s docker:login DOCKER_REGISTRY=hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com DOCKER_USER=$(ARTIFACTORY_USER) DOCKER_PASS=$(ARTIFACTORY_PWD)
+
+.PHONY: app-version
+app-version:
+	$(eval WORKING_CHANGES := $(shell git status --porcelain))
+	$(eval BUILD_DATE := $(shell date +%m/%d@%H:%M:%S))
+	$(eval GIT_COMMIT := $(shell git rev-parse --short HEAD))
+	$(eval VCS_REF := $(if $(WORKING_CHANGES),$(GIT_COMMIT)-$(BUILD_DATE),$(GIT_COMMIT)))
+	$(eval APP_VERSION ?= $(if $(shell cat VERSION 2> /dev/null),$(shell cat VERSION 2> /dev/null),0.0.1))
+	$(eval IMAGE_VERSION ?= $(APP_VERSION)-$(GIT_COMMIT))
+	@echo "App: $(IMAGE_NAME_ARCH) $(IMAGE_VERSION)"
+
+.PHONY: check-env
+check-env:
+ifndef IMAGE_REPO
+	$(error IMAGE_REPO is undefined)
+endif
+ifndef IMAGE_NAME
+	$(error IMAGE_NAME is undefined)
+endif
+ifneq ($(ARCH), x86_64)
+	$(eval DOCKER_FLAG =Dockerfile.$(ARCH))
+	@echo "DOCKER_FLAG: $(DOCKER_FLAG)"
+else
+	$(eval DOCKER_FLAG =Dockerfile)
+	@echo "DOCKER_FLAG: $(DOCKER_FLAG)"
+endif
+
+.PHONY: image
+image:: check-env app-version
+	@$(SELF) -s docker:build DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_FILE=$(DOCKER_FLAG)
+
+.PHONY: push
+push: check-env image
+	@echo -e "$(TARGET) $(OS) $(ARCH)"
+	@$(SELF) -s docker:push DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(IMAGE_VERSION)
+
+.PHONY: release
+release: docker-login image
+	@echo -e "$(TARGET) $(OS) $(ARCH)"
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
+
+ifeq ($(ARCH), x86_64)
+ifneq ($(RELEASE_TAG),)
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
+endif
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
+endif
+
+.PHONY: show-labels
+show-labels: app-version
+	@docker inspect $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(IMAGE_VERSION) --format='{{json .Config.Labels}}' | tr , '\n' | tr -d '{' | tr -d '}'
+
+.PHONY: s390x-fix
+s390x-fix::
+	@$(SELF) -s docker:pull DOCKER_URI=$(IMAGE_NAME_S390X) \
+		|| (@$(SELF) -s docker:pull DOCKER_URI=$(DEFAULT_S390X_IMAGE) \
+		&& docker tag $(DEFAULT_S390X_IMAGE) $(IMAGE_NAME_S390X) \
+		&&  @$(SELF) -s docker:push DOCKER_URI=$(IMAGE_NAME_S390X))
+
+.PHONY: ppc64le-fix
+ppc64le-fix::
+	@$(SELF) -s docker:pull DOCKER_URI=$(IMAGE_NAME_PPC64LE) \
+		|| (@$(SELF) -s docker:pull DOCKER_URI=$(DEFAULT_PPC64LE_IMAGE) \
+		&& docker tag $(DEFAULT_PPC64LE_IMAGE) $(IMAGE_NAME_PPC64LE) \
+		&&  @$(SELF) -s docker:push DOCKER_URI=$(IMAGE_NAME_PPC64LE))
+
+.PHONY: clean
+clean::
+	@echo "Cleaning up generated files"
+    

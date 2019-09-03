@@ -1,0 +1,42 @@
+GIT_REMOTE_URL = $(shell git config --get remote.origin.url)
+DOCKER_SERVER ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
+DOCKER_USERNAME ?= token
+DOCKER_PASSWORD ?=
+IMAGE_SUMMARY = Multicloud manager subscription controller
+IMAGE_DESCRIPTION = Multicloud manager subscription controller
+IMAGE_NAME = subscription-operator
+IMAGE_REPO ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom
+RELEASE_TAG ?= latest
+ARCH = $(shell uname -m)
+DOCKER_FLAG =
+
+
+# This part of configurations are used by build-harness, DONOT remove them
+DOCKER_REGISTRY ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
+DOCKER_NAMESPACE ?= ibmcom
+DOCKER_TAG ?= latest
+DOCKER_BUILD_OPTS = --build-arg "VCS_REF=$(VCS_REF)" \
+           --build-arg "VCS_URL=$(GIT_REMOTE_URL)" \
+           --build-arg "IMAGE_NAME=$(IMAGE_NAME_ARCH)" \
+           --build-arg "IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)" \
+           --build-arg "IMAGE_SUMMARY=$(IMAGE_SUMMARY)"
+
+GIT_COMMIT := $(shell git rev-parse --short HEAD)
+VCS_REF := $(if $(WORKING_CHANGES),$(GIT_COMMIT)-$(BUILD_DATE),$(GIT_COMMIT))
+APP_VERSION ?= $(if $(shell cat VERSION 2> /dev/null),$(shell cat VERSION 2> /dev/null),0.0.1)
+IMAGE_VERSION ?= $(APP_VERSION)-$(GIT_COMMIT)
+DOCKER_IMAGE =$(IMAGE_NAME)
+DOCKER_BUILD_TAG = $(IMAGE_VERSION)
+DOCKER_URI = $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
+# End of the build-harness configurations
+
+
+ifeq ($(ARCH), x86_64)
+	IMAGE_NAME_ARCH = $(IMAGE_NAME)-amd64
+else
+	IMAGE_NAME_ARCH = $(IMAGE_NAME)-$(ARCH)
+endif
+DEFAULT_S390X_IMAGE ?= ibmcom/pause-s390x:3.0
+IMAGE_NAME_S390X ?= ${IMAGE_REPO}/${IMAGE_NAME}-s390x:${RELEASE_TAG}
+
+GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
