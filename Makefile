@@ -84,7 +84,7 @@ operator-sdk-install:
 	   fi; \
 	fi
 
-image:: operator-sdk-install
+image:: operator-sdk-install generate
 	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH)
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
@@ -95,7 +95,7 @@ image:: operator-sdk-install
 
 generate:
 	operator-sdk generate k8s
-	
+
 # Run tests
 test: generate fmt vet manifests kubebuilder
 # This skip the controller test as they are no working
