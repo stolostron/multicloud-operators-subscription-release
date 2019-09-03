@@ -84,7 +84,7 @@ operator-sdk-install:
 	   fi; \
 	fi
 
-image: operator-sdk-install
+image:: operator-sdk-install
 	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH)
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
