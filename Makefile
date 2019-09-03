@@ -122,3 +122,5 @@ app-version:
 	$(eval APP_VERSION ?= $(if $(shell cat VERSION 2> /dev/null),$(shell cat VERSION 2> /dev/null),0.0.1))
 	$(eval IMAGE_VERSION ?= $(APP_VERSION)-$(GIT_COMMIT))
 	@echo "App: $(IMAGE_NAME_ARCH) $(IMAGE_VERSION)"
+
+include Makefile.docker
