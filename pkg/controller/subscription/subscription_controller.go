@@ -175,6 +175,7 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 	}
 }
 
+//SetStatus set the subscription status 
 func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue error) (reconcile.Result, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
 	//Success

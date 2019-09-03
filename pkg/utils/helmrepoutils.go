@@ -24,6 +24,7 @@ import (
 
 var log = logf.Log.WithName("utils")
 
+//GetHelmRepoClient returns an *http.client to access the helm repo
 func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *corev1.ConfigMap) (*http.Client, error) {
 	srLogger := log.WithValues("package", "utils", "method", "GetHelmRepoClient")
 
@@ -68,6 +69,7 @@ func GetHelmRepoClient(client client.Client, parentNamespace string, configMap *
 	return httpClient, nil
 }
 
+//GetConfigMap search the config map containing the helm repo client configuration.
 func GetConfigMap(client client.Client, parentNamespace string, configMapRef *corev1.ObjectReference) (configMap *corev1.ConfigMap, err error) {
 	srLogger := log.WithValues("package", "utils", "method", "getConfigMap")
 	if configMapRef != nil {
@@ -93,6 +95,7 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 	return configMap, err
 }
 
+//GetSecret returns the secret to access the helm-repo
 func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.ObjectReference) (secret *corev1.Secret, err error) {
 	srLogger := log.WithValues("package", "utils", "method", "getSecret")
 	if secretRef != nil {
@@ -114,6 +117,7 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 	return secret, err
 }
 
+//DownloadChart downloads a chart into the charsDir
 func DownloadChart(httpClient *http.Client, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
@@ -173,6 +177,7 @@ func DownloadChart(httpClient *http.Client, secret *corev1.Secret, chartsDir str
 	return chartDir, err
 }
 
+//Untar untars the reader into the dst directory
 func Untar(dst string, r io.Reader) error {
 
 	gzr, err := gzip.NewReader(r)

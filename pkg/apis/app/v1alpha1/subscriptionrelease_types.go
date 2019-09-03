@@ -13,10 +13,12 @@ type SubscriptionReleaseStatusEnum string
 
 const (
 	// SubscriptionReleaseFailed means this subscription is the "parent" sitting in hub
-	SubscriptionReleaseFailed  SubscriptionReleaseStatusEnum = "Failed"
+	SubscriptionReleaseFailed SubscriptionReleaseStatusEnum = "Failed"
+	// SubscriptionReleaseSuccess means this subscription is the "parent" sitting in hub
 	SubscriptionReleaseSuccess SubscriptionReleaseStatusEnum = "Success"
 )
 
+//SubscriptionReleaseStatus ...
 type SubscriptionReleaseStatus struct {
 	Status         SubscriptionReleaseStatusEnum `json:"phase,omitempty"`
 	Message        string                        `json:"message,omitempty"`

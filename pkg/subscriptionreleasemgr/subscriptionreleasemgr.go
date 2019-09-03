@@ -16,10 +16,12 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-const CHARTS_DIR = "CHARTS_DIR"
+//ChartsDir env variable name which contains the directory where the charts are installed
+const ChartsDir = "CHARTS_DIR"
 
 var log = logf.Log.WithName("subscriptionreleasemgr")
 
+//NewManager create a new manager
 func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
@@ -43,10 +45,10 @@ func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.S
 		return nil, err
 	}
 
-	chartsDir := os.Getenv(CHARTS_DIR)
+	chartsDir := os.Getenv(ChartsDir)
 	if chartsDir == "" {
 		err = errors.New("Environment variable not set")
-		srLogger.Error(err, "Failed to create a new manager.", "Variable", CHARTS_DIR)
+		srLogger.Error(err, "Failed to create a new manager.", "Variable", ChartsDir)
 		return nil, err
 	}
 	chartDir, err := utils.DownloadChart(httpClient, secret, chartsDir, s)

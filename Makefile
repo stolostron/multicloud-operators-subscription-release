@@ -35,11 +35,11 @@ OPERATOR_SDK_RELEASE=v0.10.0
 
 .PHONY: lint
 lint:
-	go get golang.org/x/lint/golint
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
-	golint -set_exit_status=true pkg/
-	golint -set_exit_status=true cmd/
+	GO111MODULE=off go get golang.org/x/lint/golint
+	# go get -u github.com/alecthomas/gometalinter
+	# gometalinter --install
+	golint -set_exit_status=true pkg/...
+	golint -set_exit_status=true cmd/...
 
 .PHONY: deps
 deps:

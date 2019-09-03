@@ -155,7 +155,7 @@ func (s *HelmRepoSubscriber) processSubscription(indexFile *repo.IndexFile) erro
 	return s.manageSubscription(indexFile, repoURL)
 }
 
-//getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
+//GetHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
 func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
 	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
 	subLogger.Info("begin")
