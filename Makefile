@@ -93,6 +93,9 @@ image:: operator-sdk-install
        sed -i 's|REPLACE_IMAGE|$(IMAGE_REPO)/$(IMAGE_NAME):${RELEASE_TAG}|g' deploy/operator.yaml; \
     fi
 
+generate:
+	operator-sdk generate k8s
+	
 # Run tests
 test: generate fmt vet manifests kubebuilder
 # This skip the controller test as they are no working
