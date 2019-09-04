@@ -79,14 +79,7 @@ wicked:
 operator-sdk-install: 
 	@operator-sdk version ; \
 	if [ $$? -ne 0 ]; then \
-       uname -a | grep "Darwin"; \
-       if [ $$? -eq 0 ]; then \
-          curl -OJL "https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_RELEASE)/operator-sdk-$(OPERATOR_SDK_RELEASE)-x86_64-apple-darwin"; \
-	      chmod +x operator-sdk-$(OPERATOR_SDK_RELEASE)-x86_64-apple-darwin && sudo mkdir -p /usr/local/bin/ && sudo cp operator-sdk-$(OPERATOR_SDK_RELEASE)-x86_64-apple-darwin /usr/local/bin/operator-sdk && rm operator-sdk-${OPERATOR_SDK_RELEASE}-x86_64-apple-darwin; \
-       else \
-          curl -OJL "https://github.com/operator-framework/operator-sdk/releases/download/${OPERATOR_SDK_RELEASE}/operator-sdk-${OPERATOR_SDK_RELEASE}-x86_64-linux-gnu"; \
-	      chmod +x operator-sdk-${OPERATOR_SDK_RELEASE}-x86_64-linux-gnu && sudo mkdir -p /usr/local/bin/ && sudo cp operator-sdk-${OPERATOR_SDK_RELEASE}-x86_64-linux-gnu /usr/local/bin/operator-sdk && rm operator-sdk-${OPERATOR_SDK_RELEASE}-x86_64-linux-gnu; \
-	   fi; \
+       ./build/install-operator-sdk.sh; \
 	fi
 
 image: operator-sdk-install generate
