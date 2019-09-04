@@ -20,7 +20,7 @@ stages:
 before_script:
   - source travis-env.sh
   - make init
-  - make docker-login
+  - make docker:login
 
 jobs:
   include:

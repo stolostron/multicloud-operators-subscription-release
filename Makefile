@@ -10,6 +10,8 @@
 
 include Configfile
 
+PROJECT_NAME := $(shell basename $(CURDIR))
+
 .PHONY: init\:
 init::
 	@mkdir -p variables
@@ -55,6 +57,10 @@ local:
 	operator-sdk up local --verbose
 
 wicked:
+	@if [ -z $(dest) ]; then \
+	   echo "Usage: make dest=destination_dir wicked"; \
+	   exit 1; \
+	fi
 	wicked-cli --version
 	@if [ $$? -ne 0 ]; then \
 		echo "Install wicked with 'sudo npm install -g @wicked/cli@latest'"; \
@@ -62,11 +68,10 @@ wicked:
 	fi
 	GO111MODULE=off go get -u github.ibm.com/IBMPrivateCloud/awsom-tool/... 
 	go mod vendor && \
-	rm -rf vendor_scan-results && \
-	wicked-cli -s vendor && \
-	cd vendor && \
-	awsomtool golang enrichGoMod -w ../vendor_scan-results/Scan-Report.csv -o ../vendor_scan-results/Scan-Report-Dep.csv && \
-	awsomtool enrichCopyright -w ../vendor_scan-results/Scan-Report-Dep.csv  -o ../vendor_scan-results/Scan-Report-url-copyright.csv; && \
+	rm -rf $(dest)/$(PROJECT_NAME)_scan-results && \
+	wicked-cli -s . -o $(dest) && \
+	awsomtool golang enrichGoMod -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-Dep.csv && \
+	awsomtool enrichCopyright -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-Dep.csv  -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-url-copyright.csv && \
 	rm -rf vendor;
 	rm -rf wicked_cli.log
 
@@ -112,18 +117,5 @@ fmt:
 # Run go vet against code
 vet:
 	go vet ./pkg/... ./cmd/...
-
-
-# include Makefile.docker
-
-.PHONY: app-version
-app-version:
-	$(eval WORKING_CHANGES := $(shell git status --porcelain))
-	$(eval BUILD_DATE := $(shell date +%m/%d@%H:%M:%S))
-	$(eval GIT_COMMIT := $(shell git rev-parse --short HEAD))
-	$(eval VCS_REF := $(if $(WORKING_CHANGES),$(GIT_COMMIT)-$(BUILD_DATE),$(GIT_COMMIT)))
-	$(eval APP_VERSION ?= $(if $(shell cat VERSION 2> /dev/null),$(shell cat VERSION 2> /dev/null),0.0.1))
-	$(eval IMAGE_VERSION ?= $(APP_VERSION)-$(GIT_COMMIT))
-	@echo "App: $(IMAGE_NAME_ARCH) $(IMAGE_VERSION)"
 
 include Makefile.docker
