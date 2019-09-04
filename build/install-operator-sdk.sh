@@ -2,7 +2,7 @@
 
 echo ">>> Installing Operator SDK"
 echo ">>> >>> Downloading source code"
-go get -d github.com/operator-framework/operator-sdk
+GO111MODULE=off go get -d -v github.com/operator-framework/operator-sdk
 
 cd $GOPATH/src/github.com/operator-framework/operator-sdk
 
