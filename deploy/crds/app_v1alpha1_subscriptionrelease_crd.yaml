@@ -28,8 +28,51 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            chartName:
+              description: ChartName is the name of the chart within the repo
+              type: string
+            configMapRef:
+              description: Configuration parameters to access the helm-repo defined
+                in the CatalogSource
+              type: object
+            releaseName:
+              description: ReleaseName is the Name of the release given to Tiller.
+                Defaults to namespace-name. Must not be changed after initial object
+                creation.
+              type: string
+            secretRef:
+              description: Secret to use to access the helm-repo defined in the CatalogSource.
+              type: object
+            urls:
+              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                Important: Run "operator-sdk generate k8s" to regenerate code after
+                modifying this file Add custom validation using kubebuilder tags:
+                https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+                RepoURL is the URL of the repository. Defaults to stable repo.'
+              items:
+                type: string
+              type: array
+            values:
+              description: Values is a string containing (unparsed) YAML values
+              type: string
+            version:
+              description: Version is the chart version
+              type: string
           type: object
         status:
+          properties:
+            lastUpdate:
+              format: date-time
+              type: string
+            message:
+              type: string
+            phase:
+              type: string
+            reason:
+              type: string
+          required:
+          - lastUpdate
           type: object
   version: v1alpha1
   versions:

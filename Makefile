@@ -100,14 +100,15 @@ image:: generate operator-sdk-install
 
 generate: operator-sdk-install
 	operator-sdk generate k8s
+	operator-sdk generate openapi
 
 # Run tests
-test: generate fmt vet manifests kubebuilder
+test: generate fmt vet
 # This skip the controller test as they are no working
 	go test `go list ./pkg/... ./cmd/... | grep -v pkg/controller` -coverprofile=cover.out
 
 # Run tests with debug output
-testdebug: generate fmt vet manifests kubebuilder
+testdebug: generate fmt vet
 	go test ./pkg/... ./cmd/... -coverprofile=cover.out -v
 
 # Run go fmt against code

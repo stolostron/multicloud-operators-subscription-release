@@ -127,7 +127,7 @@ func DownloadChart(httpClient *http.Client, secret *corev1.Secret, chartsDir str
 			return "", err
 		}
 	}
-	for _, urlelem := range s.Spec.URLs {
+	for _, urlelem := range s.Spec.Urls {
 		URLP, err := url.Parse(urlelem)
 		if err != nil {
 			return "", err
