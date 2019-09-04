@@ -302,6 +302,9 @@ func (s *HelmRepoSubscriber) filterIndexFile(indexFile *repo.IndexFile) {
 func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool {
 	if s.Subscription != nil {
 		if s.Subscription.Spec.PackageFilter != nil {
+			if s.Subscription.Spec.PackageFilter.Keywords == nil {
+				return true
+			}
 			for _, filterKeyword := range s.Subscription.Spec.PackageFilter.Keywords {
 				for _, chartKeyword := range chartVersion.Keywords {
 					if filterKeyword == chartKeyword {
