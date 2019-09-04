@@ -24,11 +24,10 @@ before_script:
 
 jobs:
   include:
-    # Disable lint because `operator-sdk generate openapi` generates non-compliant code
-    # - stage: lint
-    #   name: Perform linting before any jobs trigger
-    #   script:
-    #     - make lint fmt
+    - stage: lint
+      name: Perform linting before any jobs trigger
+      script:
+        - make lint fmt
   
     - stage: test
       name: Test x86 image
@@ -40,14 +39,14 @@ jobs:
       name: Build x86 image
       os: linux
       script:
-        - make image  release
+        - make operator-sdk-image  release
 
     - stage: build
       if: type != pull_request
       name: Build ppc64le image
       os: linux-ppc64le
       script:
-        - make image release
+        - make operator-sdk-image release
 
 
     - stage: build
@@ -55,7 +54,7 @@ jobs:
       name: Build s390x image
       os: linux-s390
       script:
-        - make image release
+        - make operator-sdk-image release
       
     - stage: multiarch
       if: type != pull_request

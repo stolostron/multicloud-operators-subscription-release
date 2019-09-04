@@ -40,7 +40,7 @@ lint:
 	GO111MODULE=off go get golang.org/x/lint/golint
 	# go get -u github.com/alecthomas/gometalinter
 	# gometalinter --install
-	golint -set_exit_status=true pkg/...
+	golint -set_exit_status=true pkg/controller/...
 	golint -set_exit_status=true cmd/...
 
 .PHONY: deps
@@ -89,7 +89,7 @@ operator-sdk-install:
 	   fi; \
 	fi
 
-image:: generate operator-sdk-install
+operator-sdk-image: operator-sdk-install generate
 	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH)
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
