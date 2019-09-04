@@ -90,7 +90,10 @@ operator-sdk-install:
 	fi
 
 image: operator-sdk-install generate
-	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(IMAGE_VERSION)
+	$(info Building operator)
+	$(info --IMAGE: $(DOCKER_IMAGE))
+	$(info --TAG: $(DOCKER_BUILD_TAG))
+	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(IMAGE_VERSION) --image-build-args "$(DOCKER_BUILD_OPTS)"	
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
        sed -i "" 's|REPLACE_IMAGE|$(IMAGE_REPO)/$(IMAGE_NAME):${RELEASE_TAG}|g' deploy/operator.yaml; \
