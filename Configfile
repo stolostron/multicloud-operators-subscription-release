@@ -1,15 +1,23 @@
+###############################################################################
+# Licensed Materials - Property of IBM Copyright IBM Corporation 2019. All Rights Reserved.
+# U.S. Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP
+# Schedule Contract with IBM Corp.
+#
+# Contributors:
+#  IBM Corporation - initial API and implementation
+###############################################################################
+
 GIT_REMOTE_URL = $(shell git config --get remote.origin.url)
 DOCKER_SERVER ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
-DOCKER_USERNAME ?= token
-DOCKER_PASSWORD ?=
-IMAGE_SUMMARY = Multicloud manager subscription controller
-IMAGE_DESCRIPTION = Multicloud manager subscription controller
-IMAGE_NAME = subscription-operator
+DOCKER_USER ?= token
+DOCKER_PASS ?=
+IMAGE_DESCRIPTION = This image contains the controller for processing new CRs based on the CRD
+IMAGE_SUMMARY = This image contains the controller for processing new CRs based on the CRD
+IMAGE_NAME = subcription-operator
 IMAGE_REPO ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom
 RELEASE_TAG ?= latest
 ARCH = $(shell uname -m)
 DOCKER_FLAG =
-
 
 # This part of configurations are used by build-harness, DONOT remove them
 DOCKER_REGISTRY ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
@@ -30,13 +38,20 @@ DOCKER_BUILD_TAG = $(IMAGE_VERSION)
 DOCKER_URI = $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
 # End of the build-harness configurations
 
+# Push image to integration repo, integration is release repo when install run cicd build
+RELEASE_IMAGE_REPO ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom
+IMAGE_NAME_ARCH = $(IMAGE_NAME)-$(ARCH)
+GITHUB_USER ?=
+GITHUB_TOKEN ?=
+ARTIFACTORY_USER ?= $(DOCKER_USER)
+ARTIFACTORY_TOKEN ?= $(DOCKER_PASS)
 
 ifeq ($(ARCH), x86_64)
-	IMAGE_NAME_ARCH = $(IMAGE_NAME)-amd64
-else
-	IMAGE_NAME_ARCH = $(IMAGE_NAME)-$(ARCH)
+    IMAGE_NAME_ARCH = $(IMAGE_NAME)-amd64
 endif
+
 DEFAULT_S390X_IMAGE ?= ibmcom/pause-s390x:3.0
 IMAGE_NAME_S390X ?= ${IMAGE_REPO}/${IMAGE_NAME}-s390x:${RELEASE_TAG}
 
-GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
+DEFAULT_PPC64LE_IMAGE ?= ibmcom/pause-ppc64le:3.0
+IMAGE_NAME_PPC64LE ?= ${IMAGE_REPO}/${IMAGE_NAME}-ppc64le:${RELEASE_TAG}
