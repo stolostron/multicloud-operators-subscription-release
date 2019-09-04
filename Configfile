@@ -11,9 +11,6 @@ GIT_REMOTE_URL = $(shell git config --get remote.origin.url)
 DOCKER_SERVER ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
 DOCKER_USER ?= token
 DOCKER_PASS ?=
-IMAGE_DESCRIPTION = This image contains the subscription operator for processing new CRs based on the CRD
-IMAGE_SUMMARY = This image contains the subscription operator for processing new CRs based on the CRD
-IMAGE_NAME = subscription-operator
 IMAGE_REPO ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom
 RELEASE_TAG ?= latest
 ARCH = $(shell uname -m)
@@ -23,11 +20,27 @@ DOCKER_FLAG =
 DOCKER_REGISTRY ?= hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com
 DOCKER_NAMESPACE ?= ibmcom
 DOCKER_TAG ?= latest
-DOCKER_BUILD_OPTS = --build-arg "VCS_REF=$(VCS_REF)" \
-           --build-arg "VCS_URL=$(GIT_REMOTE_URL)" \
-           --build-arg "IMAGE_NAME=$(IMAGE_NAME_ARCH)" \
-           --build-arg "IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)" \
-           --build-arg "IMAGE_SUMMARY=$(IMAGE_SUMMARY)"
+# Variables for Red Hat required labels
+IMAGE_NAME = subscription-operator
+IMAGE_DESCRIPTION = This_image_contains_the_subscription_operator_for_processing_new_CRs_based_on_the_CRD
+IMAGE_MAINTAINER      = dominique.vernier@us.ibm.com
+IMAGE_VENDOR          = IBM
+IMAGE_SUMMARY         = $(IMAGE_DESCRIPTION)
+IMAGE_OPENSHIFT_TAGS  = multicloud-manager
+IMAGE_VERSION        ?= $(RELEASE_TAG)
+IMAGE_RELEASE        ?= $(VCS_REF)
+
+DOCKER_BUILD_OPTS = --build-arg VCS_REF=$(VCS_REF) \
+	--build-arg VCS_URL=$(GIT_REMOTE_URL) \
+	--build-arg IMAGE_NAME=$(IMAGE_NAME) \
+	--build-arg IMAGE_MAINTAINER=$(IMAGE_MAINTAINER) \
+	--build-arg IMAGE_VENDOR=$(IMAGE_VENDOR) \
+	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+	--build-arg IMAGE_RELEASE=$(IMAGE_RELEASE) \
+	--build-arg IMAGE_SUMMARY=$(IMAGE_SUMMARY) \
+	--build-arg IMAGE_OPENSHIFT_TAGS=$(IMAGE_OPENSHIFT_TAGS) \
+	--build-arg IMAGE_NAME_ARCH=$(IMAGE_NAME_ARCH) \
+    --build-arg IMAGE_DESCRIPTION=$(IMAGE_DESCRIPTION)
 
 GIT_COMMIT := $(shell git rev-parse --short HEAD)
 VCS_REF := $(if $(WORKING_CHANGES),$(GIT_COMMIT)-$(BUILD_DATE),$(GIT_COMMIT))
