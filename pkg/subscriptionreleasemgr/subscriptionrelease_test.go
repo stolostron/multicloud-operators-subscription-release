@@ -1,13 +1,7 @@
 package subscriptionreleasemgr
 
 import (
-	"encoding/json"
-	"fmt"
 	"testing"
-
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
-	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 )
 
 const index = `
@@ -253,24 +247,4 @@ func TestRelease(t *testing.T) {
 	// _, err = mgr.InstallRelease(context.TODO())
 	// assert.NoError(t, err)
 
-}
-
-func Test_RetrieveOverride(t *testing.T) {
-	var s appv1alpha1.Subscription
-	err := yaml.Unmarshal([]byte(sub), &s)
-	assert.NoError(t, err)
-	for _, packageElem := range s.Spec.PackageOverrides {
-		for _, pathElem := range packageElem.PackageOverrides {
-			data, err := pathElem.MarshalJSON()
-			assert.NoError(t, err)
-			fmt.Print(string(data))
-			var m map[string]interface{}
-			err = json.Unmarshal(data, &m)
-			assert.NoError(t, err)
-			if m["path"] == "spec.values" {
-				fmt.Print(m["value"])
-			}
-		}
-	}
-	t.FailNow()
 }
