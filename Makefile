@@ -51,7 +51,7 @@ deps:
 copyright-check:
 	$(BUILD_DIR)/copyright-check.sh
 	
-all: deps test operator-sdk-image
+all: deps test image
 
 local:
 	operator-sdk up local --verbose
@@ -89,7 +89,7 @@ operator-sdk-install:
 	   fi; \
 	fi
 
-operator-sdk-image: operator-sdk-install generate
+image: operator-sdk-install generate
 	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH)
 	uname -a | grep "Darwin"; \
     if [ $$? -eq 0 ]; then \
@@ -101,6 +101,22 @@ operator-sdk-image: operator-sdk-install generate
 generate: operator-sdk-install
 	operator-sdk generate k8s
 	operator-sdk generate openapi
+
+release: image
+	@echo -e "$(TARGET) $(OS) $(ARCH)"
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
+
+ifeq ($(ARCH), x86_64)
+ifneq ($(RELEASE_TAG),)
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
+endif
+	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
+	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
+endif
 
 # Run tests
 test: generate fmt vet
@@ -118,5 +134,3 @@ fmt:
 # Run go vet against code
 vet:
 	go vet ./pkg/... ./cmd/...
-
-include Makefile.docker
