@@ -51,7 +51,7 @@ deps:
 copyright-check:
 	$(BUILD_DIR)/copyright-check.sh
 	
-all: deps test image
+all: deps test operator-sdk-image
 
 local:
 	operator-sdk up local --verbose
