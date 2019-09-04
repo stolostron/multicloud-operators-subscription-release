@@ -479,7 +479,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 			Annotations: annotations,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			URLs:         chartVersion.URLs,
+			Urls:         chartVersion.URLs,
 			ConfigMapRef: s.Subscription.Spec.ConfigMapRef,
 			SecretRef:    s.Subscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,
