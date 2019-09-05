@@ -455,25 +455,25 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 		return nil, err
 	}
 
-	var channelNamespace string
-	var channelName string
-	if s.Subscription.Spec.Channel != "" {
-		strs := strings.Split(s.Subscription.Spec.Channel, "/")
-		if len(strs) != 2 {
-			err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
-			return nil, err
-		}
-		channelNamespace = strs[0]
-		channelName = strs[1]
-	}
+	// var channelNamespace string
+	// var channelName string
+	// if s.Subscription.Spec.Channel != "" {
+	// 	strs := strings.Split(s.Subscription.Spec.Channel, "/")
+	// 	if len(strs) != 2 {
+	// 		err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
+	// 		return nil, err
+	// 	}
+	// 	channelNamespace = strs[0]
+	// 	channelName = strs[1]
+	// }
 
-	releaseName := s.Subscription.Name + "-" + chartVersion.Name
-	if channelName != "" {
-		releaseName = releaseName + "-" + channelName
-	}
-	if channelNamespace != "" {
-		releaseName = releaseName + "-" + channelNamespace
-	}
+	releaseName := chartVersion.Name + "-" + s.Subscription.Name +"-" + s.Subscription.Namespace
+	// if channelName != "" {
+	// 	releaseName = releaseName + "-" + channelName
+	// }
+	// if channelNamespace != "" {
+	// 	releaseName = releaseName + "-" + channelNamespace
+	// }
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
