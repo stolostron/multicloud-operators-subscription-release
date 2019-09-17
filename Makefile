@@ -56,23 +56,16 @@ all: deps test image
 local:
 	operator-sdk up local --verbose
 
-wicked:
+ossc:
 	@if [ -z $(dest) ]; then \
 	   echo "Usage: make dest=destination_dir wicked"; \
 	   exit 1; \
 	fi
-	wicked-cli --version
-	@if [ $$? -ne 0 ]; then \
-		echo "Install wicked with 'sudo npm install -g @wicked/cli@latest'"; \
-		exit 1; \
-	fi
-	GO111MODULE=off go get -u github.ibm.com/IBMPrivateCloud/awsom-tool/... 
-	go mod vendor && \
+	rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
 	rm -rf $(dest)/$(PROJECT_NAME)_scan-results && \
-	wicked-cli -s . -o $(dest) && \
-	awsomtool golang enrichGoMod -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-Dep.csv && \
-	awsomtool enrichCopyright -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-Dep.csv  -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-url-copyright.csv && \
-	rm -rf vendor;
+	mkdir -p $(dest)/$(PROJECT_NAME)_scan-results && \
+	/tmp/awsom-tool/_build/awsomtool golang scan -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv && \
+	/tmp/awsom-tool/_build/awsomtool enrichCopyright -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv  -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-url-copyright.csv && \
 	rm -rf wicked_cli.log
 
 # Install operator-sdk

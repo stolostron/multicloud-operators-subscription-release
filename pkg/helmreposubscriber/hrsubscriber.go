@@ -10,7 +10,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	gerrors "errors"
+	//	gerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -467,7 +467,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 	// 	channelName = strs[1]
 	// }
 
-	releaseName := chartVersion.Name + "-" + s.Subscription.Name +"-" + s.Subscription.Namespace
+	releaseName := chartVersion.Name + "-" + s.Subscription.Name + "-" + s.Subscription.Namespace
 	// if channelName != "" {
 	// 	releaseName = releaseName + "-" + channelName
 	// }
