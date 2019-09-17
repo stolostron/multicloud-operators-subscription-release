@@ -170,6 +170,7 @@ func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.
 	return nil
 }
 
+//SetStatus set the subscription release status
 func (r *ReconcileSubscriptionRelease) SetStatus(s *appv1alpha1.SubscriptionRelease, issue error) (reconcile.Result, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
 	//Success

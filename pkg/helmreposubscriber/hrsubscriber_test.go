@@ -188,7 +188,7 @@ func Test_MatchingTillerVersion(t *testing.T) {
 	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
-	assert.Equal(t, 2, len(versionedCharts))
+	assert.Equal(t, 1, len(versionedCharts))
 }
 
 func Test_MatchingTillerVersionNotFound(t *testing.T) {

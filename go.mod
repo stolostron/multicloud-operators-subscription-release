@@ -1,22 +1,23 @@
 module github.ibm.com/IBMMulticloudPlatform/subscription-operator
 
 require (
+	github.com/alecthomas/gometalinter v3.0.0+incompatible // indirect
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/cameront/go-jsonpatch v0.0.0-20180223123257-a8710867776e // indirect
 	github.com/ghodss/yaml v1.0.0
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/go-openapi/spec v0.19.0
+	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
-	github.com/operator-framework/operator-sdk v0.9.1-0.20190724001845-d6e1aba9fa51
+	github.com/operator-framework/operator-sdk v0.10.0
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190809123943-df4f5c81cb3b // indirect
+	golang.org/x/lint v0.0.0-20190409202823-959b441ac422 // indirect
 	golang.org/x/tools v0.0.0-20190710153321-831012c29e42 // indirect
+	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible
-	k8s.io/cluster-registry v0.0.6 // indirect
 	k8s.io/helm v2.13.1+incompatible
-	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208 // indirect
+	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208
 	sigs.k8s.io/controller-runtime v0.1.12
 	sigs.k8s.io/controller-tools v0.1.10
 )
@@ -36,6 +37,7 @@ replace (
 )
 
 replace (
+	git.apache.org/thrift.git => github.com/apache/thrift v0.0.0-20180902110319-2566ecd5d999
 	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.29.0
 	k8s.io/kube-state-metrics => k8s.io/kube-state-metrics v1.6.0
 	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.1.12

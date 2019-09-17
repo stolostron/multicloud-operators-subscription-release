@@ -1,0 +1,76 @@
+language: go
+services:
+- docker
+
+go:
+  - '1.12'
+
+branches:
+  only:
+    - master
+    # release tags
+    - /^v\d+\.\d+\.\d+.*/
+
+stages:
+  - lint
+  - test
+  - build
+  - multiarch
+
+before_script:
+  - source travis-env.sh
+  - make init
+  - make docker:login
+
+jobs:
+  include:
+    - stage: lint
+      name: Perform linting before any jobs trigger
+      script:
+        - make lint fmt
+  
+    - stage: test
+      name: Test x86 image
+      os: linux
+      script:
+      - make test
+
+    - stage: build
+      if: type != pull_request
+      name: Build x86 image
+      os: linux
+      script:
+        - make image  release
+
+    - stage: build
+      if: type != pull_request
+      name: Build ppc64le image
+      os: linux-ppc64le
+      script:
+        - make image release
+
+
+    - stage: build
+      if: type != pull_request
+      name: Build s390x image
+      os: linux-s390
+      script:
+        - make image release
+      
+    - stage: multiarch
+      if: type != pull_request
+      name: Build multi arch image
+      script:
+        - make docker:manifest-tool
+        - export PATH=/opt:$PATH
+        - make docker:multi-arch
+
+cache:
+  directories:
+    - $GOPATH/pkg
+    - $GOPATH/bin
+
+    
+notifications:
+  email:
+    on_success: never

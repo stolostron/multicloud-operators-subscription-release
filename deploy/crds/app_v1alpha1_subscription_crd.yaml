@@ -29,6 +29,14 @@ spec:
           type: object
         spec:
           properties:
+            autoUpgrade:
+              description: AutoUpgrade if true the helm-repo will be monitor and subscription
+                recalculated if changed
+              type: boolean
+            configRef:
+              description: Configuration parameters to access the helm-repo defined
+                in the CatalogSource
+              type: object
             packageFilter:
               description: To specify more than 1 package in channel
               properties:
@@ -36,6 +44,10 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                keywords:
+                  items:
+                    type: string
+                  type: array
                 labelSelector:
                   type: object
                 version:
@@ -59,66 +71,81 @@ spec:
                 - packageOverrides
                 type: object
               type: array
-            placement:
-              description: For hub use only, to specify which clusters to go to
-              properties:
-                clusterSelector:
-                  type: object
-                clusters:
-                  items:
-                    properties:
-                      name:
-                        type: string
-                    type: object
-                  type: array
-                placementRef:
-                  type: object
+            secretRef:
+              description: "For hub use only, to specify which clusters to go to \tPlacement
+                *placementv1alpha1.Placement `json:\"placement,omitempty\"` Secret
+                to use to access the helm-repo defined in the CatalogSource."
               type: object
+            status:
+              properties:
+                lastUpdateTime:
+                  format: date-time
+                  type: string
+                message:
+                  type: string
+                packages:
+                  additionalProperties:
+                    properties:
+                      lastUpdateTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        type: string
+                      status:
+                        description: Phase are Propagated if it is in hub or Subscribed
+                          if it is in endpoint
+                        type: string
+                    required:
+                    - lastUpdateTime
+                    type: object
+                  type: object
+                reason:
+                  type: string
+                status:
+                  description: Phase are Propagated if it is in hub or Subscribed
+                    if it is in endpoint
+                  type: string
+              required:
+              - lastUpdateTime
+              type: object
+          required:
+          - autoUpgrade
           type: object
         status:
           properties:
+            lastUpdateTime:
+              format: date-time
+              type: string
             message:
               type: string
-            phase:
-              description: Phase are Propagated if it is in hub or Subscribed if it
-                is in endpoint
-              type: string
-            reason:
-              type: string
-            status:
+            packages:
               additionalProperties:
                 properties:
-                  currentCSV:
-                    type: string
-                  installplan:
-                    properties:
-                      apiVersion:
-                        type: string
-                      kind:
-                        type: string
-                      name:
-                        type: string
-                      uuid:
-                        type: string
-                    required:
-                    - apiVersion
-                    - kind
-                    - name
-                    - uuid
-                    type: object
-                  lastUpdated:
+                  lastUpdateTime:
                     format: date-time
+                    type: string
+                  message:
                     type: string
                   reason:
                     type: string
-                  state:
+                  status:
+                    description: Phase are Propagated if it is in hub or Subscribed
+                      if it is in endpoint
                     type: string
                 required:
-                - lastUpdated
+                - lastUpdateTime
                 type: object
-              description: For endpoint, it is the status of subscription, For hub,
-                it aggregates all status, key is cluster name
               type: object
+            reason:
+              type: string
+            status:
+              description: Phase are Propagated if it is in hub or Subscribed if it
+                is in endpoint
+              type: string
+          required:
+          - lastUpdateTime
           type: object
   version: v1alpha1
   versions:

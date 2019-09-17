@@ -10,7 +10,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
-	gerrors "errors"
+	//	gerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -155,7 +155,7 @@ func (s *HelmRepoSubscriber) processSubscription(indexFile *repo.IndexFile) erro
 	return s.manageSubscription(indexFile, repoURL)
 }
 
-//getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
+//GetHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
 func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
 	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
 	subLogger.Info("begin")
@@ -302,6 +302,9 @@ func (s *HelmRepoSubscriber) filterIndexFile(indexFile *repo.IndexFile) {
 func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool {
 	if s.Subscription != nil {
 		if s.Subscription.Spec.PackageFilter != nil {
+			if s.Subscription.Spec.PackageFilter.Keywords == nil {
+				return true
+			}
 			for _, filterKeyword := range s.Subscription.Spec.PackageFilter.Keywords {
 				for _, chartKeyword := range chartVersion.Keywords {
 					if filterKeyword == chartKeyword {
@@ -452,25 +455,25 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 		return nil, err
 	}
 
-	var channelNamespace string
-	var channelName string
-	if s.Subscription.Spec.Channel != "" {
-		strs := strings.Split(s.Subscription.Spec.Channel, "/")
-		if len(strs) != 2 {
-			err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
-			return nil, err
-		}
-		channelNamespace = strs[0]
-		channelName = strs[1]
-	}
+	// var channelNamespace string
+	// var channelName string
+	// if s.Subscription.Spec.Channel != "" {
+	// 	strs := strings.Split(s.Subscription.Spec.Channel, "/")
+	// 	if len(strs) != 2 {
+	// 		err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
+	// 		return nil, err
+	// 	}
+	// 	channelNamespace = strs[0]
+	// 	channelName = strs[1]
+	// }
 
-	releaseName := s.Subscription.Name + "-" + chartVersion.Name
-	if channelName != "" {
-		releaseName = releaseName + "-" + channelName
-	}
-	if channelNamespace != "" {
-		releaseName = releaseName + "-" + channelNamespace
-	}
+	releaseName := chartVersion.Name + "-" + s.Subscription.Name + "-" + s.Subscription.Namespace
+	// if channelName != "" {
+	// 	releaseName = releaseName + "-" + channelName
+	// }
+	// if channelNamespace != "" {
+	// 	releaseName = releaseName + "-" + channelNamespace
+	// }
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -479,7 +482,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 			Annotations: annotations,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			URLs:         chartVersion.URLs,
+			Urls:         chartVersion.URLs,
 			ConfigMapRef: s.Subscription.Spec.ConfigMapRef,
 			SecretRef:    s.Subscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,

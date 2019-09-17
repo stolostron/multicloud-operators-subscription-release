@@ -13,10 +13,12 @@ type SubscriptionReleaseStatusEnum string
 
 const (
 	// SubscriptionReleaseFailed means this subscription is the "parent" sitting in hub
-	SubscriptionReleaseFailed  SubscriptionReleaseStatusEnum = "Failed"
+	SubscriptionReleaseFailed SubscriptionReleaseStatusEnum = "Failed"
+	// SubscriptionReleaseSuccess means this subscription is the "parent" sitting in hub
 	SubscriptionReleaseSuccess SubscriptionReleaseStatusEnum = "Success"
 )
 
+//SubscriptionReleaseStatus ...
 type SubscriptionReleaseStatus struct {
 	Status         SubscriptionReleaseStatusEnum `json:"phase,omitempty"`
 	Message        string                        `json:"message,omitempty"`
@@ -31,7 +33,7 @@ type SubscriptionReleaseSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	// RepoURL is the URL of the repository. Defaults to stable repo.
-	URLs []string `json:"URLs,omitempty"`
+	Urls []string `json:"urls,omitempty"`
 	// ChartName is the name of the chart within the repo
 	ChartName string `json:"chartName,omitempty"`
 	// ReleaseName is the Name of the release given to Tiller. Defaults to namespace-name. Must not be changed after initial object creation.
@@ -43,7 +45,7 @@ type SubscriptionReleaseSpec struct {
 	// Secret to use to access the helm-repo defined in the CatalogSource.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
-	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
+	ConfigMapRef *corev1.ObjectReference `json:"configMapRef,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
