@@ -22,11 +22,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-type SubscriptionControllerCMDOptions struct {
+//ControllerCMDOptions possible command line options
+type ControllerCMDOptions struct {
 	SubscriptionControllerDisabled bool
 }
 
-var Options = SubscriptionControllerCMDOptions{}
+//Options the command line options
+var Options = ControllerCMDOptions{}
 
 var log = logf.Log.WithName("controller_subscription")
 
