@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -13,17 +14,16 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
-	"fmt"
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/plumbing"
-	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 )
 
 var log = logf.Log.WithName("utils")
@@ -124,9 +124,9 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
 	switch s.Spec.Source.SourceType {
 	case appv1alpha1.HelmRepoSourceType:
-		return DownloadChartFromHelmRepo(configMap,secret,chartsDir,s)
+		return DownloadChartFromHelmRepo(configMap, secret, chartsDir, s)
 	case appv1alpha1.GitHubSourceType:
-		return DownloadChartFromGitHub(configMap,secret,chartsDir,s)
+		return DownloadChartFromGitHub(configMap, secret, chartsDir, s)
 	default:
 		err := fmt.Errorf("Unsupported source type: %s", s.Spec.Source.SourceType)
 		return "", err
@@ -148,9 +148,9 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 		}
 	}
 	options := &git.CloneOptions{
-		URL: s.Spec.Source.GitHub.URL,
-		Depth: 1,
-		SingleBranch: true,
+		URL:               s.Spec.Source.GitHub.URL,
+		Depth:             1,
+		SingleBranch:      true,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
 	if secret != nil && secret.Data != nil {
@@ -167,12 +167,12 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 	}
 	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace)
 	os.RemoveAll(chartDir)
-	_, err = git.PlainClone(destRepo,false,options)
+	_, err = git.PlainClone(destRepo, false, options)
 	if err != nil {
 		os.RemoveAll(destRepo)
 	}
-	chartDir = filepath.Join(destRepo,s.Spec.Source.GitHub.ChartPath)
-	return chartDir,err
+	chartDir = filepath.Join(destRepo, s.Spec.Source.GitHub.ChartPath)
+	return chartDir, err
 }
 
 //DownloadChartFromHelmRepo downloads a chart into the charsDir
@@ -194,12 +194,12 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap, secret *corev1.Secre
 		srLogger.Error(err, "Failed to create httpClient ", "sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
 		return "", err
 	}
-	var downloadErr error 
+	var downloadErr error
 	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
 		var URLP *url.URL
 		URLP, downloadErr = url.Parse(urlelem)
 		if err != nil {
-			srLogger.Error(downloadErr,"url",urlelem)
+			srLogger.Error(downloadErr, "url", urlelem)
 			continue
 		}
 		fileName := filepath.Base(URLP.Path)

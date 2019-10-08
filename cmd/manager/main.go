@@ -56,7 +56,7 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	// Add subscription operator flag set to the CLI.
-	pflag.CommandLine.BoolVar(&subscription.Options.SubscriptionControllerDisabled, "subscription-controller-disabled",false,"Disable the subscription controller")
+	pflag.CommandLine.BoolVar(&subscription.Options.SubscriptionControllerDisabled, "subscription-controller-disabled", false, "Disable the subscription controller")
 
 	pflag.Parse()
 

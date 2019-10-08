@@ -57,7 +57,12 @@ func TestSubscriptionReleaseReconcileCreate(t *testing.T) {
 			UID:       types.UID("89e6052a-d566-11e9-b55f-fa163e0cb658"),
 		},
 		Spec: v1alpha1.SubscriptionReleaseSpec{
-			Urls:        []string{"https://helm.nginx.com/stable/nginx-ingress-0.3.5.tgz"},
+			Source: &v1alpha1.Source{
+				SourceType: v1alpha1.HelmRepoSourceType,
+				HelmRepo: &v1alpha1.HelmRepo{
+					Urls: []string{"https://helm.nginx.com/stable/nginx-ingress-0.3.5.tgz"},
+				},
+			},
 			ChartName:   chartName,
 			ReleaseName: releaseName,
 			//			Version:     "",
