@@ -58,7 +58,7 @@ func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alph
 	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	srLogger.Info("ChartDir", "ChartDir", chartDir)
 	if err != nil {
-		srLogger.Error(err, "Failed to download the tgz")
+		srLogger.Error(err, "Failed to download the chart")
 		return nil, err
 	}
 	f := helmrelease.NewManagerFactory(mgr, chartDir)

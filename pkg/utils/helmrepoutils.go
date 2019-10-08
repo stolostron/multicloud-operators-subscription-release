@@ -154,8 +154,9 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
 	}
 	if secret != nil && secret.Data != nil {
+		srLogger.Info("Add credentials")
 		options.Auth = &githttp.BasicAuth{
-			Username: string(secret.Data["username"]),
+			Username: string(secret.Data["user"]),
 			Password: string(secret.Data["password"]),
 		}
 	}
@@ -164,12 +165,13 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 	} else {
 		options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
 	}
-	chartDir = filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
+	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace)
 	os.RemoveAll(chartDir)
-	_, err = git.PlainClone(chartDir,true,options)
+	_, err = git.PlainClone(destRepo,false,options)
 	if err != nil {
-		os.RemoveAll(chartDir)
+		os.RemoveAll(destRepo)
 	}
+	chartDir = filepath.Join(destRepo,s.Spec.Source.GitHub.ChartPath)
 	return chartDir,err
 }
 
@@ -211,7 +213,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap, secret *corev1.Secre
 				continue
 			}
 			if secret != nil && secret.Data != nil {
-				req.SetBasicAuth(string(secret.Data["username"]), string(secret.Data["password"]))
+				req.SetBasicAuth(string(secret.Data["user"]), string(secret.Data["password"]))
 			}
 			var resp *http.Response
 			resp, downloadErr = httpClient.Do(req)
