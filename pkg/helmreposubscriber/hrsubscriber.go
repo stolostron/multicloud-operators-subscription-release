@@ -14,7 +14,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
+	"net/url"
+	//	"regexp"
 	"strings"
 	"time"
 
@@ -69,17 +70,17 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 	s.HelmRepoHash = ""
 
-	err := s.doSubscription()
-	if err != nil {
-		return err
-	}
-
 	subLogger.Info("Check start helm-repo monitoring", "s.Subscription.Spec.AutoUpgrade", s.Subscription.Spec.AutoUpgrade)
 	if s.Subscription.Spec.AutoUpgrade {
 		subLogger.Info("Start helm-repo monitoring")
 		go wait.Until(func() {
 			s.doSubscription()
 		}, subscriptionPeriod, s.stopCh)
+	} else {
+		err := s.doSubscription()
+		if err != nil {
+			return err
+		}
 	}
 	s.started = true
 
@@ -163,7 +164,7 @@ func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash
 	if err != nil {
 		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.Subscription.Spec.ConfigMapRef.Name)
 	}
-	httpClient, err := utils.GetHelmRepoClient(s.Client, s.Subscription.Namespace, configMap)
+	httpClient, err := utils.GetHelmRepoClient(s.Subscription.Namespace, configMap)
 	if err != nil {
 		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.Subscription.Spec.CatalogSource)
 	}
@@ -256,16 +257,17 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 func (s *HelmRepoSubscriber) removeNoMatchingName(indexFile *repo.IndexFile) error {
 	if s.Subscription != nil {
 		if s.Subscription.Spec.Package != "" {
-			r, err := regexp.Compile(s.Subscription.Spec.Package)
-			if err != nil {
-				return err
-			}
+			// r, err := regexp.Compile(s.Subscription.Spec.Package)
+			// if err != nil {
+			// 	return err
+			// }
 			keys := make([]string, 0)
 			for k := range indexFile.Entries {
 				keys = append(keys, k)
 			}
 			for _, k := range keys {
-				if !r.MatchString(k) {
+				if k != s.Subscription.Spec.Package {
+					// if !r.MatchString(k) {
 					delete(indexFile.Entries, k)
 				}
 			}
@@ -455,25 +457,19 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 		return nil, err
 	}
 
-	// var channelNamespace string
-	// var channelName string
-	// if s.Subscription.Spec.Channel != "" {
-	// 	strs := strings.Split(s.Subscription.Spec.Channel, "/")
-	// 	if len(strs) != 2 {
-	// 		err = gerrors.New("Illegal channel settings, want namespace/name, but get " + s.Subscription.Spec.Channel)
-	// 		return nil, err
-	// 	}
-	// 	channelNamespace = strs[0]
-	// 	channelName = strs[1]
-	// }
-
 	releaseName := chartVersion.Name + "-" + s.Subscription.Name + "-" + s.Subscription.Namespace
-	// if channelName != "" {
-	// 	releaseName = releaseName + "-" + channelName
-	// }
-	// if channelNamespace != "" {
-	// 	releaseName = releaseName + "-" + channelNamespace
-	// }
+
+	for i := range chartVersion.URLs {
+		parsedURL, err := url.Parse(chartVersion.URLs[i])
+		if err != nil {
+			return nil, err
+		}
+		if parsedURL.Scheme == "local" {
+			//make sure there is one and only one slash
+			repoURL := strings.TrimSuffix(s.Subscription.Spec.CatalogSource, "/") + "/"
+			chartVersion.URLs[i] = strings.Replace(chartVersion.URLs[i], "local://", repoURL, -1)
+		}
+	}
 	//Compose release name
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -482,7 +478,12 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 			Annotations: annotations,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
-			Urls:         chartVersion.URLs,
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.HelmRepoSourceType,
+				HelmRepo: &appv1alpha1.HelmRepo{
+					Urls: chartVersion.URLs,
+				},
+			},
 			ConfigMapRef: s.Subscription.Spec.ConfigMapRef,
 			SecretRef:    s.Subscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,

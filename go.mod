@@ -1,18 +1,17 @@
 module github.ibm.com/IBMMulticloudPlatform/subscription-operator
 
 require (
-	github.com/alecthomas/gometalinter v3.0.0+incompatible // indirect
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.0
-	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
+	github.com/martinlindhe/base36 v0.0.0-20180729042928-5cda0030da17
+	github.com/onsi/gomega v1.4.3
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	github.com/operator-framework/operator-sdk v0.10.0
+	github.com/pborman/uuid v1.2.0
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
-	golang.org/x/lint v0.0.0-20190409202823-959b441ac422 // indirect
-	golang.org/x/tools v0.0.0-20190710153321-831012c29e42 // indirect
-	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
+	gopkg.in/src-d/go-git.v4 v4.13.1
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
 	k8s.io/client-go v11.0.0+incompatible

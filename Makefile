@@ -68,6 +68,15 @@ ossc:
 	/tmp/awsom-tool/_build/awsomtool enrichCopyright -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv  -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-url-copyright.csv && \
 	rm -rf wicked_cli.log
 
+check-licenses:
+	@rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
+	@$(eval RESULT = $(shell /tmp/awsom-tool/_build/awsomtool golang licenses -p .*GPL.* --format '{{.Path}} {{.LicenseType}}'))
+	@if [ "$(RESULT)" != "" ]; then \
+		echo "A License file contains the GPL word"; \
+		echo -e $(RESULT); \
+		exit 1; \
+	fi
+
 # Install operator-sdk
 operator-sdk-install: 
 	@operator-sdk version ; \
@@ -123,3 +132,4 @@ fmt:
 # Run go vet against code
 vet:
 	go vet ./pkg/... ./cmd/...
+

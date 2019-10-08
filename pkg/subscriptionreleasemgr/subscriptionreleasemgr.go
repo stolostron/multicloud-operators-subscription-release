@@ -1,8 +1,8 @@
 package subscriptionreleasemgr
 
 import (
-	"errors"
-	"net/http"
+	"io/ioutil"
+
 	"os"
 
 	"github.com/ghodss/yaml"
@@ -22,7 +22,7 @@ const ChartsDir = "CHARTS_DIR"
 var log = logf.Log.WithName("subscriptionreleasemgr")
 
 //NewManager create a new manager
-func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
+func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
 	if err != nil {
@@ -34,7 +34,9 @@ func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.S
 	o.SetNamespace(s.GetNamespace())
 	releaseName := s.Spec.ReleaseName[0:4]
 	o.SetName(releaseName)
+	srLogger.Info("ReleaseName", "o.GetName()", o.GetName())
 	o.SetUID(s.GetUID())
+	srLogger.Info("uuid", "o.GetUID()", o.GetUID())
 
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: s.GetNamespace(),
@@ -47,11 +49,13 @@ func NewManager(httpClient *http.Client, secret *corev1.Secret, s *appv1alpha1.S
 
 	chartsDir := os.Getenv(ChartsDir)
 	if chartsDir == "" {
-		err = errors.New("Environment variable not set")
-		srLogger.Error(err, "Failed to create a new manager.", "Variable", ChartsDir)
-		return nil, err
-	}
-	chartDir, err := utils.DownloadChart(httpClient, secret, chartsDir, s)
+		chartsDir, err = ioutil.TempDir("/tmp", "charts")
+		if err != nil {
+			srLogger.Error(err, "Can not create tempdir")
+			return nil, err
+		}
+		}
+	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	srLogger.Info("ChartDir", "ChartDir", chartDir)
 	if err != nil {
 		srLogger.Error(err, "Failed to download the tgz")

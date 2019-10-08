@@ -18,6 +18,16 @@ const (
 	SubscriptionReleaseSuccess SubscriptionReleaseStatusEnum = "Success"
 )
 
+//SourceTypeEnum ...
+type SourceTypeEnum string
+
+const (
+	// HelmRepoSourceType ...
+	HelmRepoSourceType SourceTypeEnum = "helmrepo"
+	// GitHubSourceType ...
+	GitHubSourceType SourceTypeEnum = "github"
+)
+
 //SubscriptionReleaseStatus ...
 type SubscriptionReleaseStatus struct {
 	Status         SubscriptionReleaseStatusEnum `json:"phase,omitempty"`
@@ -26,14 +36,33 @@ type SubscriptionReleaseStatus struct {
 	LastUpdateTime metav1.Time                   `json:"lastUpdate"`
 }
 
+//GitHub provides the parameters to access the helm-chart located in a github repo
+type GitHub struct {
+	URL       string `json:"url,omitempty"`
+	ChartPath string `json:"chartPath,omitempty"`
+	Branch    string `json:"branch,omitempty"`
+}
+
+//HelmRepo provides the urls to retreive the helm-chart
+type HelmRepo struct {
+	Urls []string `json:"urls,omitempty"`
+}
+
+//Source holds the different types of repository
+type Source struct {
+	SourceType SourceTypeEnum `json:"type,omitempty"`
+	GitHub     *GitHub        `json:"github,omitempty"`
+	HelmRepo   *HelmRepo      `json:"helmRepo,omitempty"`
+}
+
 // SubscriptionReleaseSpec defines the desired state of SubscriptionRelease
 // +k8s:openapi-gen=true
 type SubscriptionReleaseSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
-	// RepoURL is the URL of the repository. Defaults to stable repo.
-	Urls []string `json:"urls,omitempty"`
+	// Source holds the url toward the helm-chart
+	Source *Source `json:"source,omitempty"`
 	// ChartName is the name of the chart within the repo
 	ChartName string `json:"chartName,omitempty"`
 	// ReleaseName is the Name of the release given to Tiller. Defaults to namespace-name. Must not be changed after initial object creation.

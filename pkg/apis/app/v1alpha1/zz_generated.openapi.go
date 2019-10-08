@@ -109,18 +109,10 @@ func schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Description: "SubscriptionReleaseSpec defines the desired state of SubscriptionRelease",
 				Properties: map[string]spec.Schema{
-					"urls": {
+					"source": {
 						SchemaProps: spec.SchemaProps{
-							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html RepoURL is the URL of the repository. Defaults to stable repo.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
+							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html Source holds the url toward the helm-chart",
+							Ref:         ref("./pkg/apis/app/v1alpha1.Source"),
 						},
 					},
 					"chartName": {
@@ -167,6 +159,6 @@ func schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.ObjectReference"},
+			"./pkg/apis/app/v1alpha1.Source", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }

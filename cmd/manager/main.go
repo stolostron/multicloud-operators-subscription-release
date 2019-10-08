@@ -14,6 +14,7 @@ import (
 
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/controller"
+	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/controller/subscription"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -54,7 +55,12 @@ func main() {
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
+	// Add subscription operator flag set to the CLI.
+	pflag.CommandLine.BoolVar(&subscription.Options.SubscriptionControllerDisabled, "subscription-controller-disabled",false,"Disable the subscription controller")
+
 	pflag.Parse()
+
+	fmt.Printf("Options.SubscriptionControllerDisabled %v\n", subscription.Options.SubscriptionControllerDisabled)
 
 	// Use a zap logr.Logger implementation. If none of the zap
 	// flags are configured (or if the zap flag set is not being

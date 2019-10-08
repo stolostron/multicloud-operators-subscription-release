@@ -22,6 +22,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
+type SubscriptionControllerCMDOptions struct {
+	SubscriptionControllerDisabled bool
+}
+
+var Options = SubscriptionControllerCMDOptions{}
+
 var log = logf.Log.WithName("controller_subscription")
 
 /**
@@ -32,7 +38,10 @@ var log = logf.Log.WithName("controller_subscription")
 // Add creates a new Subscription Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+	if !Options.SubscriptionControllerDisabled {
+		return add(mgr, newReconciler(mgr))
+	}
+	return nil
 }
 
 // newReconciler returns a new reconcile.Reconciler
