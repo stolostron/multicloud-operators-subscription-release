@@ -126,8 +126,11 @@ metadata:
   selfLink: /apis/app.ibm.com/v1alpha1/namespaces/default/subscriptionreleases/razee-ibm-razee-api-ope
   uid: d35adca8-bcdf-11e9-b55f-fa163e0cb658
 spec:
-  URLs:
-  - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-razee-api-0.2.3-015-20190725140717.tgz
+  source:
+    type: helmrepo
+    helmRepo:
+      URLs:
+      - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-razee-api-0.2.3-015-20190725140717.tgz
   chartName: ibm-razee-api
   secretRef:
     name: mysecret

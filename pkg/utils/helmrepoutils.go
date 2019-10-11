@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+	"strings"
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"gopkg.in/src-d/go-git.v4"
@@ -122,10 +123,10 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 }
 
 func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
-	switch s.Spec.Source.SourceType {
-	case appv1alpha1.HelmRepoSourceType:
+	switch strings.ToLower(string(s.Spec.Source.SourceType)) {
+	case string(appv1alpha1.HelmRepoSourceType):
 		return DownloadChartFromHelmRepo(configMap, secret, chartsDir, s)
-	case appv1alpha1.GitHubSourceType:
+	case string(appv1alpha1.GitHubSourceType):
 		return DownloadChartFromGitHub(configMap, secret, chartsDir, s)
 	default:
 		err := fmt.Errorf("Unsupported source type: %s", s.Spec.Source.SourceType)
@@ -165,7 +166,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 	} else {
 		options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
 	}
-	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace)
+	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
 	os.RemoveAll(chartDir)
 	_, err = git.PlainClone(destRepo, false, options)
 	if err != nil {
