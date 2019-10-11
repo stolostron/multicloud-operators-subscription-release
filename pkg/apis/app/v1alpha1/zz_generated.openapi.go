@@ -11,17 +11,17 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/app/v1alpha1.Subscription":            schema_pkg_apis_app_v1alpha1_Subscription(ref),
+		"./pkg/apis/app/v1alpha1.HelmChartSubscription":   schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref),
 		"./pkg/apis/app/v1alpha1.SubscriptionRelease":     schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref),
 		"./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec": schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref),
 	}
 }
 
-func schema_pkg_apis_app_v1alpha1_Subscription(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Subscription is the Schema for the subscriptions API",
+				Description: "HelmChartSubscription is the Schema for the subscriptions API",
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -44,19 +44,19 @@ func schema_pkg_apis_app_v1alpha1_Subscription(ref common.ReferenceCallback) com
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionSpec"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmChartSubscriptionSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionStatus"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmChartSubscriptionStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/app/v1alpha1.SubscriptionSpec", "./pkg/apis/app/v1alpha1.SubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/app/v1alpha1.HelmChartSubscriptionSpec", "./pkg/apis/app/v1alpha1.HelmChartSubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

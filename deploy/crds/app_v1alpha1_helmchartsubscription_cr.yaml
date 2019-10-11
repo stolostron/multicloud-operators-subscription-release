@@ -1,7 +1,7 @@
 apiVersion: app.ibm.com/v1alpha1
-kind: Subscription
+kind: HelmChartSubscription
 metadata:
-  name: example-subscription
+  name: example-helmchartsubscription
 spec:
   # Add fields here
   size: 3

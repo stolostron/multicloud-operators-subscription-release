@@ -54,7 +54,7 @@ func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alph
 			srLogger.Error(err, "Can not create tempdir")
 			return nil, err
 		}
-		}
+	}
 	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	srLogger.Info("ChartDir", "ChartDir", chartDir)
 	if err != nil {

@@ -36,12 +36,12 @@ import (
 
 //HelmRepoSubscriber the object thar represent a subscriber of a helmRepo
 type HelmRepoSubscriber struct {
-	Client       client.Client
-	Scheme       *runtime.Scheme
-	HelmRepoHash string
-	Subscription *appv1alpha1.Subscription
-	started      bool
-	stopCh       chan struct{}
+	Client                client.Client
+	Scheme                *runtime.Scheme
+	HelmRepoHash          string
+	HelmChartSubscription *appv1alpha1.HelmChartSubscription
+	started               bool
+	stopCh                chan struct{}
 }
 
 var log = logf.Log.WithName("helmreposubscriber")
@@ -61,7 +61,7 @@ const DeploymentProcessBitnami = "bitnami"
 
 // Restart a helm repo subscriber
 func (s *HelmRepoSubscriber) Restart() error {
-	subLogger := log.WithValues("method", "Restart", "Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+	subLogger := log.WithValues("method", "Restart", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
 	if s.started {
 		s.Stop()
@@ -70,14 +70,14 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 	s.HelmRepoHash = ""
 
-	subLogger.Info("Check start helm-repo monitoring", "s.Subscription.Spec.AutoUpgrade", s.Subscription.Spec.AutoUpgrade)
-	if s.Subscription.Spec.AutoUpgrade {
+	subLogger.Info("Check start helm-repo monitoring", "s.HelmChartSubscription.Spec.AutoUpgrade", s.HelmChartSubscription.Spec.AutoUpgrade)
+	if s.HelmChartSubscription.Spec.AutoUpgrade {
 		subLogger.Info("Start helm-repo monitoring")
 		go wait.Until(func() {
-			s.doSubscription()
+			s.doHelmChartSubscription()
 		}, subscriptionPeriod, s.stopCh)
 	} else {
-		err := s.doSubscription()
+		err := s.doHelmChartSubscription()
 		if err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 // Stop a helm repo subscriber
 func (s *HelmRepoSubscriber) Stop() error {
-	subLogger := log.WithValues("method", "Stop", "Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+	subLogger := log.WithValues("method", "Stop", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
 	close(s.stopCh)
 	s.started = false
@@ -97,11 +97,11 @@ func (s *HelmRepoSubscriber) Stop() error {
 }
 
 // Update a namespace subscriber
-func (s *HelmRepoSubscriber) Update(sub *appv1alpha1.Subscription) error {
-	subLogger := log.WithValues("method", "Update", "Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+func (s *HelmRepoSubscriber) Update(sub *appv1alpha1.HelmChartSubscription) error {
+	subLogger := log.WithValues("method", "Update", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
-	s.Subscription = sub
-	if !s.Subscription.Spec.AutoUpgrade {
+	s.HelmChartSubscription = sub
+	if !s.HelmChartSubscription.Spec.AutoUpgrade {
 		return s.Stop()
 	}
 	return s.Restart()
@@ -113,22 +113,22 @@ func (s *HelmRepoSubscriber) IsStarted() bool {
 }
 
 //TODO
-func (s *HelmRepoSubscriber) doSubscription() error {
-	subLogger := log.WithValues("method", "doSubscription", "Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
+	subLogger := log.WithValues("method", "doHelmChartSubscription", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("start")
 	//Retrieve the helm repo
-	repoURL := s.Subscription.Spec.CatalogSource
+	repoURL := s.HelmChartSubscription.Spec.CatalogSource
 	subLogger.Info("Source: " + repoURL)
-	subLogger.Info("name: " + s.Subscription.GetName())
+	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
 
 	indexFile, hash, err := s.GetHelmRepoIndex()
 	if err != nil {
-		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.Subscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
 		return err
 	}
 	if hash != s.HelmRepoHash {
 		subLogger.Info("HelmRepo changed", "URL", repoURL)
-		err = s.processSubscription(indexFile)
+		err = s.processHelmChartSubscription(indexFile)
 		if err != nil {
 			subLogger.Error(err, "Error processing subscription")
 			return err
@@ -141,38 +141,38 @@ func (s *HelmRepoSubscriber) doSubscription() error {
 }
 
 // do a helm repo subscriber
-func (s *HelmRepoSubscriber) processSubscription(indexFile *repo.IndexFile) error {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexFile) error {
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Retrieve the helm repo
-	repoURL := s.Subscription.Spec.CatalogSource
+	repoURL := s.HelmChartSubscription.Spec.CatalogSource
 	subLogger.Info("Source: " + repoURL)
-	subLogger.Info("name: " + s.Subscription.GetName())
+	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
 
 	err := s.filterCharts(indexFile)
 	if err != nil {
-		subLogger.Error(err, "Unable to filter ", "s.Spec.CatalogSource", s.Subscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to filter ", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
 		return err
 	}
-	return s.manageSubscription(indexFile, repoURL)
+	return s.manageHelmChartSubscription(indexFile, repoURL)
 }
 
 //GetHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
 func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
-	configMap, err := utils.GetConfigMap(s.Client, s.Subscription.Namespace, s.Subscription.Spec.ConfigMapRef)
+	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
-		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.Subscription.Spec.ConfigMapRef.Name)
+		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
 	}
-	httpClient, err := utils.GetHelmRepoClient(s.Subscription.Namespace, configMap)
+	httpClient, err := utils.GetHelmRepoClient(s.HelmChartSubscription.Namespace, configMap)
 	if err != nil {
-		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.Subscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
 	}
-	secret, err := utils.GetSecret(s.Client, s.Subscription.Namespace, s.Subscription.Spec.SecretRef)
+	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
 	if err != nil {
-		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.Subscription.Spec.SecretRef.Name)
+		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
-	cleanRepoURL := strings.TrimSuffix(s.Subscription.Spec.CatalogSource, "/")
+	cleanRepoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.CatalogSource, "/")
 	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
 	if err != nil {
 		subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
@@ -235,7 +235,7 @@ func hashKey(b []byte) string {
 
 //filterCharts filters the indexFile by name, tillerVersion, version, digest
 func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error) {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Removes all entries from the indexFile with non matching name
 	err = s.removeNoMatchingName(indexFile)
 	if err != nil {
@@ -255,9 +255,9 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 
 //removeNoMatchingName Deletes entries that the name doesn't match the name provided in the subscription
 func (s *HelmRepoSubscriber) removeNoMatchingName(indexFile *repo.IndexFile) error {
-	if s.Subscription != nil {
-		if s.Subscription.Spec.Package != "" {
-			// r, err := regexp.Compile(s.Subscription.Spec.Package)
+	if s.HelmChartSubscription != nil {
+		if s.HelmChartSubscription.Spec.Package != "" {
+			// r, err := regexp.Compile(s.HelmChartSubscription.Spec.Package)
 			// if err != nil {
 			// 	return err
 			// }
@@ -266,7 +266,7 @@ func (s *HelmRepoSubscriber) removeNoMatchingName(indexFile *repo.IndexFile) err
 				keys = append(keys, k)
 			}
 			for _, k := range keys {
-				if k != s.Subscription.Spec.Package {
+				if k != s.HelmChartSubscription.Spec.Package {
 					// if !r.MatchString(k) {
 					delete(indexFile.Entries, k)
 				}
@@ -302,12 +302,12 @@ func (s *HelmRepoSubscriber) filterIndexFile(indexFile *repo.IndexFile) {
 
 //checkKeywords Checks if the charts has at least 1 keyword from the packageFilter.Keywords array
 func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool {
-	if s.Subscription != nil {
-		if s.Subscription.Spec.PackageFilter != nil {
-			if s.Subscription.Spec.PackageFilter.Keywords == nil {
+	if s.HelmChartSubscription != nil {
+		if s.HelmChartSubscription.Spec.PackageFilter != nil {
+			if s.HelmChartSubscription.Spec.PackageFilter.Keywords == nil {
 				return true
 			}
-			for _, filterKeyword := range s.Subscription.Spec.PackageFilter.Keywords {
+			for _, filterKeyword := range s.HelmChartSubscription.Spec.PackageFilter.Keywords {
 				for _, chartKeyword := range chartVersion.Keywords {
 					if filterKeyword == chartKeyword {
 						return true
@@ -322,10 +322,10 @@ func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool
 
 //checkDigest Checks if the digest matches
 func (s *HelmRepoSubscriber) checkDigest(chartVersion *repo.ChartVersion) bool {
-	if s.Subscription != nil {
-		if s.Subscription.Spec.PackageFilter != nil {
-			if s.Subscription.Spec.PackageFilter.Annotations != nil {
-				if filterDigest, ok := s.Subscription.Spec.PackageFilter.Annotations["digest"]; ok {
+	if s.HelmChartSubscription != nil {
+		if s.HelmChartSubscription.Spec.PackageFilter != nil {
+			if s.HelmChartSubscription.Spec.PackageFilter.Annotations != nil {
+				if filterDigest, ok := s.HelmChartSubscription.Spec.PackageFilter.Annotations["digest"]; ok {
 					return filterDigest == chartVersion.Digest
 				}
 			}
@@ -337,11 +337,11 @@ func (s *HelmRepoSubscriber) checkDigest(chartVersion *repo.ChartVersion) bool {
 
 //checkTillerVersion Checks if the TillerVersion matches
 func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
-	if s.Subscription != nil {
-		if s.Subscription.Spec.PackageFilter != nil {
-			if s.Subscription.Spec.PackageFilter.Annotations != nil {
-				if filterTillerVersion, ok := s.Subscription.Spec.PackageFilter.Annotations["tillerVersion"]; ok {
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
+	if s.HelmChartSubscription != nil {
+		if s.HelmChartSubscription.Spec.PackageFilter != nil {
+			if s.HelmChartSubscription.Spec.PackageFilter.Annotations != nil {
+				if filterTillerVersion, ok := s.HelmChartSubscription.Spec.PackageFilter.Annotations["tillerVersion"]; ok {
 					tillerVersion := chartVersion.GetTillerVersion()
 					if tillerVersion != "" {
 						tillerVersionVersion, err := semver.ParseRange(tillerVersion)
@@ -365,19 +365,19 @@ func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion)
 
 //checkVersion checks if the version matches
 func (s *HelmRepoSubscriber) checkVersion(chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
-	if s.Subscription != nil {
-		if s.Subscription.Spec.PackageFilter != nil {
-			if s.Subscription.Spec.PackageFilter.Version != "" {
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
+	if s.HelmChartSubscription != nil {
+		if s.HelmChartSubscription.Spec.PackageFilter != nil {
+			if s.HelmChartSubscription.Spec.PackageFilter.Version != "" {
 				version := chartVersion.GetVersion()
 				versionVersion, err := semver.Parse(version)
 				if err != nil {
 					subLogger.Error(err, "Failed to parse ", version)
 					return false
 				}
-				filterVersion, err := semver.ParseRange(s.Subscription.Spec.PackageFilter.Version)
+				filterVersion, err := semver.ParseRange(s.HelmChartSubscription.Spec.PackageFilter.Version)
 				if err != nil {
-					subLogger.Error(err, "Failed to parse range ", "s.Subscription.Spec.PackageFilter.Version", s.Subscription.Spec.PackageFilter.Version)
+					subLogger.Error(err, "Failed to parse range ", "s.HelmChartSubscription.Spec.PackageFilter.Version", s.HelmChartSubscription.Spec.PackageFilter.Version)
 					return false
 				}
 				return filterVersion(versionVersion)
@@ -406,17 +406,17 @@ func (s *HelmRepoSubscriber) takeLatestVersion(indexFile *repo.IndexFile) (err e
 	return nil
 }
 
-func (s *HelmRepoSubscriber) manageSubscription(indexFile *repo.IndexFile, repoURL string) error {
-	subLogger := log.WithValues("Subscription.Namespace", s.Subscription.Namespace, "Subscrption.Name", s.Subscription.Name)
+func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFile, repoURL string) error {
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Loop on all packages selected by the subscription
 	for _, chartVersions := range indexFile.Entries {
 		if len(chartVersions) != 0 {
-			sr, err := s.newSubscriptionReleaseForCR(chartVersions[0])
+			sr, err := s.newHelmChartSubscriptionReleaseForCR(chartVersions[0])
 			if err != nil {
 				return err
 			}
-			// Set SubscriptionRelease instance as the owner and controller
-			if err := controllerutil.SetControllerReference(s.Subscription, sr, s.Scheme); err != nil {
+			// Set HelmChartSubscriptionRelease instance as the owner and controller
+			if err := controllerutil.SetControllerReference(s.HelmChartSubscription, sr, s.Scheme); err != nil {
 				return err
 			}
 			// Check if this Pod already exists
@@ -447,17 +447,17 @@ func (s *HelmRepoSubscriber) manageSubscription(indexFile *repo.IndexFile, repoU
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
+func (s *HelmRepoSubscriber) newHelmChartSubscriptionReleaseForCR(chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
 	annotations := map[string]string{
-		"app.ibm.com/hosting-deployable":   s.Subscription.Spec.Channel,
-		"app.ibm.com/hosting-subscription": s.Subscription.Namespace + "/" + s.Subscription.Name,
+		"app.ibm.com/hosting-deployable":   s.HelmChartSubscription.Spec.Channel,
+		"app.ibm.com/hosting-subscription": s.HelmChartSubscription.Namespace + "/" + s.HelmChartSubscription.Name,
 	}
 	values, err := s.getValues(chartVersion)
 	if err != nil {
 		return nil, err
 	}
 
-	releaseName := chartVersion.Name + "-" + s.Subscription.Name + "-" + s.Subscription.Namespace
+	releaseName := chartVersion.Name + "-" + s.HelmChartSubscription.Name + "-" + s.HelmChartSubscription.Namespace
 
 	for i := range chartVersion.URLs {
 		parsedURL, err := url.Parse(chartVersion.URLs[i])
@@ -466,7 +466,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 		}
 		if parsedURL.Scheme == "local" {
 			//make sure there is one and only one slash
-			repoURL := strings.TrimSuffix(s.Subscription.Spec.CatalogSource, "/") + "/"
+			repoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.CatalogSource, "/") + "/"
 			chartVersion.URLs[i] = strings.Replace(chartVersion.URLs[i], "local://", repoURL, -1)
 		}
 	}
@@ -474,7 +474,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 	sr := &appv1alpha1.SubscriptionRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        releaseName,
-			Namespace:   s.Subscription.Namespace,
+			Namespace:   s.HelmChartSubscription.Namespace,
 			Annotations: annotations,
 		},
 		Spec: appv1alpha1.SubscriptionReleaseSpec{
@@ -484,8 +484,8 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 					Urls: chartVersion.URLs,
 				},
 			},
-			ConfigMapRef: s.Subscription.Spec.ConfigMapRef,
-			SecretRef:    s.Subscription.Spec.SecretRef,
+			ConfigMapRef: s.HelmChartSubscription.Spec.ConfigMapRef,
+			SecretRef:    s.HelmChartSubscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,
 			ReleaseName:  releaseName,
 			Version:      chartVersion.GetVersion(),
@@ -496,7 +496,7 @@ func (s *HelmRepoSubscriber) newSubscriptionReleaseForCR(chartVersion *repo.Char
 }
 
 func (s *HelmRepoSubscriber) getValues(chartVersion *repo.ChartVersion) (string, error) {
-	for _, packageElem := range s.Subscription.Spec.PackageOverrides {
+	for _, packageElem := range s.HelmChartSubscription.Spec.PackageOverrides {
 		if packageElem.PackageName == chartVersion.Name {
 			for _, pathElem := range packageElem.PackageOverrides {
 				data, err := pathElem.MarshalJSON()

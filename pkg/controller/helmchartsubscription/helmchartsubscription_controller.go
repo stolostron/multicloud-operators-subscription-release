@@ -1,4 +1,4 @@
-package subscription
+package helmchartsubscription
 
 import (
 	"context"
@@ -24,13 +24,13 @@ import (
 
 //ControllerCMDOptions possible command line options
 type ControllerCMDOptions struct {
-	SubscriptionControllerDisabled bool
+	Disabled bool
 }
 
 //Options the command line options
 var Options = ControllerCMDOptions{}
 
-var log = logf.Log.WithName("controller_subscription")
+var log = logf.Log.WithName("controller_helmchartsubscription")
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -40,7 +40,7 @@ var log = logf.Log.WithName("controller_subscription")
 // Add creates a new Subscription Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	if !Options.SubscriptionControllerDisabled {
+	if !Options.Disabled {
 		return add(mgr, newReconciler(mgr))
 	}
 	return nil
@@ -55,7 +55,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("subscription-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("helmchartsubscription-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -63,8 +63,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to primary resource Subscription
 	p := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			subRelOld := e.ObjectOld.(*appv1alpha1.Subscription)
-			subRelNew := e.ObjectNew.(*appv1alpha1.Subscription)
+			subRelOld := e.ObjectOld.(*appv1alpha1.HelmChartSubscription)
+			subRelNew := e.ObjectNew.(*appv1alpha1.HelmChartSubscription)
 			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
 				return true
 			}
@@ -74,7 +74,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return true
 		},
 	}
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.Subscription{}}, &handler.EnqueueRequestForObject{}, p)
+	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmChartSubscription{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to secondary resource Pods and requeue the owner Subscription
 	err = c.Watch(&source.Kind{Type: &appv1alpha1.SubscriptionRelease{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
-		OwnerType:    &appv1alpha1.Subscription{},
+		OwnerType:    &appv1alpha1.HelmChartSubscription{},
 	})
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	reqLogger.Info("Reconciling Subscription")
 
 	// Fetch the Subscription instance
-	instance := &appv1alpha1.Subscription{}
+	instance := &appv1alpha1.HelmChartSubscription{}
 	subkey := request.NamespacedName.String()
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
@@ -137,9 +137,9 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	if subscriber == nil {
 		reqLogger.Info("subscriber does not exist")
 		subscriber = &helmreposubscriber.HelmRepoSubscriber{
-			Client:       r.client,
-			Scheme:       r.scheme,
-			Subscription: instance,
+			Client:                r.client,
+			Scheme:                r.scheme,
+			HelmChartSubscription: instance,
 		}
 		reqLogger.Info("Subscription", "subscription.Name", instance.Name, "configMapRef", instance.Spec.ConfigMapRef)
 		r.subscriberMap[subkey] = subscriber
@@ -187,12 +187,12 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 }
 
 //SetStatus set the subscription status
-func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue error) (reconcile.Result, error) {
+func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, issue error) (reconcile.Result, error) {
 	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""
-		s.Status.Status = appv1alpha1.SubscriptionSuccess
+		s.Status.Status = appv1alpha1.HelmChartSubscriptionSuccess
 		s.Status.Reason = ""
 		s.Status.LastUpdateTime = metav1.Now()
 		err := r.client.Status().Update(context.Background(), s)
@@ -210,7 +210,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue err
 	lastPhase := s.Status.Status
 	s.Status.Message = "Error, retrying later"
 	s.Status.Reason = issue.Error()
-	s.Status.Status = appv1alpha1.SubscriptionFailed
+	s.Status.Status = appv1alpha1.HelmChartSubscriptionFailed
 	s.Status.LastUpdateTime = metav1.Now()
 
 	err := r.client.Status().Update(context.Background(), s)
@@ -220,7 +220,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.Subscription, issue err
 			RequeueAfter: time.Second,
 		}, nil
 	}
-	if lastUpdate.IsZero() || lastPhase != appv1alpha1.SubscriptionFailed {
+	if lastUpdate.IsZero() || lastPhase != appv1alpha1.HelmChartSubscriptionFailed {
 		retryInterval = time.Second
 	} else {
 		//retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))

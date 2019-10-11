@@ -31,9 +31,9 @@ type Overrides struct {
 	PackageOverrides []PackageOverride `json:"packageOverrides"` // To be added
 }
 
-// SubscriptionSpec defines the desired state of Subscription
+// HelmChartSubscriptionSpec defines the desired state of HelmChartSubscription
 //// +k8s:openapi-gen=true
-type SubscriptionSpec struct {
+type HelmChartSubscriptionSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -62,68 +62,68 @@ type SubscriptionSpec struct {
 	// AutoUpgrade if true the helm-repo will be monitor and subscription recalculated if changed
 	AutoUpgrade bool `json:"autoUpgrade"`
 
-	Status SubscriptionStatus `json:"status,omitempty"`
+	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }
 
-// SubscriptionStatusEnum defines the status of a Subscription
-type SubscriptionStatusEnum string
+// HelmChartSubscriptionStatusEnum defines the status of a HelmChartSubscription
+type HelmChartSubscriptionStatusEnum string
 
 const (
-	// SubscriptionSuccess means this subscription Succeed
-	SubscriptionSuccess SubscriptionStatusEnum = "Success"
-	// SubscriptionFailed means this subscription Failed
-	SubscriptionFailed SubscriptionStatusEnum = "Failed"
+	// HelmChartSubscriptionSuccess means this subscription Succeed
+	HelmChartSubscriptionSuccess HelmChartSubscriptionStatusEnum = "Success"
+	// HelmChartSubscriptionFailed means this subscription Failed
+	HelmChartSubscriptionFailed HelmChartSubscriptionStatusEnum = "Failed"
 )
 
-// SubscriptionUnitStatus defines status of a unit (subscription or package)
-type SubscriptionUnitStatus struct {
+// HelmChartSubscriptionUnitStatus defines status of a unit (subscription or package)
+type HelmChartSubscriptionUnitStatus struct {
 	// Phase are Propagated if it is in hub or Subscribed if it is in endpoint
-	Status         SubscriptionStatusEnum `json:"status,omitempty"`
-	Message        string                 `json:"message,omitempty"`
-	Reason         string                 `json:"reason,omitempty"`
-	LastUpdateTime metav1.Time            `json:"lastUpdateTime"`
+	Status         HelmChartSubscriptionStatusEnum `json:"status,omitempty"`
+	Message        string                          `json:"message,omitempty"`
+	Reason         string                          `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time                     `json:"lastUpdateTime"`
 }
 
-// SubscriptionStatus defines the observed state of Subscription
+// HelmChartSubscriptionStatus defines the observed state of HelmChartSubscription
 //// +k8s:openapi-gen=true
-type SubscriptionStatus struct {
+type HelmChartSubscriptionStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	SubscriptionUnitStatus `json:",inline"`
+	HelmChartSubscriptionUnitStatus `json:",inline"`
 
-	SubscriptionPackageStatus map[string]SubscriptionUnitStatus `json:"packages,omitempty"`
+	HelmChartSubscriptionPackageStatus map[string]HelmChartSubscriptionUnitStatus `json:"packages,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// Subscription is the Schema for the subscriptions API
+// HelmChartSubscription is the Schema for the subscriptions API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-type Subscription struct {
+type HelmChartSubscription struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SubscriptionSpec   `json:"spec,omitempty"`
-	Status SubscriptionStatus `json:"status,omitempty"`
+	Spec   HelmChartSubscriptionSpec   `json:"spec,omitempty"`
+	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SubscriptionList contains a list of Subscription
-type SubscriptionList struct {
+// HelmChartSubscriptionList contains a list of HelmChartSubscription
+type HelmChartSubscriptionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Subscription `json:"items"`
+	Items           []HelmChartSubscription `json:"items"`
 }
 
 // Subscriber defines the interface for various channels
 type Subscriber interface {
 	Restart() error
 	Stop() error
-	Update(*Subscription) error
+	Update(*HelmChartSubscription) error
 	IsStarted() bool
 }
 
 func init() {
-	SchemeBuilder.Register(&Subscription{}, &SubscriptionList{})
+	SchemeBuilder.Register(&HelmChartSubscription{}, &HelmChartSubscriptionList{})
 }
