@@ -38,11 +38,13 @@ type HelmChartSubscriptionSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	// RepoURL is the URL of the repository. Defaults to stable repo.
+	// Source holds the url toward the helm-chart
+	Source *Source `json:"chartsSource,omitempty"`
 
 	// leverage and enhance subscription spec from operator lifecycle framework
 	// mapping of the fields:
-	// 	CatalogSourceNamespace		- For Namespace Channel only, namespace in hub, if specified ignore CatalogSource and Channel
-	// 	CatalogSource				- For Helmrepo Channel only, url to helm repo, if specified, ignore Channel
+	// 	CatalogSourceNamespace		- N/A
+	// 	CatalogSource				- if specified, ignore Source and will be a helm-repo
 	// 	Package						- Optional, to filter package by names
 	// 	Channel						- Channel NamespacedName (in hub)
 	// 	StartingCSV					- N/A
@@ -59,8 +61,6 @@ type HelmChartSubscriptionSpec struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
-	// AutoUpgrade if true the helm-repo will be monitor and subscription recalculated if changed
-	AutoUpgrade bool `json:"autoUpgrade"`
 
 	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }

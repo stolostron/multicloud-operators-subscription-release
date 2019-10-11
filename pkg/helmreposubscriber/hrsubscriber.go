@@ -21,6 +21,8 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
+	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -70,19 +72,20 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 	s.HelmRepoHash = ""
 
-	subLogger.Info("Check start helm-repo monitoring", "s.HelmChartSubscription.Spec.AutoUpgrade", s.HelmChartSubscription.Spec.AutoUpgrade)
-	if s.HelmChartSubscription.Spec.AutoUpgrade {
+	approval := strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval))
+	subLogger.Info("Check start helm-repo monitoring", "s.HelmChartSubscription.Spec.InstallPlanApproval", s.HelmChartSubscription.Spec.InstallPlanApproval)
+	if approval != "" && approval == strings.ToLower(string(operatorsv1alpha1.ApprovalAutomatic)) {
 		subLogger.Info("Start helm-repo monitoring")
 		go wait.Until(func() {
 			s.doHelmChartSubscription()
 		}, subscriptionPeriod, s.stopCh)
+		s.started = true
 	} else {
 		err := s.doHelmChartSubscription()
 		if err != nil {
 			return err
 		}
 	}
-	s.started = true
 
 	return nil
 }
@@ -101,7 +104,10 @@ func (s *HelmRepoSubscriber) Update(sub *appv1alpha1.HelmChartSubscription) erro
 	subLogger := log.WithValues("method", "Update", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
 	s.HelmChartSubscription = sub
-	if !s.HelmChartSubscription.Spec.AutoUpgrade {
+	approval := strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval))
+	subLogger.Info("InstallPlanApproval", "InstallPlanApproval", approval)
+	subLogger.Info("ApprovalManual", "ApprovalManual", strings.ToLower(string(operatorsv1alpha1.ApprovalManual)))
+	if approval == "" || strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval)) == strings.ToLower(string(operatorsv1alpha1.ApprovalManual)) {
 		return s.Stop()
 	}
 	return s.Restart()
@@ -117,17 +123,38 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	subLogger := log.WithValues("method", "doHelmChartSubscription", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("start")
 	//Retrieve the helm repo
-	repoURL := s.HelmChartSubscription.Spec.CatalogSource
+	if s.HelmChartSubscription.Spec.CatalogSource != "" {
+		s.HelmChartSubscription.Spec.Source = &appv1alpha1.Source{
+			SourceType: appv1alpha1.HelmRepoSourceType,
+			HelmRepo: &appv1alpha1.HelmRepo{
+				Urls: []string{s.HelmChartSubscription.Spec.CatalogSource},
+			},
+		}
+	}
+	repoURL := s.HelmChartSubscription.Spec.Source.String()
 	subLogger.Info("Source: " + repoURL)
 	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
 
-	indexFile, hash, err := s.GetHelmRepoIndex()
+	var indexFile *repo.IndexFile
+	var hash, url string
+	var err error
+
+	switch strings.ToLower(string(s.HelmChartSubscription.Spec.Source.SourceType)) {
+	case string(appv1alpha1.HelmRepoSourceType):
+		indexFile, hash, err = s.GetHelmRepoIndex()
+		url = fmt.Sprintf("%v", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
+	case string(appv1alpha1.GitHubSourceType):
+		err = fmt.Errorf("Get IndexFile for sourceType '%s' not implemented", appv1alpha1.GitHubSourceType)
+	default:
+		err = fmt.Errorf("SourceType '%s' unsupported", s.HelmChartSubscription.Spec.Source.SourceType)
+	}
 	if err != nil {
-		subLogger.Error(err, "Unable to retrieve the helm repo index ", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to retrieve the helm repo index ", "url", url)
 		return err
 	}
+	subLogger.Info("Hashes", "hash", hash, "s.HelmRepoHash", s.HelmRepoHash)
 	if hash != s.HelmRepoHash {
-		subLogger.Info("HelmRepo changed", "URL", repoURL)
+		subLogger.Info("HelmRepo changed or subscription changed", "URL", repoURL)
 		err = s.processHelmChartSubscription(indexFile)
 		if err != nil {
 			subLogger.Error(err, "Error processing subscription")
@@ -143,17 +170,13 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 // do a helm repo subscriber
 func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexFile) error {
 	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-	//Retrieve the helm repo
-	repoURL := s.HelmChartSubscription.Spec.CatalogSource
-	subLogger.Info("Source: " + repoURL)
-	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
 
 	err := s.filterCharts(indexFile)
 	if err != nil {
-		subLogger.Error(err, "Unable to filter ", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to filter ")
 		return err
 	}
-	return s.manageHelmChartSubscription(indexFile, repoURL)
+	return s.manageHelmChartSubscription(indexFile)
 }
 
 //GetHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
@@ -166,13 +189,13 @@ func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash
 	}
 	httpClient, err := utils.GetHelmRepoClient(s.HelmChartSubscription.Namespace, configMap)
 	if err != nil {
-		subLogger.Error(err, "Unable to create client for helm repo", "s.Spec.CatalogSource", s.HelmChartSubscription.Spec.CatalogSource)
+		subLogger.Error(err, "Unable to create client for helm repo", "s.HelmChartSubscription.Spec.Source.HelmRepo.Urls", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	}
 	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
 	if err != nil {
 		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
-	cleanRepoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.CatalogSource, "/")
+	cleanRepoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.Source.HelmRepo.Urls[0], "/")
 	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
 	if err != nil {
 		subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
@@ -406,7 +429,7 @@ func (s *HelmRepoSubscriber) takeLatestVersion(indexFile *repo.IndexFile) (err e
 	return nil
 }
 
-func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFile, repoURL string) error {
+func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFile) error {
 	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Loop on all packages selected by the subscription
 	for _, chartVersions := range indexFile.Entries {
@@ -446,7 +469,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 	return nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
+// newHelmChartHelmReleaseForCR
 func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.ChartVersion) (*appv1alpha1.HelmRelease, error) {
 	annotations := map[string]string{
 		"app.ibm.com/hosting-deployable":   s.HelmChartSubscription.Spec.Channel,
@@ -466,7 +489,7 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 		}
 		if parsedURL.Scheme == "local" {
 			//make sure there is one and only one slash
-			repoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.CatalogSource, "/") + "/"
+			repoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.Source.HelmRepo.Urls[0], "/") + "/"
 			chartVersion.URLs[i] = strings.Replace(chartVersion.URLs[i], "local://", repoURL, -1)
 		}
 	}
@@ -480,9 +503,6 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 		Spec: appv1alpha1.HelmReleaseSpec{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: chartVersion.URLs,
-				},
 			},
 			ConfigMapRef: s.HelmChartSubscription.Spec.ConfigMapRef,
 			SecretRef:    s.HelmChartSubscription.Spec.SecretRef,
@@ -491,6 +511,18 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 			Version:      chartVersion.GetVersion(),
 			Values:       values,
 		},
+	}
+	switch strings.ToLower(string(s.HelmChartSubscription.Spec.Source.SourceType)) {
+	case string(appv1alpha1.HelmRepoSourceType):
+		sr.Spec.Source.HelmRepo = &appv1alpha1.HelmRepo{Urls: chartVersion.URLs}
+	case string(appv1alpha1.GitHubSourceType):
+		sr.Spec.Source.GitHub = &appv1alpha1.GitHub{
+			URL:       s.HelmChartSubscription.Spec.Source.GitHub.URL,
+			Branch:    s.HelmChartSubscription.Spec.Source.GitHub.Branch,
+			ChartPath: chartVersion.URLs[0],
+		}
+	default:
+		return nil, fmt.Errorf("SourceType '%s' unsupported", s.HelmChartSubscription.Spec.Source.SourceType)
 	}
 	return sr, nil
 }

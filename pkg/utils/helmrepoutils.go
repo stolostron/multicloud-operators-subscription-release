@@ -129,8 +129,7 @@ func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir
 	case string(appv1alpha1.GitHubSourceType):
 		return DownloadChartFromGitHub(configMap, secret, chartsDir, s)
 	default:
-		err := fmt.Errorf("Unsupported source type: %s", s.Spec.Source.SourceType)
-		return "", err
+		return "", fmt.Errorf("SourceType '%s' unsupported", s.Spec.Source.SourceType)
 	}
 }
 

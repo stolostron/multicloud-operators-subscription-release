@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,6 +56,17 @@ type Source struct {
 	SourceType SourceTypeEnum `json:"type,omitempty"`
 	GitHub     *GitHub        `json:"github,omitempty"`
 	HelmRepo   *HelmRepo      `json:"helmRepo,omitempty"`
+}
+
+func (s Source) String() string {
+	switch strings.ToLower(string(s.SourceType)) {
+	case string(HelmRepoSourceType):
+		return fmt.Sprintf("%s", s.HelmRepo.Urls[0])
+	case string(GitHubSourceType):
+		return fmt.Sprintf("%s|%s|%s", s.GitHub.URL, s.GitHub.Branch, s.GitHub.URL)
+	default:
+		return fmt.Sprintf("SourceType %s not supported", s.SourceType)
+	}
 }
 
 // HelmReleaseSpec defines the desired state of HelmRelease

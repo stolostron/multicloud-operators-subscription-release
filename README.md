@@ -1,12 +1,16 @@
 # subscription-operator
 
+The subscription-operator is composed of 2 controllers. The helmchartsubscription contoller which is in charge of managing the helmchartsubscription CR. That CR defines the location of the charts (helmrepo or github) and filters to select a subset of charts to deploy. the helmchartsubscription controller will then create a number of helmreleases and these are managed by the helmrelease controller. The helmrelease controller will manage the helmrelease CR, download the chart from the helmrepo or github and then call the operator-sdk helm-operator methods to start the deployment of each chart.
+
+The helmrelease controller can be use independently without the helmchartsubscription controller. The flag `--helmchart-subscription-controller-disabled` can be used to disable the helmchartsubscription controller.
+
 ## Environment variable
 
 The environment variable `CHARTS_DIR` must be set when developping, it specifies the directory where the charts will be downloaded and expanded.
 
 ## Launch Dev mode
 
-operator-sdk up local --verbose
+operator-sdk up local --verbose [--operator-flags "--helmchart-subscription-controller-disabled"]
 
 ## Build
 
@@ -38,7 +42,7 @@ To do so, the following steps are taken:
 
 The subscription operator watches `HelmChartSubscription` and `HelmRelease` CRs.
 
-The User creates a HelmChartSubscription CR.
+The User creates a HelmChartSubscription CR. if installPlanApproval is set to `Automatic` then the helmrepo will be monitored and new chart version will be deployed, if set to `Manual` then no automatic deployment.
 
 ```yaml
 apiVersion: app.ibm.com/v1alpha1
@@ -48,6 +52,7 @@ metadata:
   namespace: default
 spec:
   channel: default/ope
+  installPlanApproval: Automatic
   secretRef:
     name: mysecret
   configRef:
@@ -136,7 +141,6 @@ spec:
     name: mysecret
   configRef:
     name: mycluster-config
-  releaseName: razee-ibm-razee-api-ope
   values: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
     minio\n  Region: us-east-1\n"
   version: 0.2.3-015-20190725140717
@@ -150,10 +154,3 @@ To do so, the following steps are taken:
 2) Unzip the tgz in `$CHARTS_DIR/<sr.Spec.ReleaseName>/<sr.namespace>/<chart_name>`
 3) Create a manager with the values provided in the HelmRelease
 4) Launch the deployment.
-
-The releaseName is the concatanation of the `<subscription-name>-<chartName>-<channel-name>`. The current implementation of the helm-operator which containates to the releasename a UUID and so some generated resources will have a longueur name than 52 characters such as `<releasename>-<UUID>-delete-registrations`. To avoid that issue the releasename will be shorten to 52-25-1-21=5.
-
-52: max available chars.
-25: UUID length
-1: dash separator
-21: length of `-delete-registrations`

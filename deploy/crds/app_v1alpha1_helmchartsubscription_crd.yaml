@@ -29,10 +29,33 @@ spec:
           type: object
         spec:
           properties:
-            autoUpgrade:
-              description: AutoUpgrade if true the helm-repo will be monitor and subscription
-                recalculated if changed
-              type: boolean
+            chartsSource:
+              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                Important: Run "operator-sdk generate k8s" to regenerate code after
+                modifying this file Add custom validation using kubebuilder tags:
+                https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+                RepoURL is the URL of the repository. Defaults to stable repo. Source
+                holds the url toward the helm-chart'
+              properties:
+                github:
+                  properties:
+                    branch:
+                      type: string
+                    chartPath:
+                      type: string
+                    url:
+                      type: string
+                  type: object
+                helmRepo:
+                  properties:
+                    urls:
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                type:
+                  type: string
+              type: object
             configRef:
               description: Configuration parameters to access the helm-repo defined
                 in the CatalogSource
@@ -110,8 +133,6 @@ spec:
               required:
               - lastUpdateTime
               type: object
-          required:
-          - autoUpgrade
           type: object
         status:
           properties:
