@@ -1,4 +1,4 @@
-package subscriptionreleasemgr
+package helmreleasemgr
 
 import (
 	"io/ioutil"
@@ -19,11 +19,11 @@ import (
 //ChartsDir env variable name which contains the directory where the charts are installed
 const ChartsDir = "CHARTS_DIR"
 
-var log = logf.Log.WithName("subscriptionreleasemgr")
+var log = logf.Log.WithName("helmreleasemgr")
 
 //NewManager create a new manager
-func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.SubscriptionRelease) (helmrelease.Manager, error) {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
+func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
+	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "HelmRelease.Name", s.Name)
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err

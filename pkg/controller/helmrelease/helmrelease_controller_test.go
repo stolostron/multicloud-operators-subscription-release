@@ -1,4 +1,4 @@
-package subscriptionrelease
+package helmrelease
 
 import (
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis"
@@ -36,7 +36,7 @@ import (
 
 //This test is not working because the helm-operator needs a config.Config and not a client.
 //So the fake client is not passed along.
-func TestSubscriptionReleaseReconcileCreate(t *testing.T) {
+func TestHelmReleaseReconcileCreate(t *testing.T) {
 	logf.SetLogger(logf.ZapLogger(true))
 	tempDir, _ := ioutil.TempDir("/tmp", "charts")
 	var (
@@ -46,17 +46,17 @@ func TestSubscriptionReleaseReconcileCreate(t *testing.T) {
 		chartName   = "nginx-ingress"
 		chartsDir   = filepath.Join(tempDir, "test")
 	)
-	sr := &v1alpha1.SubscriptionRelease{
+	sr := &v1alpha1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "app.ibm.com/v1alpha1",
-			Kind:       "SubscriptionRelease",
+			Kind:       "HelmRelease",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			UID:       types.UID("89e6052a-d566-11e9-b55f-fa163e0cb658"),
 		},
-		Spec: v1alpha1.SubscriptionReleaseSpec{
+		Spec: v1alpha1.HelmReleaseSpec{
 			Source: &v1alpha1.Source{
 				SourceType: v1alpha1.HelmRepoSourceType,
 				HelmRepo: &v1alpha1.HelmRepo{
@@ -102,7 +102,7 @@ func TestSubscriptionReleaseReconcileCreate(t *testing.T) {
 	// 	t.Error(err.Error())
 	// }
 	// Create a ReconcileMemcached object with the scheme and fake client.
-	r := &ReconcileSubscriptionRelease{client: cl, scheme: s}
+	r := &ReconcileHelmRelease{client: cl, scheme: s}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .

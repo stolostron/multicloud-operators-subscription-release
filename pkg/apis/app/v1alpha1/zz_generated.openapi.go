@@ -11,9 +11,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/app/v1alpha1.HelmChartSubscription":   schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref),
-		"./pkg/apis/app/v1alpha1.SubscriptionRelease":     schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref),
-		"./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec": schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref),
+		"./pkg/apis/app/v1alpha1.HelmChartSubscription": schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref),
+		"./pkg/apis/app/v1alpha1.HelmRelease":           schema_pkg_apis_app_v1alpha1_HelmRelease(ref),
+		"./pkg/apis/app/v1alpha1.HelmReleaseSpec":       schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref),
 	}
 }
 
@@ -60,11 +60,11 @@ func schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref common.ReferenceCall
 	}
 }
 
-func schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_app_v1alpha1_HelmRelease(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SubscriptionRelease is the Schema for the subscriptionreleases API",
+				Description: "HelmRelease is the Schema for the subscriptionreleases API",
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -87,27 +87,27 @@ func schema_pkg_apis_app_v1alpha1_SubscriptionRelease(ref common.ReferenceCallba
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmReleaseSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.SubscriptionReleaseStatus"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmReleaseStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/app/v1alpha1.SubscriptionReleaseSpec", "./pkg/apis/app/v1alpha1.SubscriptionReleaseStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/app/v1alpha1.HelmReleaseSpec", "./pkg/apis/app/v1alpha1.HelmReleaseStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_app_v1alpha1_SubscriptionReleaseSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SubscriptionReleaseSpec defines the desired state of SubscriptionRelease",
+				Description: "HelmReleaseSpec defines the desired state of HelmRelease",
 				Properties: map[string]spec.Schema{
 					"source": {
 						SchemaProps: spec.SchemaProps{

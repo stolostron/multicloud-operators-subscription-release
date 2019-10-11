@@ -122,7 +122,7 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 	return secret, err
 }
 
-func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
+func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
 	switch strings.ToLower(string(s.Spec.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
 		return DownloadChartFromHelmRepo(configMap, secret, chartsDir, s)
@@ -135,8 +135,8 @@ func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir
 }
 
 //DownloadChartFromGitHub downloads a chart into the charsDir
-func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
+func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	if s.Spec.Source.GitHub == nil {
 		err := fmt.Errorf("GitHub type but Spec.GitHub is not defined")
 		return "", err
@@ -177,8 +177,8 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 }
 
 //DownloadChartFromHelmRepo downloads a chart into the charsDir
-func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.SubscriptionRelease) (chartDir string, err error) {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
+func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
 	if s.Spec.Source.HelmRepo == nil {
 		err := fmt.Errorf("HelmRepo type but Spec.HelmRepo is not defined")
 		return "", err

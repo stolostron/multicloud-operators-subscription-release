@@ -81,7 +81,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Subscription
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.SubscriptionRelease{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &appv1alpha1.HelmChartSubscription{},
 	})
@@ -188,7 +188,7 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 
 //SetStatus set the subscription status
 func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, issue error) (reconcile.Result, error) {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
+	srLogger := log.WithValues("HelmRelease.Namespace", s.GetNamespace(), "HelmRelease.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""

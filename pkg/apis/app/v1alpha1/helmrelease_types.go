@@ -8,14 +8,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// SubscriptionReleaseStatusEnum defines the status of a Subscription release
-type SubscriptionReleaseStatusEnum string
+// HelmReleaseStatusEnum defines the status of a Subscription release
+type HelmReleaseStatusEnum string
 
 const (
-	// SubscriptionReleaseFailed means this subscription is the "parent" sitting in hub
-	SubscriptionReleaseFailed SubscriptionReleaseStatusEnum = "Failed"
-	// SubscriptionReleaseSuccess means this subscription is the "parent" sitting in hub
-	SubscriptionReleaseSuccess SubscriptionReleaseStatusEnum = "Success"
+	// HelmReleaseFailed means this subscription is the "parent" sitting in hub
+	HelmReleaseFailed HelmReleaseStatusEnum = "Failed"
+	// HelmReleaseSuccess means this subscription is the "parent" sitting in hub
+	HelmReleaseSuccess HelmReleaseStatusEnum = "Success"
 )
 
 //SourceTypeEnum ...
@@ -28,12 +28,12 @@ const (
 	GitHubSourceType SourceTypeEnum = "github"
 )
 
-//SubscriptionReleaseStatus ...
-type SubscriptionReleaseStatus struct {
-	Status         SubscriptionReleaseStatusEnum `json:"phase,omitempty"`
-	Message        string                        `json:"message,omitempty"`
-	Reason         string                        `json:"reason,omitempty"`
-	LastUpdateTime metav1.Time                   `json:"lastUpdate"`
+//HelmReleaseStatus ...
+type HelmReleaseStatus struct {
+	Status         HelmReleaseStatusEnum `json:"phase,omitempty"`
+	Message        string                `json:"message,omitempty"`
+	Reason         string                `json:"reason,omitempty"`
+	LastUpdateTime metav1.Time           `json:"lastUpdate"`
 }
 
 //GitHub provides the parameters to access the helm-chart located in a github repo
@@ -55,9 +55,9 @@ type Source struct {
 	HelmRepo   *HelmRepo      `json:"helmRepo,omitempty"`
 }
 
-// SubscriptionReleaseSpec defines the desired state of SubscriptionRelease
+// HelmReleaseSpec defines the desired state of HelmRelease
 // +k8s:openapi-gen=true
-type SubscriptionReleaseSpec struct {
+type HelmReleaseSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -79,26 +79,26 @@ type SubscriptionReleaseSpec struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SubscriptionRelease is the Schema for the subscriptionreleases API
+// HelmRelease is the Schema for the subscriptionreleases API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-type SubscriptionRelease struct {
+type HelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SubscriptionReleaseSpec   `json:"spec,omitempty"`
-	Status SubscriptionReleaseStatus `json:"status,omitempty"`
+	Spec   HelmReleaseSpec   `json:"spec,omitempty"`
+	Status HelmReleaseStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SubscriptionReleaseList contains a list of SubscriptionRelease
-type SubscriptionReleaseList struct {
+// HelmReleaseList contains a list of HelmRelease
+type HelmReleaseList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SubscriptionRelease `json:"items"`
+	Items           []HelmRelease `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SubscriptionRelease{}, &SubscriptionReleaseList{})
+	SchemeBuilder.Register(&HelmRelease{}, &HelmReleaseList{})
 }

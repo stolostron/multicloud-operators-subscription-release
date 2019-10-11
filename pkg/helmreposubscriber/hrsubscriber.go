@@ -411,16 +411,16 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 	//Loop on all packages selected by the subscription
 	for _, chartVersions := range indexFile.Entries {
 		if len(chartVersions) != 0 {
-			sr, err := s.newHelmChartSubscriptionReleaseForCR(chartVersions[0])
+			sr, err := s.newHelmChartHelmReleaseForCR(chartVersions[0])
 			if err != nil {
 				return err
 			}
-			// Set HelmChartSubscriptionRelease instance as the owner and controller
+			// Set HelmChartHelmRelease instance as the owner and controller
 			if err := controllerutil.SetControllerReference(s.HelmChartSubscription, sr, s.Scheme); err != nil {
 				return err
 			}
 			// Check if this Pod already exists
-			found := &appv1alpha1.SubscriptionRelease{}
+			found := &appv1alpha1.HelmRelease{}
 			err = s.Client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
@@ -447,7 +447,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 }
 
 // newPodForCR returns a busybox pod with the same name/namespace as the cr
-func (s *HelmRepoSubscriber) newHelmChartSubscriptionReleaseForCR(chartVersion *repo.ChartVersion) (*appv1alpha1.SubscriptionRelease, error) {
+func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.ChartVersion) (*appv1alpha1.HelmRelease, error) {
 	annotations := map[string]string{
 		"app.ibm.com/hosting-deployable":   s.HelmChartSubscription.Spec.Channel,
 		"app.ibm.com/hosting-subscription": s.HelmChartSubscription.Namespace + "/" + s.HelmChartSubscription.Name,
@@ -471,13 +471,13 @@ func (s *HelmRepoSubscriber) newHelmChartSubscriptionReleaseForCR(chartVersion *
 		}
 	}
 	//Compose release name
-	sr := &appv1alpha1.SubscriptionRelease{
+	sr := &appv1alpha1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        releaseName,
 			Namespace:   s.HelmChartSubscription.Namespace,
 			Annotations: annotations,
 		},
-		Spec: appv1alpha1.SubscriptionReleaseSpec{
+		Spec: appv1alpha1.HelmReleaseSpec{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{

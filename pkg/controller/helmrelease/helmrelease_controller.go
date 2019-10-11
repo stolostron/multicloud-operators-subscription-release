@@ -1,4 +1,4 @@
-package subscriptionrelease
+package helmrelease
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	appv1alpha1 "github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/apis/app/v1alpha1"
-	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/subscriptionreleasemgr"
+	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/helmreleasemgr"
 	"github.ibm.com/IBMMulticloudPlatform/subscription-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,14 +23,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_subscriptionrelease")
+var log = logf.Log.WithName("controller_helmrelease")
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
  */
 
-// Add creates a new SubscriptionRelease Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new HelmRelease Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -38,22 +38,22 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileSubscriptionRelease{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileHelmRelease{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("subscriptionrelease-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource SubscriptionRelease
+	// Watch for changes to primary resource HelmRelease
 	p := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			subRelOld := e.ObjectOld.(*appv1alpha1.SubscriptionRelease)
-			subRelNew := e.ObjectNew.(*appv1alpha1.SubscriptionRelease)
+			subRelOld := e.ObjectOld.(*appv1alpha1.HelmRelease)
+			subRelNew := e.ObjectNew.(*appv1alpha1.HelmRelease)
 			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
 				return true
 			}
@@ -63,7 +63,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			return true
 		},
 	}
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.SubscriptionRelease{}}, &handler.EnqueueRequestForObject{}, p)
+	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
@@ -71,30 +71,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileSubscriptionRelease implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileSubscriptionRelease{}
+// blank assignment to verify that ReconcileHelmRelease implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcileHelmRelease{}
 
-// ReconcileSubscriptionRelease reconciles a SubscriptionRelease object
-type ReconcileSubscriptionRelease struct {
+// ReconcileHelmRelease reconciles a HelmRelease object
+type ReconcileHelmRelease struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a SubscriptionRelease object and makes changes based on the state read
-// and what is in the SubscriptionRelease.Spec
+// Reconcile reads that state of the cluster for a HelmRelease object and makes changes based on the state read
+// and what is in the HelmRelease.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileSubscriptionRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling SubscriptionRelease")
+	reqLogger.Info("Reconciling HelmRelease")
 
-	// Fetch the SubscriptionRelease instance
-	instance := &appv1alpha1.SubscriptionRelease{}
+	// Fetch the HelmRelease instance
+	instance := &appv1alpha1.HelmRelease{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -112,8 +112,8 @@ func (r *ReconcileSubscriptionRelease) Reconcile(request reconcile.Request) (rec
 	return r.SetStatus(instance, err)
 }
 
-func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.SubscriptionRelease) error {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
+func (r *ReconcileHelmRelease) manageSubcriptionRelease(sr *appv1alpha1.HelmRelease) error {
+	srLogger := log.WithValues("HelmRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
 	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
 	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)
 	if err != nil {
@@ -125,7 +125,7 @@ func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.
 		return err
 	}
 	srLogger.Info("Create Manager")
-	mgr, err := subscriptionreleasemgr.NewManager(configMap, secret, sr)
+	mgr, err := helmreleasemgr.NewManager(configMap, secret, sr)
 	if err != nil {
 		srLogger.Error(err, "Failed to create NewManager ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
@@ -155,12 +155,12 @@ func (r *ReconcileSubscriptionRelease) manageSubcriptionRelease(sr *appv1alpha1.
 }
 
 //SetStatus set the subscription release status
-func (r *ReconcileSubscriptionRelease) SetStatus(s *appv1alpha1.SubscriptionRelease, issue error) (reconcile.Result, error) {
-	srLogger := log.WithValues("SubscriptionRelease.Namespace", s.GetNamespace(), "SubscriptionRelease.Name", s.GetName())
+func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error) (reconcile.Result, error) {
+	srLogger := log.WithValues("HelmRelease.Namespace", s.GetNamespace(), "HelmRelease.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""
-		s.Status.Status = appv1alpha1.SubscriptionReleaseSuccess
+		s.Status.Status = appv1alpha1.HelmReleaseSuccess
 		s.Status.Reason = ""
 		s.Status.LastUpdateTime = metav1.Now()
 		err := r.client.Status().Update(context.Background(), s)
@@ -178,7 +178,7 @@ func (r *ReconcileSubscriptionRelease) SetStatus(s *appv1alpha1.SubscriptionRele
 	lastStatus := s.Status.Status
 	s.Status.Message = "Error, retrying later"
 	s.Status.Reason = issue.Error()
-	s.Status.Status = appv1alpha1.SubscriptionReleaseFailed
+	s.Status.Status = appv1alpha1.HelmReleaseFailed
 	s.Status.LastUpdateTime = metav1.Now()
 
 	err := r.client.Status().Update(context.Background(), s)
@@ -188,7 +188,7 @@ func (r *ReconcileSubscriptionRelease) SetStatus(s *appv1alpha1.SubscriptionRele
 			RequeueAfter: time.Second,
 		}, nil
 	}
-	if lastUpdate.IsZero() || lastStatus != appv1alpha1.SubscriptionReleaseFailed {
+	if lastUpdate.IsZero() || lastStatus != appv1alpha1.HelmReleaseFailed {
 		retryInterval = time.Second
 	} else {
 		//retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))

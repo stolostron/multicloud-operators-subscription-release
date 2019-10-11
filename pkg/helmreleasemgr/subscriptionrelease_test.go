@@ -1,4 +1,4 @@
-package subscriptionreleasemgr
+package helmreleasemgr
 
 import (
 	"testing"
