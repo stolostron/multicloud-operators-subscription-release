@@ -1,6 +1,9 @@
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +34,35 @@ type Overrides struct {
 	PackageOverrides []PackageOverride `json:"packageOverrides"` // To be added
 }
 
+type GitHubSubscription struct {
+	Urls       []string `json:"urls,omitempty"`
+	ChartsPath string   `json:"chartsPath,omitempty"`
+	Branch     string   `json:"branch,omitempty"`
+}
+
+//HelmRepoSubscription provides the urls to retreive the helm-chart
+type HelmRepoSubscription struct {
+	Urls []string `json:"urls,omitempty"`
+}
+
+//SourceSubscription holds the different types of repository
+type SourceSubscription struct {
+	SourceType SourceTypeEnum        `json:"type,omitempty"`
+	GitHub     *GitHubSubscription   `json:"github,omitempty"`
+	HelmRepo   *HelmRepoSubscription `json:"helmRepo,omitempty"`
+}
+
+func (s SourceSubscription) String() string {
+	switch strings.ToLower(string(s.SourceType)) {
+	case string(HelmRepoSourceType):
+		return fmt.Sprintf("%v", s.HelmRepo.Urls)
+	case string(GitHubSourceType):
+		return fmt.Sprintf("%v|%s|%s", s.GitHub.Urls, s.GitHub.Branch, s.GitHub.ChartsPath)
+	default:
+		return fmt.Sprintf("SourceType %s not supported", s.SourceType)
+	}
+}
+
 // HelmChartSubscriptionSpec defines the desired state of HelmChartSubscription
 //// +k8s:openapi-gen=true
 type HelmChartSubscriptionSpec struct {
@@ -39,7 +71,7 @@ type HelmChartSubscriptionSpec struct {
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	// RepoURL is the URL of the repository. Defaults to stable repo.
 	// Source holds the url toward the helm-chart
-	Source *Source `json:"chartsSource,omitempty"`
+	Source *SourceSubscription `json:"chartsSource,omitempty"`
 
 	// leverage and enhance subscription spec from operator lifecycle framework
 	// mapping of the fields:

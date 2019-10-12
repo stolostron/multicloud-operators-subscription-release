@@ -41,9 +41,9 @@ type HelmReleaseStatus struct {
 
 //GitHub provides the parameters to access the helm-chart located in a github repo
 type GitHub struct {
-	URL       string `json:"url,omitempty"`
-	ChartPath string `json:"chartPath,omitempty"`
-	Branch    string `json:"branch,omitempty"`
+	Urls      []string `json:"urls,omitempty"`
+	ChartPath string   `json:"chartPath,omitempty"`
+	Branch    string   `json:"branch,omitempty"`
 }
 
 //HelmRepo provides the urls to retreive the helm-chart
@@ -61,9 +61,9 @@ type Source struct {
 func (s Source) String() string {
 	switch strings.ToLower(string(s.SourceType)) {
 	case string(HelmRepoSourceType):
-		return fmt.Sprintf("%s", s.HelmRepo.Urls[0])
+		return fmt.Sprintf("%v", s.HelmRepo.Urls)
 	case string(GitHubSourceType):
-		return fmt.Sprintf("%s|%s|%s", s.GitHub.URL, s.GitHub.Branch, s.GitHub.URL)
+		return fmt.Sprintf("%v|%s|%s", s.GitHub.Urls, s.GitHub.Branch, s.GitHub.ChartPath)
 	default:
 		return fmt.Sprintf("SourceType %s not supported", s.SourceType)
 	}

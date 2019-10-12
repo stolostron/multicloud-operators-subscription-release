@@ -57,8 +57,10 @@ spec:
                       type: string
                     chartPath:
                       type: string
-                    url:
-                      type: string
+                    urls:
+                      items:
+                        type: string
+                      type: array
                   type: object
                 helmRepo:
                   properties:

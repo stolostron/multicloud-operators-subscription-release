@@ -44,6 +44,7 @@ The subscription operator watches `HelmChartSubscription` and `HelmRelease` CRs.
 
 The User creates a HelmChartSubscription CR. if installPlanApproval is set to `Automatic` then the helmrepo will be monitored and new chart version will be deployed, if set to `Manual` then no automatic deployment.
 
+
 ```yaml
 apiVersion: app.ibm.com/v1alpha1
 kind: HelmChartSubscription
@@ -70,9 +71,26 @@ spec:
     - path: spec.values
       value: "RazeeAPI: \n  Endpoint: http://9.30.166.165:31311\n  ObjectstoreSecretName:
         minio\n  Region: us-east-1\n"
-  source: https://mycluster.icp:8443/helm-repo/charts
+  chartsSource:
+    helmrepo:
+      urls:
+      - https://mycluster.icp:8443/helm-repo/charts
   ```
   
+  Source can have the following format for github (not yet fully implenented):
+
+  ``` yaml
+  chartsSource:
+    type: github
+    github:
+      urls:
+      - https://github.ibm.com/IBMPrivateCloud/hybrid-cluster-manager-v2-chart.git
+      chartsPath: 3.2.1-examples/guestbook-kube-subscription
+      branch: master
+  ```
+
+branch master is the default.
+
 ## Helm-charts filtering
 
 The optional spec.name defines the name of the helm-chart, it can be also a regex if multiple helm-charts must be deployed.
@@ -145,6 +163,20 @@ spec:
     minio\n  Region: us-east-1\n"
   version: 0.2.3-015-20190725140717
 ```
+
+Source can have the following format for github:
+
+```yaml
+  source:
+    github:
+      urls:
+      - https://github.ibm.com/IBMPrivateCloud/icp-cert-manager-chart
+      chartPath: stable/ibm-cert-manager
+      branch: master
+    type: github
+```
+
+Branch master is the default.
 
 Once the HelmRelease is created or modified, the operator will deploy each charts specified in each HelmRelease.
 

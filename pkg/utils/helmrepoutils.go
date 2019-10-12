@@ -147,29 +147,36 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 			return "", err
 		}
 	}
-	options := &git.CloneOptions{
-		URL:               s.Spec.Source.GitHub.URL,
-		Depth:             1,
-		SingleBranch:      true,
-		RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-	}
-	if secret != nil && secret.Data != nil {
-		srLogger.Info("Add credentials")
-		options.Auth = &githttp.BasicAuth{
-			Username: string(secret.Data["user"]),
-			Password: string(secret.Data["password"]),
+	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
+	for _, url := range s.Spec.Source.GitHub.Urls {
+		options := &git.CloneOptions{
+			URL:               url,
+			Depth:             1,
+			SingleBranch:      true,
+			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		}
+		if secret != nil && secret.Data != nil {
+			srLogger.Info("Add credentials")
+			options.Auth = &githttp.BasicAuth{
+				Username: string(secret.Data["user"]),
+				Password: string(secret.Data["password"]),
+			}
+		}
+		if s.Spec.Source.GitHub.Branch == "" {
+			options.ReferenceName = plumbing.Master
+		} else {
+			options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
+		}
+		os.RemoveAll(chartDir)
+		_, err = git.PlainClone(destRepo, false, options)
+		if err != nil {
+			os.RemoveAll(destRepo)
+			srLogger.Error(err,"Clone failed","url",url)
+			continue
 		}
 	}
-	if s.Spec.Source.GitHub.Branch == "" {
-		options.ReferenceName = plumbing.Master
-	} else {
-		options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
-	}
-	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
-	os.RemoveAll(chartDir)
-	_, err = git.PlainClone(destRepo, false, options)
 	if err != nil {
-		os.RemoveAll(destRepo)
+		srLogger.Error(err,"All urls failed")
 	}
 	chartDir = filepath.Join(destRepo, s.Spec.Source.GitHub.ChartPath)
 	return chartDir, err

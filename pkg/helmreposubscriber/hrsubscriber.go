@@ -124,9 +124,9 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	subLogger.Info("start")
 	//Retrieve the helm repo
 	if s.HelmChartSubscription.Spec.CatalogSource != "" {
-		s.HelmChartSubscription.Spec.Source = &appv1alpha1.Source{
+		s.HelmChartSubscription.Spec.Source = &appv1alpha1.SourceSubscription{
 			SourceType: appv1alpha1.HelmRepoSourceType,
-			HelmRepo: &appv1alpha1.HelmRepo{
+			HelmRepo: &appv1alpha1.HelmRepoSubscription{
 				Urls: []string{s.HelmChartSubscription.Spec.CatalogSource},
 			},
 		}
@@ -195,45 +195,54 @@ func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash
 	if err != nil {
 		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
-	cleanRepoURL := strings.TrimSuffix(s.HelmChartSubscription.Spec.Source.HelmRepo.Urls[0], "/")
-	req, err := http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
-	if err != nil {
-		subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	if secret != nil && secret.Data != nil {
-		if authHeader, ok := secret.Data["authHeader"]; ok {
-			req.Header.Set("Authorization", string(authHeader))
-		} else {
-			if user, ok := secret.Data["user"]; ok {
-				if password, ok := secret.Data["password"]; ok {
-					req.SetBasicAuth(string(user), string(password))
-				} else {
-					return nil, "", fmt.Errorf("Password not found in secret for basic authentication")
+	for _, url := range s.HelmChartSubscription.Spec.Source.HelmRepo.Urls {
+		cleanRepoURL := strings.TrimSuffix(url, "/")
+		var req *http.Request
+		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
+		if err != nil {
+			subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
+			continue
+		}
+		if secret != nil && secret.Data != nil {
+			if authHeader, ok := secret.Data["authHeader"]; ok {
+				req.Header.Set("Authorization", string(authHeader))
+			} else {
+				if user, ok := secret.Data["user"]; ok {
+					if password, ok := secret.Data["password"]; ok {
+						req.SetBasicAuth(string(user), string(password))
+					} else {
+						err = fmt.Errorf("Password not found in secret for basic authentication")
+						continue
+					}
 				}
 			}
 		}
+		var resp *http.Response
+		resp, err = httpClient.Do(req)
+		if err != nil {
+			subLogger.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
+			continue
+		}
+		subLogger.Info("Get suceeded", "cleanRepoURL", cleanRepoURL)
+		defer resp.Body.Close()
+		var body []byte
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			subLogger.Error(err, "Unable to read body: ", "cleanRepoURL", cleanRepoURL)
+			continue
+		}
+		hash = hashKey(body)
+		indexFile, err = LoadIndex(body)
+		if err != nil {
+			subLogger.Error(err, "Unable to parse the indexfile of ", "cleanRepoURL", cleanRepoURL)
+			continue
+		}
 	}
-	resp, err := httpClient.Do(req)
 	if err != nil {
-		subLogger.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
+		subLogger.Error(err, "All repo URL tested and all failed")
 		return nil, "", err
 	}
-	subLogger.Info("Get suceeded", "cleanRepoURL", cleanRepoURL)
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		subLogger.Error(err, "Unable to read body: ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	hash = hashKey(body)
-	indexfile, err := LoadIndex(body)
-	if err != nil {
-		subLogger.Error(err, "Unable to parse the indexfile of ", "cleanRepoURL", cleanRepoURL)
-		return nil, "", err
-	}
-	return indexfile, hash, err
+	return indexFile, hash, err
 }
 
 //LoadIndex loads data into a repo.IndexFile
@@ -517,7 +526,7 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 		sr.Spec.Source.HelmRepo = &appv1alpha1.HelmRepo{Urls: chartVersion.URLs}
 	case string(appv1alpha1.GitHubSourceType):
 		sr.Spec.Source.GitHub = &appv1alpha1.GitHub{
-			URL:       s.HelmChartSubscription.Spec.Source.GitHub.URL,
+			Urls:       s.HelmChartSubscription.Spec.Source.GitHub.Urls,
 			Branch:    s.HelmChartSubscription.Spec.Source.GitHub.Branch,
 			ChartPath: chartVersion.URLs[0],
 		}
