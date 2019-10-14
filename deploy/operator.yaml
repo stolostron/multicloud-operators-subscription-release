@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: subscription-operator
+  name: multicloud-operators-subscription-release
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: subscription-operator
+      name: multicloud-operators-subscription-release
   template:
     metadata:
       labels:
-        name: subscription-operator
+        name: multicloud-operators-subscription-release
     spec:
-      serviceAccountName: subscription-operator
+      serviceAccountName: multicloud-operators-subscription-release
       volumes:
       - name: charts
         emptyDir: {}
@@ -21,11 +21,11 @@ spec:
           hostnames:
             - mycluster.icp
       containers:
-      - name: subscription-operator
+      - name: multicloud-operators-subscription-release
         # Replace this with the built image name
-        image: mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
+        image: mycluster.icp:8500/kube-system/ibm/multicloud-operators-subscription-release:latest
         command:
-        - subscription-operator
+        - multicloud-operators-subscription-release
         imagePullPolicy: Always
         env:
         - name: CHARTS_DIR
@@ -39,7 +39,7 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         - name: OPERATOR_NAME
-          value: "subscription-operator"
+          value: "multicloud-operators-subscription-release"
         volumeMounts:
         - name: charts
           mountPath: "/charts"

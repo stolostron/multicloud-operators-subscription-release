@@ -1,6 +1,6 @@
-# subscription-operator
+# multicloud-operators-subscription-release
 
-The subscription-operator is composed of 2 controllers. The helmchartsubscription contoller which is in charge of managing the helmchartsubscription CR. That CR defines the location of the charts (helmrepo or github) and filters to select a subset of charts to deploy. the helmchartsubscription controller will then create a number of helmreleases and these are managed by the helmrelease controller. The helmrelease controller will manage the helmrelease CR, download the chart from the helmrepo or github and then call the operator-sdk helm-operator methods to start the deployment of each chart.
+The multicloud-operators-subscription-release is composed of 2 controllers. The helmchartsubscription contoller which is in charge of managing the helmchartsubscription CR. That CR defines the location of the charts (helmrepo or github) and filters to select a subset of charts to deploy. the helmchartsubscription controller will then create a number of helmreleases and these are managed by the helmrelease controller. The helmrelease controller will manage the helmrelease CR, download the chart from the helmrepo or github and then call the operator-sdk helm-operator methods to start the deployment of each chart.
 
 The helmrelease controller can be use independently without the helmchartsubscription controller. The flag `--helmchart-subscription-controller-disabled` can be used to disable the helmchartsubscription controller.
 
@@ -14,9 +14,9 @@ operator-sdk up local --verbose [--operator-flags "--helmchart-subscription-cont
 
 ## Build
 
-operator-sdk build ibm/subscription-operator:latest
-docker tag ibm/subscription-operator:latest mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
-docker push mycluster.icp:8500/kube-system/ibm/subscription-operator:latest
+operator-sdk build ibm/multicloud-operators-subscription-release:latest
+docker tag ibm/multicloud-operators-subscription-release:latest mycluster.icp:8500/kube-system/ibm/multicloud-operators-subscription-release:latest
+docker push mycluster.icp:8500/kube-system/ibm/multicloud-operators-subscription-release:latest
 
 ## Environment deployment
 

@@ -29,7 +29,7 @@ endif
 
 BINDIR        ?= bin
 BUILD_DIR     ?= build
-SC_PKG         = github.ibm.com/IBMMulticloudPlatform/subscription
+SC_PKG         = github.com/IBM/multicloud-operators-subscription-release/subscription
 TYPES_FILES    = $(shell find pkg/apis -name types.go)
 GOOS           = $(shell go env GOOS)
 GOARCH         = $(shell go env GOARCH)

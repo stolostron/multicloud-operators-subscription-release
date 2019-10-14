@@ -5,7 +5,7 @@
 
 if ! whoami &>/dev/null; then
   if [ -w /etc/passwd ]; then
-    echo "${USER_NAME:-subscription-operator}:x:$(id -u):$(id -g):${USER_NAME:-subscription-operator} user:${HOME}:/sbin/nologin" >> /etc/passwd
+    echo "${USER_NAME:-multicloud-operators-subscription-release}:x:$(id -u):$(id -g):${USER_NAME:-multicloud-operators-subscription-release} user:${HOME}:/sbin/nologin" >> /etc/passwd
   fi
 fi
 

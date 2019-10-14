@@ -1,4 +1,4 @@
-module github.ibm.com/IBMMulticloudPlatform/subscription-operator
+module github.com/IBM/multicloud-operators-subscription-release
 
 require (
 	github.com/blang/semver v3.5.1+incompatible

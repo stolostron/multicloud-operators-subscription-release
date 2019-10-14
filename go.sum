@@ -14,6 +14,7 @@ github.com/Azure/go-autorest v11.7.0+incompatible h1:gzma19dc9ejB75D90E5S+/wXouz
 github.com/Azure/go-autorest v11.7.0+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
 github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/IBM/multicloud-operators-subscription-release v0.0.0-20190929025918-091f55ca1a31 h1:hZbEybnQIwNr8//D6Rec18aWtUtevBn+H1xMrdKifqI=
 github.com/MakeNowJust/heredoc v0.0.0-20171113091838-e9091a26100e h1:eb0Pzkt15Bm7f2FFYv7sjY7NPFi3cPkS3tv1CcrFBWA=
 github.com/MakeNowJust/heredoc v0.0.0-20171113091838-e9091a26100e/go.mod h1:64YHyfSL2R96J44Nlwm39UHepQbyR5q10x7iYa1ks2E=
 github.com/Masterminds/goutils v1.1.0 h1:zukEsf/1JZwCMgHiK3GZftabmxiCw4apj3a28RPBiVg=
