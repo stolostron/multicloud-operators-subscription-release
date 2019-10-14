@@ -22,7 +22,7 @@ DOCKER_NAMESPACE ?= ibmcom
 DOCKER_TAG ?= latest
 # Variables for Red Hat required labels
 IMAGE_NAME = multicloud-operators-subscription-release
-IMAGE_DESCRIPTION = This_image_contains_the_subscription_operator_for_processing_new_CRs_based_on_the_CRD
+IMAGE_DESCRIPTION = This_image_contains_the_multicloud_operators_subscription_release_for_processing_new_CRs_based_on_the_CRD
 IMAGE_MAINTAINER      = dominique.vernier@us.ibm.com
 IMAGE_VENDOR          = IBM
 IMAGE_SUMMARY         = $(IMAGE_DESCRIPTION)

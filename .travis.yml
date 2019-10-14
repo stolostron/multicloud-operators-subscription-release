@@ -40,14 +40,14 @@ jobs:
       name: Build x86 image
       os: linux
       script:
-        - make image  release
+        - make release
 
     - stage: build
       if: type != pull_request
       name: Build ppc64le image
       os: linux-ppc64le
       script:
-        - make image release
+        - make release
 
 
     - stage: build
@@ -55,7 +55,7 @@ jobs:
       name: Build s390x image
       os: linux-s390
       script:
-        - make image release
+        - make release
       
     - stage: multiarch
       if: type != pull_request
