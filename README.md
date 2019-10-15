@@ -1,12 +1,12 @@
 # multicloud-operators-subscription-release
 
-The multicloud-operators-subscription-release is composed of 2 controllers. The helmchartsubscription contoller which is in charge of managing the helmchartsubscription CR. That CR defines the location of the charts (helmrepo or github) and filters to select a subset of charts to deploy. the helmchartsubscription controller will then create a number of helmreleases and these are managed by the helmrelease controller. The helmrelease controller will manage the helmrelease CR, download the chart from the helmrepo or github and then call the operator-sdk helm-operator methods to start the deployment of each chart.
+The multicloud-operators-subscription-release is composed of 2 controllers. The helmchartsubscription controller which is in charge of managing the helmchartsubscription CR. That CR defines the location of the charts (helmrepo or github) and filters to select a subset of charts to deploy. the helmchartsubscription controller will then create a number of helmreleases and these are managed by the helmrelease controller. The helmrelease controller will manage the helmrelease CR, download the chart from the helmrepo or github and then call the operator-sdk helm-operator methods to start the deployment of each chart.
 
 The helmrelease controller can be use independently without the helmchartsubscription controller. The flag `--helmchart-subscription-controller-disabled` can be used to disable the helmchartsubscription controller.
 
 ## Environment variable
 
-The environment variable `CHARTS_DIR` must be set when developping, it specifies the directory where the charts will be downloaded and expanded.
+The environment variable `CHARTS_DIR` must be set when developing, it specifies the directory where the charts will be downloaded and expanded.
 
 ## Launch Dev mode
 ```
@@ -78,7 +78,7 @@ spec:
       - https://mycluster.icp:8443/helm-repo/charts
   ```
   
-  Source can have the following format for github (not yet fully implenented):
+  Source can have the following format for github (not yet fully implemented):
 
   ``` yaml
   chartsSource:
