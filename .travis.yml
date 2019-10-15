@@ -31,8 +31,8 @@ install:
 
 before_script:
   - source travis-env.sh
-  - make init
-  - make docker:login
+  # - make init
+  # - make docker:login
 
 jobs:
   include:
