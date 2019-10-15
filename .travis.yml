@@ -23,11 +23,11 @@ stages:
   - build
   - multiarch
 
-install:
-  # - git clone https://github.com/IBM/multicloud-operators-subscription-release.git multicloud-operators-subscription-release
-  - git clone https://github.com/itdove/multicloud-operators-subscription-release.git multicloud-operators-subscription-release
-  - cd multicloud-operators-subscription-release
-  # - git checkout -qf $BUILD_COMMIT
+# install:
+#   - git clone https://github.com/IBM/multicloud-operators-subscription-release.git multicloud-operators-subscription-release
+#   # - git clone https://github.com/itdove/multicloud-operators-subscription-release.git multicloud-operators-subscription-release
+#   - cd multicloud-operators-subscription-release
+#   # - git checkout -qf $BUILD_COMMIT
 
 before_script:
   - source travis-env.sh
