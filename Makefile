@@ -12,20 +12,22 @@ include Configfile
 
 PROJECT_NAME := $(shell basename $(CURDIR))
 
-# .PHONY: init\:
-# init::
-# 	@mkdir -p variables
-# ifndef GITHUB_USER
-# 	$(info GITHUB_USER not defined)
-# 	exit -1
-# endif
-# 	$(info Using GITHUB_USER=$(GITHUB_USER))
-# ifndef GITHUB_TOKEN
-# 	$(info GITHUB_TOKEN not defined)
-# 	exit -1
-# endif
+.PHONY: init\:
+init::
+	@mkdir -p variables
+ifndef GITHUB_USER
+	$(info GITHUB_USER not defined)
+	exit -1
+endif
+	$(info Using GITHUB_USER=$(GITHUB_USER))
+ifndef GITHUB_TOKEN
+	$(info GITHUB_TOKEN not defined)
+	exit -1
+endif
 
-# -include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
+ifdef BUILD_WITH_HARNESS
+-include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
+endif 
 
 BINDIR        ?= bin
 BUILD_DIR     ?= build
