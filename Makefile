@@ -59,11 +59,11 @@ local:
 	operator-sdk up local --verbose
 
 ossc:
-	@if [ -z $(dest) ]; then \
-	   echo "Usage: make dest=destination_dir wicked"; \
-	   exit 1; \
-	fi
-	rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
+	# @if [ -z $(dest) ]; then \
+	#    echo "Usage: make dest=destination_dir wicked"; \
+	#    exit 1; \
+	# fi
+	# rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
 	rm -rf $(dest)/$(PROJECT_NAME)_scan-results && \
 	mkdir -p $(dest)/$(PROJECT_NAME)_scan-results && \
 	/tmp/awsom-tool/_build/awsomtool golang scan -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv && \
