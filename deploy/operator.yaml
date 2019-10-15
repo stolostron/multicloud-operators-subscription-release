@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multicloud-operators-subscription-release
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: multicloud-operators-subscription-release
+  template:
+    metadata:
+      labels:
+        name: multicloud-operators-subscription-release
+    spec:
+      serviceAccountName: multicloud-operators-subscription-release
+      volumes:
+      - name: charts
+        emptyDir: {}
+      hostAliases:
+        - ip: 9.20.204.231
+          hostnames:
+            - mycluster.icp
+      containers:
+      - name: multicloud-operators-subscription-release
+        # Replace this with the built image name
+        image: mycluster.icp:8500/kube-system/ibm/multicloud-operators-subscription-release:latest
+        command:
+        - multicloud-operators-subscription-release
+        imagePullPolicy: Always
+        env:
+        - name: CHARTS_DIR
+          value: "/charts"
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "multicloud-operators-subscription-release"
+        volumeMounts:
+        - name: charts
+          mountPath: "/charts"
+        securityContext:
+          procMount: Default
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
