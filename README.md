@@ -9,8 +9,9 @@ The helmrelease controller can be use independently without the helmchartsubscri
 The environment variable `CHARTS_DIR` must be set when developping, it specifies the directory where the charts will be downloaded and expanded.
 
 ## Launch Dev mode
-
+```
 operator-sdk up local --verbose [--operator-flags "--helmchart-subscription-controller-disabled"]
+```
 
 ## Build
 
