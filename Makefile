@@ -18,7 +18,7 @@ BUILD_LOCALLY ?= 1
 
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
-IMG ?= go-repo-template
+IMG ?= multicloud-operators-subscription-release
 REGISTRY ?= quay.io/multicloudlab
 
 # Github host to use for checking the source tree;
@@ -59,7 +59,7 @@ all: fmt check test coverage build images
 # endif
 
 include common/Makefile.common.mk
-
+# include Makefile.local
 
 ############################################################
 # work section
@@ -102,15 +102,22 @@ test:
 ############################################################
 
 coverage:
-	@common/scripts/codecov.sh
+	@common/scripts/codecov.sh ${BUILD_LOCALLY}
 
+############################################################
+# generate code section
+############################################################
+
+generate: operator-sdk-install
+	operator-sdk generate k8s
+	operator-sdk generate openapi
 
 ############################################################
 # build section
 ############################################################
 
 build:
-	@common/scripts/gobuild.sh go-repo-template ./cmd
+	# @common/scripts/gobuild.sh go-repo-template ./cmd/manager
 
 ############################################################
 # images section
@@ -123,10 +130,12 @@ ifeq ($(BUILD_LOCALLY),0)
 endif
 
 build-push-images: $(CONFIG_DOCKER_TARGET)
-	@docker build . -f Dockerfile -t $(REGISTRY)/$(IMG):$(VERSION)
+	@operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
 	@docker tag $(REGISTRY)/$(IMG):$(VERSION) $(REGISTRY)/$(IMG):latest
+ifeq ($(BUILD_LOCALLY),0)
 	@docker push $(REGISTRY)/$(IMG):$(VERSION)
 	@docker push $(REGISTRY)/$(IMG):latest
+endif
 
 ############################################################
 # clean section

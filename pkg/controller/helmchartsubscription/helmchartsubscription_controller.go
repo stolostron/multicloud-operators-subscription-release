@@ -22,8 +22,6 @@ import (
 	"reflect"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreposubscriber"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreposubscriber"
 )
 
 //ControllerCMDOptions possible command line options
@@ -59,6 +60,7 @@ func Add(mgr manager.Manager) error {
 	if !Options.Disabled {
 		return add(mgr, newReconciler(mgr))
 	}
+
 	return nil
 }
 
@@ -84,18 +86,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
 				return true
 			}
+
 			if subRelNew.Status.Status == subRelOld.Status.Status {
 				return false
 			}
+
 			return true
 		},
 	}
+
 	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmChartSubscription{}}, &handler.EnqueueRequestForObject{}, p)
 	if err != nil {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
 	// Watch for changes to secondary resource Pods and requeue the owner Subscription
 	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
@@ -122,8 +126,6 @@ type ReconcileSubscription struct {
 
 // Reconcile reads that state of the cluster for a Subscription object and makes changes based on the state read
 // and what is in the Subscription.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -134,6 +136,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	// Fetch the Subscription instance
 	instance := &appv1alpha1.HelmChartSubscription{}
 	subkey := request.NamespacedName.String()
+
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -141,23 +144,26 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
 			reqLogger.Info("Subscription deleted but request already created, cleaning subscriber")
-			r.cleanSubscriber(subkey)
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, r.cleanSubscriber(subkey)
 		}
 		// Error reading the object - requeue the request.
 		reqLogger.Error(err, "Error reading the object - requeue the request")
+
 		return reconcile.Result{}, err
 	}
 
 	subscriber := r.subscriberMap[subkey]
 	if subscriber == nil {
 		reqLogger.Info("subscriber does not exist")
+
 		subscriber = &helmreposubscriber.HelmRepoSubscriber{
 			Client:                r.client,
 			Scheme:                r.scheme,
 			HelmChartSubscription: instance,
 		}
+
 		reqLogger.Info("Subscription", "subscription.Name", instance.Name)
+
 		r.subscriberMap[subkey] = subscriber
 		err = subscriber.Restart()
 	} else {
@@ -167,19 +173,31 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	//If the subscriber didn't start then clean
 	if !subscriber.IsStarted() {
 		reqLogger.Info("Subscription didn't start")
-		r.cleanSubscriber(subkey)
+
+		err = r.cleanSubscriber(subkey)
+		if err != nil {
+			return r.SetStatus(instance, err)
+		}
 	}
+
 	return r.SetStatus(instance, err)
 }
 
-func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
+func (r *ReconcileSubscription) cleanSubscriber(subkey string) error {
 	reqLogger := log.WithValues("subkey", subkey)
+
 	subscriber := r.subscriberMap[subkey]
 	if subscriber != nil {
 		reqLogger.Info("Cleaning subscriber map and stopping subscriber")
-		subscriber.Stop()
+
+		err := subscriber.Stop()
+
 		delete(r.subscriberMap, subkey)
+
+		return err
 	}
+
+	return nil
 }
 
 //SetStatus set the subscription status
@@ -191,17 +209,21 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 		s.Status.Status = appv1alpha1.HelmChartSubscriptionSuccess
 		s.Status.Reason = ""
 		s.Status.LastUpdateTime = metav1.Now()
+
 		err := r.client.Status().Update(context.Background(), s)
 		if err != nil {
 			srLogger.Error(err, "unable to update status")
+
 			return reconcile.Result{
 				RequeueAfter: time.Second,
 			}, nil
 		}
+
 		return reconcile.Result{}, nil
 	}
+
 	var retryInterval time.Duration
-	//r.Recorder.Event(s, "Warning", "ProcessingError", issue.Error())
+
 	lastUpdate := s.Status.LastUpdateTime.Time
 	lastPhase := s.Status.Status
 	s.Status.Message = "Error, retrying later"
@@ -212,18 +234,21 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 	err := r.client.Status().Update(context.Background(), s)
 	if err != nil {
 		srLogger.Error(err, "unable to update status")
+
 		return reconcile.Result{
 			RequeueAfter: time.Second,
 		}, nil
 	}
+
 	if lastUpdate.IsZero() || lastPhase != appv1alpha1.HelmChartSubscriptionFailed {
 		retryInterval = time.Second
 	} else {
-		//retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
-		retryInterval = s.Status.LastUpdateTime.Sub(lastUpdate).Round(time.Second)
+		retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
 	}
+
 	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Hour.Nanoseconds()*6)))
 	srLogger.Info("requeueAfter", "->requeueAfter", requeueAfter)
+
 	return reconcile.Result{
 		RequeueAfter: requeueAfter,
 	}, nil

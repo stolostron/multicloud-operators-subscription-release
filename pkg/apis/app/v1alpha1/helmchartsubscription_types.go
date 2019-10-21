@@ -52,13 +52,14 @@ type Overrides struct {
 	PackageOverrides []PackageOverride `json:"packageOverrides"` // To be added
 }
 
+//GitHubSubscription provides information to retrieve the helm-chart from github
 type GitHubSubscription struct {
 	Urls       []string `json:"urls,omitempty"`
 	ChartsPath string   `json:"chartsPath,omitempty"`
 	Branch     string   `json:"branch,omitempty"`
 }
 
-//HelmRepoSubscription provides the urls to retreive the helm-chart
+//HelmRepoSubscription provides the urls to retrieve the helm-chart
 type HelmRepoSubscription struct {
 	Urls []string `json:"urls,omitempty"`
 }
@@ -95,7 +96,7 @@ type HelmChartSubscriptionSpec struct {
 	// To specify 1 package in channel
 	Package string `json:"name,omitempty"`
 
-	InstallPlanApproval string `json:"installPlanApproval,omitempty"`
+	InstallPlanApproval Approval `json:"installPlanApproval,omitempty"`
 
 	// To specify more than 1 package in channel
 	PackageFilter *PackageFilter `json:"packageFilter,omitempty"`
@@ -110,6 +111,16 @@ type HelmChartSubscriptionSpec struct {
 
 	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }
+
+//Approval approval types
+type Approval string
+
+const (
+	//ApprovalManual when set to this value, the helmRelease will not be automatically updated if a new version of the helm-chart is available.
+	ApprovalManual Approval = "Manual"
+	//ApprovalAutomatic when set to this value, the helmRelease will be automatically updated when a new version of the helm-chart is available.
+	ApprovalAutomatic Approval = "Automatic"
+)
 
 // HelmChartSubscriptionStatusEnum defines the status of a HelmChartSubscription
 type HelmChartSubscriptionStatusEnum string
