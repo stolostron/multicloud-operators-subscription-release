@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"strings"
 
-	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
+
+//ChartsDir env variable name which contains the directory where the charts are installed
+const ChartsDir = "CHARTS_DIR"
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -50,13 +52,14 @@ type Overrides struct {
 	PackageOverrides []PackageOverride `json:"packageOverrides"` // To be added
 }
 
+//GitHubSubscription provides information to retrieve the helm-chart from github
 type GitHubSubscription struct {
 	Urls       []string `json:"urls,omitempty"`
 	ChartsPath string   `json:"chartsPath,omitempty"`
 	Branch     string   `json:"branch,omitempty"`
 }
 
-//HelmRepoSubscription provides the urls to retreive the helm-chart
+//HelmRepoSubscription provides the urls to retrieve the helm-chart
 type HelmRepoSubscription struct {
 	Urls []string `json:"urls,omitempty"`
 }
@@ -89,15 +92,11 @@ type HelmChartSubscriptionSpec struct {
 	// Source holds the url toward the helm-chart
 	Source *SourceSubscription `json:"chartsSource,omitempty"`
 
-	// leverage and enhance subscription spec from operator lifecycle framework
-	// mapping of the fields:
-	// 	CatalogSourceNamespace		- N/A
-	// 	CatalogSource				- if specified, ignore Source and will be a helm-repo
-	// 	Package						- Optional, to filter package by names
-	// 	Channel						- Channel NamespacedName (in hub)
-	// 	StartingCSV					- N/A
-	// 	InstallPlanApproval			- N/A
-	operatorsv1alpha1.SubscriptionSpec
+	Channel string `json:"channel"`
+	// To specify 1 package in channel
+	Package string `json:"name,omitempty"`
+
+	InstallPlanApproval Approval `json:"installPlanApproval,omitempty"`
 
 	// To specify more than 1 package in channel
 	PackageFilter *PackageFilter `json:"packageFilter,omitempty"`
@@ -112,6 +111,16 @@ type HelmChartSubscriptionSpec struct {
 
 	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }
+
+//Approval approval types
+type Approval string
+
+const (
+	//ApprovalManual when set to this value, the helmRelease will not be automatically updated if a new version of the helm-chart is available.
+	ApprovalManual Approval = "Manual"
+	//ApprovalAutomatic when set to this value, the helmRelease will be automatically updated when a new version of the helm-chart is available.
+	ApprovalAutomatic Approval = "Automatic"
+)
 
 // HelmChartSubscriptionStatusEnum defines the status of a HelmChartSubscription
 type HelmChartSubscriptionStatusEnum string

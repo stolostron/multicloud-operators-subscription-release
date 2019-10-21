@@ -4,6 +4,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.0
+	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/martinlindhe/base36 v0.0.0-20180729042928-5cda0030da17
 	github.com/onsi/gomega v1.4.3
 	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a

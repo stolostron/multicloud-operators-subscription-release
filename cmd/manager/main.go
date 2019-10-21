@@ -25,6 +25,9 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -73,7 +76,10 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 
 	// Add subscription operator flag set to the CLI.
-	pflag.CommandLine.BoolVar(&helmchartsubscription.Options.Disabled, "helmchart-subscription-controller-disabled", false, "Disable the helmchart subscription controller")
+	pflag.CommandLine.BoolVar(&helmchartsubscription.Options.Disabled,
+		"helmchart-subscription-controller-disabled",
+		false,
+		"Disable the helmchart subscription controller")
 
 	pflag.Parse()
 
@@ -143,8 +149,16 @@ func main() {
 
 	// Add to the below struct any other metrics ports you want to expose.
 	servicePorts := []v1.ServicePort{
-		{Port: metricsPort, Name: metrics.OperatorPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: metricsPort}},
-		{Port: operatorMetricsPort, Name: metrics.CRPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: operatorMetricsPort}},
+		{Port: metricsPort,
+			Name:       metrics.OperatorPortName,
+			Protocol:   v1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: metricsPort},
+		},
+		{Port: operatorMetricsPort,
+			Name:       metrics.CRPortName,
+			Protocol:   v1.ProtocolTCP,
+			TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: operatorMetricsPort},
+		},
 	}
 	// Create Service object to expose the metrics port(s).
 	service, err := metrics.CreateMetricsService(ctx, cfg, servicePorts)
@@ -155,6 +169,7 @@ func main() {
 	// CreateServiceMonitors will automatically create the prometheus-operator ServiceMonitor resources
 	// necessary to configure Prometheus to scrape metrics from this operator.
 	services := []*v1.Service{service}
+
 	_, err = metrics.CreateServiceMonitors(cfg, namespace, services)
 	if err != nil {
 		log.Info("Could not create ServiceMonitor object", "error", err.Error())
@@ -195,5 +210,6 @@ func serveCRMetrics(cfg *rest.Config) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

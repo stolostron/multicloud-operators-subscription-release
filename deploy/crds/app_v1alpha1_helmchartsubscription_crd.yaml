@@ -29,6 +29,8 @@ spec:
           type: object
         spec:
           properties:
+            channel:
+              type: string
             chartsSource:
               description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
                 Important: Run "operator-sdk generate k8s" to regenerate code after
@@ -62,6 +64,11 @@ spec:
               description: Configuration parameters to access the helm-repo defined
                 in the CatalogSource
               type: object
+            installPlanApproval:
+              type: string
+            name:
+              description: To specify 1 package in channel
+              type: string
             packageFilter:
               description: To specify more than 1 package in channel
               properties:
@@ -135,6 +142,8 @@ spec:
               required:
               - lastUpdateTime
               type: object
+          required:
+          - channel
           type: object
         status:
           properties:

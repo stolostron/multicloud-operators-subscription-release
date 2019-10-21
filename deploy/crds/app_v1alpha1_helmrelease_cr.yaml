@@ -1,7 +1,7 @@
 apiVersion: app.ibm.com/v1alpha1
-kind: SubscriptionRelease
+kind: HelmRelease
 metadata:
-  name: example-subscriptionrelease
+  name: example-helmrelease
 spec:
   # Add fields here
   size: 3
