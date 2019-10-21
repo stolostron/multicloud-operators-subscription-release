@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -41,6 +40,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 var log = logf.Log.WithName("utils")
@@ -280,6 +281,62 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap, secret *corev1.Secre
 		}
 	}
 	return chartDir, downloadErr
+}
+
+//DownloadGitHubRepo downloads a github repo into the charsDir
+func DownloadGitHubRepo(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmChartSubscription) (destRepo string, commitID string, err error) {
+	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
+	if s.Spec.Source.GitHub == nil {
+		err := fmt.Errorf("GitHub type but Spec.GitHub is not defined")
+		return "", "", err
+	}
+	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
+		err := os.MkdirAll(chartsDir, 0755)
+		if err != nil {
+			srLogger.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
+			return "", "", err
+		}
+	}
+	destRepo = filepath.Join(chartsDir, s.Name, s.Namespace)
+	for _, url := range s.Spec.Source.GitHub.Urls {
+		options := &git.CloneOptions{
+			URL:               url,
+			Depth:             1,
+			SingleBranch:      true,
+			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+		}
+		if secret != nil && secret.Data != nil {
+			srLogger.Info("Add credentials")
+			options.Auth = &githttp.BasicAuth{
+				Username: string(secret.Data["user"]),
+				Password: string(secret.Data["password"]),
+			}
+		}
+		if s.Spec.Source.GitHub.Branch == "" {
+			options.ReferenceName = plumbing.Master
+		} else {
+			options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
+		}
+		os.RemoveAll(destRepo)
+		r, err := git.PlainClone(destRepo, false, options)
+		if err != nil {
+			os.RemoveAll(destRepo)
+			srLogger.Error(err, "Clone failed", "url", url)
+			continue
+		}
+		h, err := r.Head()
+		if err != nil {
+			os.RemoveAll(destRepo)
+			srLogger.Error(err, "Get Head failed", "url", url)
+			continue
+		}
+		commitID = h.Hash().String()
+		srLogger.Info("commitID", "commitID", commitID)
+	}
+	if err != nil {
+		srLogger.Error(err, "All urls failed")
+	}
+	return destRepo, commitID, err
 }
 
 //Untar untars the reader into the dst directory

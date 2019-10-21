@@ -1,137 +1,135 @@
-###############################################################################
-# Licensed Materials - Property of IBM.
-# Copyright IBM Corporation 2019. All Rights Reserved.
-# U.S. Government Users Restricted Rights - Use, duplication or disclosure 
-# restricted by GSA ADP Schedule Contract with IBM Corp.
+# Copyright 2019 The Kubernetes Authors.
 #
-# Contributors:
-#  IBM Corporation - initial API and implementation
-###############################################################################
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-include Configfile
+# This repo is build locally for dev/test by default;
+# Override this variable in CI env.
+BUILD_LOCALLY ?= 1
 
-PROJECT_NAME := $(shell basename $(CURDIR))
+# Image URL to use all building/pushing image targets;
+# Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
+IMG ?= go-repo-template
+REGISTRY ?= quay.io/multicloudlab
 
-.PHONY: init\:
-init::
-	@mkdir -p variables
-ifndef GITHUB_USER
-	$(info GITHUB_USER not defined)
-	exit -1
-endif
-	$(info Using GITHUB_USER=$(GITHUB_USER))
-ifndef GITHUB_TOKEN
-	$(info GITHUB_TOKEN not defined)
-	exit -1
-endif
+# Github host to use for checking the source tree;
+# Override this variable ue with your own value if you're working on forked repo.
+GIT_HOST ?= github.com/IBM
 
-ifdef BUILD_WITH_HARNESS
--include $(shell curl -fso .build-harness -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3.raw" "https://raw.github.ibm.com/ICP-DevOps/build-harness/master/templates/Makefile.build-harness"; echo .build-harness)
-endif 
+PWD := $(shell pwd)
+BASE_DIR := $(shell basename $(PWD))
 
-BINDIR        ?= bin
-BUILD_DIR     ?= build
-SC_PKG         = github.com/IBM/multicloud-operators-subscription-release/subscription
-TYPES_FILES    = $(shell find pkg/apis -name types.go)
-GOOS           = $(shell go env GOOS)
-GOARCH         = $(shell go env GOARCH)
-OPERATOR_SDK_RELEASE=v0.10.0
+# Keep an existing GOPATH, make a private one if it is undefined
+GOPATH_DEFAULT := $(PWD)/.go
+export GOPATH ?= $(GOPATH_DEFAULT)
+GOBIN_DEFAULT := $(GOPATH)/bin
+export GOBIN ?= $(GOBIN_DEFAULT)
+TESTARGS_DEFAULT := "-v"
+export TESTARGS ?= $(TESTARGS_DEFAULT)
+DEST := $(GOPATH)/src/$(GIT_HOST)/$(BASE_DIR)
+VERSION ?= $(shell git describe --exact-match 2> /dev/null || \
+                 git describe --match=$(git rev-parse --short=8 HEAD) --always --dirty --abbrev=8)
 
-.PHONY: lint
-lint:
-	GO111MODULE=off go get golang.org/x/lint/golint
-	# go get -u github.com/alecthomas/gometalinter
-	# gometalinter --install
-	golint -set_exit_status=true pkg/controller/...
-	golint -set_exit_status=true cmd/...
-
-.PHONY: deps
-deps:
-	go mod tidy
-
-.PHONY: copyright-check
-copyright-check:
-	$(BUILD_DIR)/copyright-check.sh
-	
-all: deps test image
-
-local:
-	operator-sdk up local --verbose
-
-ossc:
-	# @if [ -z $(dest) ]; then \
-	#    echo "Usage: make dest=destination_dir wicked"; \
-	#    exit 1; \
-	# fi
-	# rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
-	rm -rf $(dest)/$(PROJECT_NAME)_scan-results && \
-	mkdir -p $(dest)/$(PROJECT_NAME)_scan-results && \
-	/tmp/awsom-tool/_build/awsomtool golang scan -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv && \
-	/tmp/awsom-tool/_build/awsomtool enrichCopyright -w $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report.csv  -o $(dest)/$(PROJECT_NAME)_scan-results/Scan-Report-url-copyright.csv && \
-	rm -rf wicked_cli.log
-
-check-licenses:
-	@rm -rf /tmp/awsom-tool; mkdir -p /tmp/awsom-tool; cd /tmp; git clone https://github.ibm.com/IBMPrivateCloud/awsom-tool --depth 1; cd awsom-tool; make local; cd $(CURDIR)
-	@$(eval RESULT = $(shell /tmp/awsom-tool/_build/awsomtool golang licenses -p .*GPL.* --format '{{.Path}} {{.LicenseType}}'))
-	@if [ "$(RESULT)" != "" ]; then \
-		echo "A License file contains the GPL word"; \
-		echo -e $(RESULT); \
-		exit 1; \
-	fi
-
-# Install operator-sdk
-operator-sdk-install: 
-	@operator-sdk version ; \
-	if [ $$? -ne 0 ]; then \
-       ./build/install-operator-sdk.sh; \
-	fi
-
-image: operator-sdk-install generate
-	$(info Building operator)
-	$(info --IMAGE: $(DOCKER_IMAGE))
-	$(info --TAG: $(DOCKER_BUILD_TAG))
-	operator-sdk build $(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(IMAGE_VERSION) --image-build-args "$(DOCKER_BUILD_OPTS)"	
-	uname -a | grep "Darwin"; \
-    if [ $$? -eq 0 ]; then \
-       sed -i "" 's|REPLACE_IMAGE|$(IMAGE_REPO)/$(IMAGE_NAME):${RELEASE_TAG}|g' deploy/operator.yaml; \
-    else \
-       sed -i 's|REPLACE_IMAGE|$(IMAGE_REPO)/$(IMAGE_NAME):${RELEASE_TAG}|g' deploy/operator.yaml; \
-    fi
-
-generate: operator-sdk-install
-	operator-sdk generate k8s
-	operator-sdk generate openapi
-
-release: image
-	@echo -e "$(TARGET) $(OS) $(ARCH)"
-	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
-	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)
-	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
-	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest
-
-ifeq ($(ARCH), x86_64)
-ifneq ($(RELEASE_TAG),)
-	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
-	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):$(RELEASE_TAG)-rhel
-endif
-	@$(SELF) -s docker:tag DOCKER_IMAGE=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH) DOCKER_BUILD_TAG=$(IMAGE_VERSION) DOCKER_URI=$(IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
-	@$(SELF) -s docker:push DOCKER_URI=$(RELEASE_IMAGE_REPO)/$(IMAGE_NAME_ARCH):latest-rhel
+LOCAL_OS := $(shell uname)
+ifeq ($(LOCAL_OS),Linux)
+    TARGET_OS ?= linux
+    XARGS_FLAGS="-r"
+else ifeq ($(LOCAL_OS),Darwin)
+    TARGET_OS ?= darwin
+    XARGS_FLAGS=
+else
+    $(error "This system's OS $(LOCAL_OS) isn't recognized/supported")
 endif
 
-# Run tests
-test: generate fmt vet
-# This skip the controller test as they are no working
-	go test `go list ./pkg/... ./cmd/... | grep -v pkg/controller` -coverprofile=cover.out
+.PHONY: all work fmt check coverage lint test build images build-push-images
 
-# Run tests with debug output
-testdebug: generate fmt vet
-	go test ./pkg/... ./cmd/... -coverprofile=cover.out -v
+all: fmt check test coverage build images
 
-# Run go fmt against code
-fmt:
-	go fmt ./pkg/... ./cmd/...
+# ifneq ("$(realpath $(DEST))", "$(realpath $(PWD))")
+#     $(error Please run 'make' from $(DEST). Current directory is $(PWD))
+# endif
 
-# Run go vet against code
-vet:
-	go vet ./pkg/... ./cmd/...
+include common/Makefile.common.mk
 
+
+############################################################
+# work section
+############################################################
+$(GOBIN):
+	@echo "create gobin"
+	@mkdir -p $(GOBIN)
+
+work: $(GOBIN)
+
+############################################################
+# format section
+############################################################
+
+# All available format: format-go format-protos format-python
+# Default value will run all formats, override these make target with your requirements:
+#    eg: fmt: format-go format-protos
+fmt: format-go format-protos format-python
+
+############################################################
+# check section
+############################################################
+
+check: lint
+
+# All available linters: lint-dockerfiles lint-scripts lint-yaml lint-copyright-banner lint-go lint-python lint-helm lint-markdown lint-sass lint-typescript lint-protos
+# Default value will run all linters, override these make target with your requirements:
+#    eg: lint: lint-go lint-yaml
+lint: lint-all
+
+############################################################
+# test section
+############################################################
+
+test:
+	@go test ${TESTARGS} ./...
+
+############################################################
+# coverage section
+############################################################
+
+coverage:
+	@common/scripts/codecov.sh
+
+
+############################################################
+# build section
+############################################################
+
+build:
+	@common/scripts/gobuild.sh go-repo-template ./cmd
+
+############################################################
+# images section
+############################################################
+
+images: build build-push-images
+
+ifeq ($(BUILD_LOCALLY),0)
+    export CONFIG_DOCKER_TARGET = config-docker
+endif
+
+build-push-images: $(CONFIG_DOCKER_TARGET)
+	@docker build . -f Dockerfile -t $(REGISTRY)/$(IMG):$(VERSION)
+	@docker tag $(REGISTRY)/$(IMG):$(VERSION) $(REGISTRY)/$(IMG):latest
+	@docker push $(REGISTRY)/$(IMG):$(VERSION)
+	@docker push $(REGISTRY)/$(IMG):latest
+
+############################################################
+# clean section
+############################################################
+clean:
+	rm -f go-repo-template

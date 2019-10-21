@@ -22,7 +22,9 @@ import (
 	"math"
 	"reflect"
 	"time"
+	// "fmt"
 
+	// "k8s.io/apimachinery/pkg/types"
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
@@ -125,11 +127,11 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// Define a new Pod object
-	err = r.manageSubcriptionRelease(instance)
+	err = r.manageHelmRelease(instance)
 	return r.SetStatus(instance, err)
 }
 
-func (r *ReconcileHelmRelease) manageSubcriptionRelease(sr *appv1alpha1.HelmRelease) error {
+func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
 	srLogger := log.WithValues("HelmRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
 	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
 	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)

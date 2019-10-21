@@ -121,7 +121,6 @@ func (in *HelmChartSubscriptionSpec) DeepCopyInto(out *HelmChartSubscriptionSpec
 		*out = new(SourceSubscription)
 		(*in).DeepCopyInto(*out)
 	}
-	out.SubscriptionSpec = in.SubscriptionSpec
 	if in.PackageFilter != nil {
 		in, out := &in.PackageFilter, &out.PackageFilter
 		*out = new(PackageFilter)

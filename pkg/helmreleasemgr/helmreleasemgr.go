@@ -32,9 +32,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-//ChartsDir env variable name which contains the directory where the charts are installed
-const ChartsDir = "CHARTS_DIR"
-
 var log = logf.Log.WithName("helmreleasemgr")
 
 //NewManager create a new manager
@@ -63,7 +60,7 @@ func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alph
 		return nil, err
 	}
 
-	chartsDir := os.Getenv(ChartsDir)
+	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
 	if chartsDir == "" {
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {

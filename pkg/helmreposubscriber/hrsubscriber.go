@@ -20,18 +20,23 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"reflect"
 	//	gerrors "errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	//	"regexp"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
+	"k8s.io/helm/pkg/chartutil"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
@@ -133,14 +138,6 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	subLogger := log.WithValues("method", "doHelmChartSubscription", "HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("start")
 	//Retrieve the helm repo
-	if s.HelmChartSubscription.Spec.CatalogSource != "" {
-		s.HelmChartSubscription.Spec.Source = &appv1alpha1.SourceSubscription{
-			SourceType: appv1alpha1.HelmRepoSourceType,
-			HelmRepo: &appv1alpha1.HelmRepoSubscription{
-				Urls: []string{s.HelmChartSubscription.Spec.CatalogSource},
-			},
-		}
-	}
 	repoURL := s.HelmChartSubscription.Spec.Source.String()
 	subLogger.Info("Source: " + repoURL)
 	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
@@ -151,10 +148,11 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 
 	switch strings.ToLower(string(s.HelmChartSubscription.Spec.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
-		indexFile, hash, err = s.GetHelmRepoIndex()
+		indexFile, hash, err = s.getHelmRepoIndex()
 		url = fmt.Sprintf("%v", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	case string(appv1alpha1.GitHubSourceType):
-		err = fmt.Errorf("Get IndexFile for sourceType '%s' not implemented", appv1alpha1.GitHubSourceType)
+		indexFile, hash, err = s.generateIndexYAML()
+		url = fmt.Sprintf("%v", s.HelmChartSubscription.Spec.Source.GitHub.Urls)
 	default:
 		err = fmt.Errorf("SourceType '%s' unsupported", s.HelmChartSubscription.Spec.Source.SourceType)
 	}
@@ -165,12 +163,12 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	subLogger.Info("Hashes", "hash", hash, "s.HelmRepoHash", s.HelmRepoHash)
 	if hash != s.HelmRepoHash {
 		subLogger.Info("HelmRepo changed or subscription changed", "URL", repoURL)
+		s.HelmRepoHash = hash
 		err = s.processHelmChartSubscription(indexFile)
 		if err != nil {
 			subLogger.Error(err, "Error processing subscription")
 			return err
 		}
-		s.HelmRepoHash = hash
 	} else {
 		subLogger.Info("HelmRepo didn't change", "URL", repoURL)
 	}
@@ -189,8 +187,8 @@ func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexF
 	return s.manageHelmChartSubscription(indexFile)
 }
 
-//GetHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
-func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
+//getHelmRepoIndex retreives the index.yaml, loads it into a repo.IndexFile and filters it
+func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
 	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
@@ -253,6 +251,101 @@ func (s *HelmRepoSubscriber) GetHelmRepoIndex() (indexFile *repo.IndexFile, hash
 		return nil, "", err
 	}
 	return indexFile, hash, err
+}
+
+func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error) {
+	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
+	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
+	if err != nil {
+		return nil, "", err
+	}
+	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
+	if err != nil {
+		subLogger.Error(err, "Failed to retrieve secret ", "sr.HelmChartSubscription.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
+		return nil, "", err
+	}
+	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
+	if chartsDir == "" {
+		chartsDir, err = ioutil.TempDir("/tmp", "charts")
+		if err != nil {
+			subLogger.Error(err, "Can not create tempdir")
+			return nil, "", err
+		}
+	}
+	repoRoot, hash, err := utils.DownloadGitHubRepo(configMap, secret, chartsDir, s.HelmChartSubscription)
+	subLogger.Info("repoRoot", "repoRoot", repoRoot)
+	if err != nil {
+		subLogger.Error(err, "Failed to download the repo")
+		return nil, "", err
+	}
+	chartsPath := filepath.Join(repoRoot,s.HelmChartSubscription.Spec.Source.GitHub.ChartsPath)
+	// chartsPath := repoRoot
+	subLogger.Info("chartsPath", "chartsPath", chartsPath)
+	///////////////////////////////////////////////
+	// Get chart directories first
+	///////////////////////////////////////////////
+	chartDirs := make(map[string]string)
+	resourceDirs := make(map[string]string)
+	var currentChartDir string
+	currentChartDir = "NONE"
+	err = filepath.Walk(chartsPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				subLogger.Info("Ignoring subfolders", "folder", currentChartDir)
+				if _, err := os.Stat(path + "/Chart.yaml"); err == nil {
+					subLogger.Info("Found Chart.yaml in ", "dir", path)
+					if !strings.HasPrefix(path, currentChartDir) {
+						subLogger.Info("This is a helm chart folder.")
+						chartDirs[path+"/"] = path + "/"
+						currentChartDir = path + "/"
+					}
+				} else {
+					if !strings.HasPrefix(path, currentChartDir) && !strings.HasPrefix(path, repoRoot+"/.git") {
+						subLogger.Info("This is not a helm chart directory. ", "dir", path)
+						resourceDirs[path+"/"] = path + "/"
+					}
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, "", err
+	}
+
+	//////
+	// Generate index.yaml
+	/////
+
+	keys := make([]string, 0)
+	for k := range chartDirs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	indexFile := repo.NewIndexFile()
+	for _, k := range keys {
+		chartDir := chartDirs[k]
+		//	for chartDir := range chartDirs {
+		chartFolderName := filepath.Base(chartDir)
+		chartParentDir := strings.Split(chartDir, chartFolderName)[0]
+		// Get the relative parent directory from the git repo root
+		chartBaseDir := strings.SplitAfter(chartParentDir, chartsPath+"/")[1]
+		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
+		if err != nil {
+			subLogger.Error(err, "There was a problem in generating helm charts index file: ")
+			return nil, "", err
+		}
+		if !indexFile.Has(chartMetadata.Name, chartMetadata.Version) {
+			indexFile.Add(chartMetadata, chartFolderName, chartBaseDir, "generated-by-multicloud-operators-subscription")
+		}
+	}
+	indexFile.SortEntries()
+	b, _ := yaml.Marshal(indexFile)
+	subLogger.Info("New index file ", "content:", string(b), "hash:", hash)
+	fmt.Printf("%s", string(b))
+	return indexFile, hash, nil
 }
 
 //LoadIndex loads data into a repo.IndexFile
@@ -466,7 +559,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 			err = s.Client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
-					subLogger.Info("Creating a new SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
+					subLogger.Info("Creating a new HelmRelease", "HelmRelease.Namespace", sr.Namespace, "HelmRelease.Name", sr.Name)
 					err = s.Client.Create(context.TODO(), sr)
 					if err != nil {
 						return err
@@ -476,11 +569,17 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 					return err
 				}
 			} else {
-				subLogger.Info("Update a the SubcriptionRelease", "SubcriptionRelease.Namespace", sr.Namespace, "SubcriptionRelease.Name", sr.Name)
-				sr.ObjectMeta = found.ObjectMeta
-				err = s.Client.Update(context.TODO(), sr)
-				if err != nil {
-					return err
+				// sr.ObjectMeta = found.ObjectMeta
+				// err = s.Client.Update(context.TODO(), sr)
+				if !reflect.DeepEqual(found.Spec, sr.Spec) {
+					subLogger.Info("Update a the HelmRelease", "HelmRelease.Namespace", sr.Namespace, "HelmRelease.Name", sr.Name)
+					subLogger.Info("found", "Spec", found.Spec)
+					subLogger.Info("sr", "Spec", sr.Spec)
+					found.Spec = sr.Spec
+					err = s.Client.Update(context.TODO(), found)
+					if err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -520,9 +619,7 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 			Annotations: annotations,
 		},
 		Spec: appv1alpha1.HelmReleaseSpec{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-			},
+			Source:       &appv1alpha1.Source{},
 			ConfigMapRef: s.HelmChartSubscription.Spec.ConfigMapRef,
 			SecretRef:    s.HelmChartSubscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,
@@ -533,12 +630,14 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 	}
 	switch strings.ToLower(string(s.HelmChartSubscription.Spec.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
+		sr.Spec.Source.SourceType = appv1alpha1.HelmRepoSourceType
 		sr.Spec.Source.HelmRepo = &appv1alpha1.HelmRepo{Urls: chartVersion.URLs}
 	case string(appv1alpha1.GitHubSourceType):
+		sr.Spec.Source.SourceType = appv1alpha1.GitHubSourceType
 		sr.Spec.Source.GitHub = &appv1alpha1.GitHub{
 			Urls:      s.HelmChartSubscription.Spec.Source.GitHub.Urls,
 			Branch:    s.HelmChartSubscription.Spec.Source.GitHub.Branch,
-			ChartPath: chartVersion.URLs[0],
+			ChartPath: filepath.Join(s.HelmChartSubscription.Spec.Source.GitHub.ChartsPath,chartVersion.URLs[0]),
 		}
 	default:
 		return nil, fmt.Errorf("SourceType '%s' unsupported", s.HelmChartSubscription.Spec.Source.SourceType)

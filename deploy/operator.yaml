@@ -1,3 +1,46 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: multicloud-operators-subscription-release
+rules:
+- apiGroups:
+  - app.ibm.com
+  resources:
+  - helmchartsubscription
+  - helmreleases
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: multicloud-operators-subscription-release-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: multicloud-operators-subscription-release
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: multicloud-operators-subscription-release-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: multicloud-operators-subscription-release
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,14 +59,10 @@ spec:
       volumes:
       - name: charts
         emptyDir: {}
-      hostAliases:
-        - ip: 9.20.204.231
-          hostnames:
-            - mycluster.icp
       containers:
       - name: multicloud-operators-subscription-release
         # Replace this with the built image name
-        image: mycluster.icp:8500/kube-system/ibm/multicloud-operators-subscription-release:latest
+        image: hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom/multicloud-operators-subscription-release-amd64:latest
         command:
         - multicloud-operators-subscription-release
         imagePullPolicy: Always
@@ -44,7 +83,7 @@ spec:
         - name: charts
           mountPath: "/charts"
         securityContext:
-          procMount: Default
+          # procMount: Default
           readOnlyRootFilesystem: true
         resources:
           requests:

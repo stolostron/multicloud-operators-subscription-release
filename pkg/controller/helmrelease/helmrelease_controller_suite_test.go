@@ -23,13 +23,14 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis"
 	"github.com/onsi/gomega"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis"
 )
 
 var cfg *rest.Config

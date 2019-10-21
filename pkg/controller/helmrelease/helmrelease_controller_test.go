@@ -31,8 +31,9 @@ import (
 
 	// "net/http"
 
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/pborman/uuid"
+
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

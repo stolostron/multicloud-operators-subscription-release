@@ -157,7 +157,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			Scheme:                r.scheme,
 			HelmChartSubscription: instance,
 		}
-		reqLogger.Info("Subscription", "subscription.Name", instance.Name, "configMapRef", instance.Spec.ConfigMapRef)
+		reqLogger.Info("Subscription", "subscription.Name", instance.Name)
 		r.subscriberMap[subkey] = subscriber
 		err = subscriber.Restart()
 	} else {
@@ -172,26 +172,6 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	return r.SetStatus(instance, err)
 }
 
-// Helper functions to check and remove string from a slice of strings.
-// func containsString(slice []string, s string) bool {
-// 	for _, item := range slice {
-// 		if item == s {
-// 			return true
-// 		}
-// 	}
-// 	return false
-// }
-
-// func removeString(slice []string, s string) (result []string) {
-// 	for _, item := range slice {
-// 		if item == s {
-// 			continue
-// 		}
-// 		result = append(result, item)
-// 	}
-// 	return
-// }
-
 func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 	reqLogger := log.WithValues("subkey", subkey)
 	subscriber := r.subscriberMap[subkey]
@@ -204,7 +184,7 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) {
 
 //SetStatus set the subscription status
 func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, issue error) (reconcile.Result, error) {
-	srLogger := log.WithValues("HelmRelease.Namespace", s.GetNamespace(), "HelmRelease.Name", s.GetName())
+	srLogger := log.WithValues("HelmChartSubscription.Namespace", s.GetNamespace(), "HelmChartSubscription.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""

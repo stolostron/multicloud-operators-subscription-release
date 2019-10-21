@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"strings"
 
-	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
+
+//ChartsDir env variable name which contains the directory where the charts are installed
+const ChartsDir = "CHARTS_DIR"
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
@@ -89,15 +91,11 @@ type HelmChartSubscriptionSpec struct {
 	// Source holds the url toward the helm-chart
 	Source *SourceSubscription `json:"chartsSource,omitempty"`
 
-	// leverage and enhance subscription spec from operator lifecycle framework
-	// mapping of the fields:
-	// 	CatalogSourceNamespace		- N/A
-	// 	CatalogSource				- if specified, ignore Source and will be a helm-repo
-	// 	Package						- Optional, to filter package by names
-	// 	Channel						- Channel NamespacedName (in hub)
-	// 	StartingCSV					- N/A
-	// 	InstallPlanApproval			- N/A
-	operatorsv1alpha1.SubscriptionSpec
+	Channel string `json:"channel"`
+	// To specify 1 package in channel
+	Package string `json:"name,omitempty"`
+
+	InstallPlanApproval string `json:"installPlanApproval,omitempty"`
 
 	// To specify more than 1 package in channel
 	PackageFilter *PackageFilter `json:"packageFilter,omitempty"`
