@@ -390,20 +390,22 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		os.RemoveAll(destRepo)
 
-		r, err := git.PlainClone(destRepo, false, options)
+		r, errClone := git.PlainClone(destRepo, false, options)
 
-		if err != nil {
+		if errClone != nil {
 			os.RemoveAll(destRepo)
 			srLogger.Error(err, "Clone failed", "url", url)
+			err = errClone
 
 			continue
 		}
 
-		h, err := r.Head()
+		h, errHead := r.Head()
 
-		if err != nil {
+		if errHead != nil {
 			os.RemoveAll(destRepo)
 			srLogger.Error(err, "Get Head failed", "url", url)
+			err = errHead
 
 			continue
 		}

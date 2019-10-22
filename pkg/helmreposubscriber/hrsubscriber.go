@@ -340,9 +340,7 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 	chartDirs := make(map[string]string)
 	resourceDirs := make(map[string]string)
 
-	var currentChartDir string
-
-	currentChartDir = "NONE"
+	currentChartDir := "NONE"
 
 	err = filepath.Walk(chartsPath,
 		func(path string, info os.FileInfo, err error) error {
