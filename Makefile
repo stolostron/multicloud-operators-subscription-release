@@ -118,6 +118,12 @@ generate: operator-sdk-install
 
 build:
 	# @common/scripts/gobuild.sh go-repo-template ./cmd/manager
+	@$(GOBIN)/operator-sdk version ; \
+	if [ $$? -ne 0 ]; then \
+	   build/install-operator-sdk.sh; \
+	fi
+	@$(GOBIN)/operator-sdk version
+
 
 ############################################################
 # images section
@@ -130,7 +136,7 @@ ifeq ($(BUILD_LOCALLY),0)
 endif
 
 build-push-images: $(CONFIG_DOCKER_TARGET)
-	@operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
+	@$(GOBIN)/operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
 	@docker tag $(REGISTRY)/$(IMG):$(VERSION) $(REGISTRY)/$(IMG):latest
 ifeq ($(BUILD_LOCALLY),0)
 	@docker push $(REGISTRY)/$(IMG):$(VERSION)
