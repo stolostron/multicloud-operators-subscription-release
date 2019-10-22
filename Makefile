@@ -120,7 +120,7 @@ build:
 	# @common/scripts/gobuild.sh go-repo-template ./cmd/manager
 	@operator-sdk version ; \
 	if [ $$? -ne 0 ]; then \
-	   @build/install-operator-sdk.sh; \
+	   build/install-operator-sdk.sh; \
 	fi
 	@operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
 
