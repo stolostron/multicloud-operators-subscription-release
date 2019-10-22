@@ -4,6 +4,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
+- [Development Guide](#development-guide)
+    - [Environment variable](#environment-variable)
+    - [Launch Dev mode](#launch-dev-mode)
+    - [Build](#build)
+
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Environment variable
