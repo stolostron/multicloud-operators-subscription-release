@@ -18,11 +18,8 @@ package helmreleasemgr
 
 import (
 	"io/ioutil"
-
 	"os"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	corev1 "k8s.io/api/core/v1"
@@ -30,16 +27,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-)
 
-//ChartsDir env variable name which contains the directory where the charts are installed
-const ChartsDir = "CHARTS_DIR"
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
+)
 
 var log = logf.Log.WithName("helmreleasemgr")
 
 //NewManager create a new manager
 func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "HelmRelease.Name", s.Name)
+
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
@@ -63,7 +61,7 @@ func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alph
 		return nil, err
 	}
 
-	chartsDir := os.Getenv(ChartsDir)
+	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
 	if chartsDir == "" {
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {
@@ -71,22 +69,30 @@ func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alph
 			return nil, err
 		}
 	}
+
 	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	srLogger.Info("ChartDir", "ChartDir", chartDir)
+
 	if err != nil {
 		srLogger.Error(err, "Failed to download the chart")
 		return nil, err
 	}
+
 	f := helmrelease.NewManagerFactory(mgr, chartDir)
+
 	if s.Spec.Values != "" {
 		var spec interface{}
+
 		err = yaml.Unmarshal([]byte(s.Spec.Values), &spec)
 		if err != nil {
 			srLogger.Error(err, "Failed to Unmarshal the values", "values", s.Spec.Values)
 			return nil, err
 		}
+
 		o.Object["spec"] = spec
 	}
+
 	helmManager, err := f.NewManager(o)
+
 	return helmManager, err
 }

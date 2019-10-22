@@ -37,17 +37,17 @@ const (
 	HelmReleaseSuccess HelmReleaseStatusEnum = "Success"
 )
 
-//SourceTypeEnum ...
+//SourceTypeEnum types of sources
 type SourceTypeEnum string
 
 const (
-	// HelmRepoSourceType ...
+	// HelmRepoSourceType helmrepo source type
 	HelmRepoSourceType SourceTypeEnum = "helmrepo"
-	// GitHubSourceType ...
+	// GitHubSourceType github source type
 	GitHubSourceType SourceTypeEnum = "github"
 )
 
-//HelmReleaseStatus ...
+//HelmReleaseStatus struct containing the status
 type HelmReleaseStatus struct {
 	Status         HelmReleaseStatusEnum `json:"phase,omitempty"`
 	Message        string                `json:"message,omitempty"`
@@ -62,7 +62,7 @@ type GitHub struct {
 	Branch    string   `json:"branch,omitempty"`
 }
 
-//HelmRepo provides the urls to retreive the helm-chart
+//HelmRepo provides the urls to retrieve the helm-chart
 type HelmRepo struct {
 	Urls []string `json:"urls,omitempty"`
 }

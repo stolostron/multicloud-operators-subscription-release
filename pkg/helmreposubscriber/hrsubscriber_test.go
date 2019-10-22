@@ -19,9 +19,9 @@ package helmreposubscriber
 import (
 	"testing"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	operatorv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 const index = `apiVersion: v1
@@ -95,8 +95,10 @@ entries:
 func TestLoadIndex(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 2, len(chartVersions))
+
 	name := chartVersions[1].GetName()
 	assert.Equal(t, "ibm-cfee-installer", name)
 }
@@ -104,17 +106,17 @@ func TestLoadIndex(t *testing.T) {
 func Test_MatchingNameCharts(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
-				SubscriptionSpec: operatorv1alpha1.SubscriptionSpec{
-					Package: "ibm-cfee-installer",
-				},
+				Package: "ibm-cfee-installer",
 			},
 		},
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
+
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(chartVersions))
 }
@@ -122,22 +124,7 @@ func Test_MatchingNameCharts(t *testing.T) {
 func Test_MatchingWithoutPackageName(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
-	s := &HelmRepoSubscriber{
-		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
-			Spec: appv1alpha1.HelmChartSubscriptionSpec{
-				SubscriptionSpec: operatorv1alpha1.SubscriptionSpec{},
-			},
-		},
-	}
-	s.filterCharts(indexFile)
-	assert.Equal(t, 3, len(indexFile.Entries))
-	chartVersions := indexFile.Entries["ibm-cfee-installer"]
-	assert.Equal(t, 1, len(chartVersions))
-}
 
-func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
-	assert.NoError(t, err)
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{},
@@ -145,6 +132,23 @@ func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 3, len(indexFile.Entries))
+
+	chartVersions := indexFile.Entries["ibm-cfee-installer"]
+	assert.Equal(t, 1, len(chartVersions))
+}
+
+func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
+	indexFile, err := LoadIndex([]byte(index))
+	assert.NoError(t, err)
+
+	s := &HelmRepoSubscriber{
+		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
+			Spec: appv1alpha1.HelmChartSubscriptionSpec{},
+		},
+	}
+	s.filterCharts(indexFile)
+	assert.Equal(t, 3, len(indexFile.Entries))
+
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(chartVersions))
 }
@@ -152,11 +156,13 @@ func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
 func Test_MatchingWithoutSubscriptionSpec(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{},
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 3, len(indexFile.Entries))
+
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(chartVersions))
 }
@@ -164,6 +170,7 @@ func Test_MatchingWithoutSubscriptionSpec(t *testing.T) {
 func Test_MatchingDigest(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
@@ -177,6 +184,7 @@ func Test_MatchingDigest(t *testing.T) {
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
+
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(chartVersions))
 }
@@ -184,6 +192,7 @@ func Test_MatchingDigest(t *testing.T) {
 func Test_MatchingTillerVersion(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
@@ -197,6 +206,7 @@ func Test_MatchingTillerVersion(t *testing.T) {
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 1, len(indexFile.Entries))
+
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(versionedCharts))
 }
@@ -204,6 +214,7 @@ func Test_MatchingTillerVersion(t *testing.T) {
 func Test_MatchingTillerVersionNotFound(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
@@ -215,6 +226,7 @@ func Test_MatchingTillerVersionNotFound(t *testing.T) {
 			},
 		},
 	}
+
 	s.filterCharts(indexFile)
 	assert.Equal(t, 0, len(indexFile.Entries))
 }
@@ -222,6 +234,7 @@ func Test_MatchingTillerVersionNotFound(t *testing.T) {
 func Test_MatchingVersion(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
@@ -233,11 +246,14 @@ func Test_MatchingVersion(t *testing.T) {
 	}
 	s.filterCharts(indexFile)
 	assert.Equal(t, 2, len(indexFile.Entries))
+
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(versionedCharts))
 	assert.Equal(t, "3.2.0-alpha", versionedCharts[0].GetVersion())
+
 	versionedChartsNil := indexFile.Entries["ibm-mcm-prod"]
 	assert.Nil(t, versionedChartsNil)
+
 	versionedCharts = indexFile.Entries["ibm-mcmk-prod"]
 	assert.Equal(t, 1, len(versionedCharts))
 }
@@ -245,20 +261,28 @@ func Test_MatchingVersion(t *testing.T) {
 func Test_takeLatestVersion(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{}
+
 	err = s.takeLatestVersion(indexFile)
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(indexFile.Entries))
+
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(versionedCharts))
+
 	versrionedChart := versionedCharts[0]
 	assert.Equal(t, "3.2.0-beta", versrionedChart.GetVersion())
+
 	versionedCharts = indexFile.Entries["ibm-mcm-prod"]
 	assert.Equal(t, 1, len(versionedCharts))
+
 	versrionedChart = versionedCharts[0]
 	assert.Equal(t, "3.1.2", versrionedChart.GetVersion())
+
 	versionedCharts = indexFile.Entries["ibm-mcmk-prod"]
 	assert.Equal(t, 1, len(versionedCharts))
+
 	versrionedChart = versionedCharts[0]
 	assert.Equal(t, "3.1.3", versrionedChart.GetVersion())
 }
@@ -266,12 +290,11 @@ func Test_takeLatestVersion(t *testing.T) {
 func Test_filterCharts(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
-				SubscriptionSpec: operatorv1alpha1.SubscriptionSpec{
-					Package: "ibm-mcm-prod",
-				},
+				Package: "ibm-mcm-prod",
 				PackageFilter: &appv1alpha1.PackageFilter{
 					Version: ">=3.1.2 <3.2.0",
 					Annotations: map[string]string{
@@ -281,6 +304,7 @@ func Test_filterCharts(t *testing.T) {
 			},
 		},
 	}
+
 	err = s.filterCharts(indexFile)
 	assert.NoError(t, err)
 	//Zero because no version for tiller >=2.7.3
@@ -290,48 +314,22 @@ func Test_filterCharts(t *testing.T) {
 func Test_filterChartsLatest(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
+
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{
-				SubscriptionSpec: operatorv1alpha1.SubscriptionSpec{
-					Package: "ibm-cfee-installer",
-				},
+				Package: "ibm-cfee-installer",
 			},
 		},
 	}
+
 	err = s.filterCharts(indexFile)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(indexFile.Entries))
+
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
 	assert.Equal(t, 1, len(versionedCharts))
+
 	versrionedChart := versionedCharts[0]
 	assert.Equal(t, "3.2.0-beta", versrionedChart.GetVersion())
 }
-
-const subWithOverrides = `apiVersion: app.ibm.com/v1alpha1
-kind: Subscription
-metadata:
-  name: dev-sub-with-overrides
-  namespace: default
-spec:
-  channel: default/test
-  name: ibm-cfee-installer
-  packageOverrides:
-  - packageName: ibm-cfee-installer
-    packageOverrides:
-    - path: spec.values
-      value: |
-        TestValue: 
-          att1: val1
-          att2: val2
-`
-
-const subWithOutOverrides = `apiVersion: app.ibm.com/v1alpha1
-kind: Subscription
-metadata:
-  name: dev-sub-with-overrides
-  namespace: default
-spec:
-  channel: default/test
-  name: ibm-cfee-installer
-`

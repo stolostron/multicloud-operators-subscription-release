@@ -57,7 +57,7 @@ rules:
   - app.ibm.com
   resources:
   - '*'
-  - subscriptionreleases
+  - helmreleases
   - helmchartsubscriptions
   verbs:
   - '*'
