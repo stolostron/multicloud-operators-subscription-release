@@ -122,7 +122,7 @@ build:
 	if [ $$? -ne 0 ]; then \
 	   build/install-operator-sdk.sh; \
 	fi
-	@$(GOBIN)/operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
+	@$(GOBIN)/operator-sdk version
 
 
 ############################################################
