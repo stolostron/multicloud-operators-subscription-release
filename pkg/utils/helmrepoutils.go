@@ -40,7 +40,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
@@ -394,7 +393,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errClone != nil {
 			os.RemoveAll(destRepo)
-			srLogger.Error(err, "Clone failed", "url", url)
+			srLogger.Error(errClone, "Clone failed", "url", url)
 			err = errClone
 
 			continue
@@ -404,7 +403,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errHead != nil {
 			os.RemoveAll(destRepo)
-			srLogger.Error(err, "Get Head failed", "url", url)
+			srLogger.Error(errHead, "Get Head failed", "url", url)
 			err = errHead
 
 			continue
