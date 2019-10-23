@@ -1,5 +1,7 @@
 module github.com/IBM/multicloud-operators-subscription-release
 
+go 1.13
+
 require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.0

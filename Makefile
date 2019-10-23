@@ -58,6 +58,9 @@ all: fmt check test coverage build images
 #     $(error Please run 'make' from $(DEST). Current directory is $(PWD))
 # endif
 
+# The MARKDOWN_LINT_WHITELIST is used to white-list the urls
+MARKDOWN_LINT_WHITELIST := mycluster.icp
+
 include common/Makefile.common.mk
 # include Makefile.local
 
