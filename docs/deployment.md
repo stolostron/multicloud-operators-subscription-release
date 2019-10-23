@@ -17,7 +17,7 @@
 
 ## Environment variable
 
-The environment variable `CHARTS_DIR` must be set when developing, it specifies the directory where the charts will be downloaded and expanded.
+The environment variable `CHARTS_DIR` must be set when developing, it specifies the directory where the charts will be downloaded and expanded (Default `/tmp/charts`).
 
 ## RBAC
 
@@ -80,7 +80,7 @@ spec:
   - packageName: ibm-myapp-api
     packageOverrides:
     - path: spec.values
-      value: "MyAppAPI: \n  Endpoint: http://myendpoint:31311\n  ObjectstoreSecretName:
+      value: "MyAppAPI: \n  Endpoint: http://mycluster.icp:31311\n  ObjectstoreSecretName:
         minio\n  Region: us-east-1\n"
   chartsSource:
     helmrepo:
@@ -169,7 +169,7 @@ spec:
     name: mysecret
   configRef:
     name: mycluster-config
-  values: "MyAppAPI: \n  Endpoint: http://myendpoint:31311\n  ObjectstoreSecretName:
+  values: "MyAppAPI: \n  Endpoint: http://mycluster.icp:31311\n  ObjectstoreSecretName:
     minio\n  Region: us-east-1\n"
   version: 0.2.3-015-20190725140717
 ```
