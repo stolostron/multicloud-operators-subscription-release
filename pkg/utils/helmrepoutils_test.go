@@ -22,9 +22,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 func TestDownloadChartFromGitHub(t *testing.T) {
@@ -47,6 +48,7 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
 	assert.NoError(t, err)
+
 	defer os.RemoveAll(dir)
 
 	destDir, err := DownloadChartFromGitHub(nil, nil, dir, hr)
@@ -66,7 +68,8 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://github.com/IBM/multicloud-operators-subscription-release/blob/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz?raw=true"},
+					Urls: []string{"https://github.com/IBM/multicloud-operators-subscription-release/" +
+						"blob/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz?raw=true"},
 				},
 			},
 			ChartName:   "subscription-release-test-1",
@@ -75,6 +78,7 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
 	assert.NoError(t, err)
+
 	defer os.RemoveAll(dir)
 
 	chartDir, err := DownloadChartFromHelmRepo(nil, nil, dir, hr)
@@ -102,6 +106,7 @@ func TestDownloadGitHubRepo(t *testing.T) {
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
 	assert.NoError(t, err)
+
 	defer os.RemoveAll(dir)
 
 	destRepo, commitID, err := DownloadGitHubRepo(nil, nil, dir, s)

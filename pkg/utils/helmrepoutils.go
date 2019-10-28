@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -41,6 +40,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 var log = logf.Log.WithName("utils")
@@ -295,8 +296,9 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 			}
 
 			if resp.StatusCode != 200 {
-				downloadErr = fmt.Errorf("Return code: %d unable to retrieve chart", resp.StatusCode)
+				downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
 				srLogger.Error(downloadErr, "Unable to retrieve chart")
+
 				continue
 			}
 

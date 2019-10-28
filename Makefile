@@ -86,12 +86,12 @@ fmt: format-go format-protos format-python
 # check section
 ############################################################
 
-check: lint
+check: fmt lint
 
 # All available linters: lint-dockerfiles lint-scripts lint-yaml lint-copyright-banner lint-go lint-python lint-helm lint-markdown lint-sass lint-typescript lint-protos
 # Default value will run all linters, override these make target with your requirements:
 #    eg: lint: lint-go lint-yaml
-lint: lint-all
+lint: fmt lint-all
 
 ############################################################
 # generate helm repo for test
