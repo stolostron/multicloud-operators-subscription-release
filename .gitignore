@@ -79,3 +79,4 @@ tags
 /vendor_scan-results
 .DS_Store
 wicked_cli.log
+test/helmrepo
