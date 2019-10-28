@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+helm init --client-only 
 for f in "$1"/*
 do 
   helm package "$f" -d test/helmrepo 
