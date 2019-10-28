@@ -10,7 +10,7 @@ metadata:
   name: {{ template "subscription-release.fullname" . }}
   labels:
     app: {{ template "subscription-release.name" . }}
-    chart: {{ template "application-manager.chart" . }}
+    chart: {{ template "subscription-release.chart" . }}
     component: "application-manager-subscription-release"
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -31,7 +31,7 @@ spec:
         controller: "operator"
         release: {{ .Release.Name }}
         heritage: {{ .Release.Service }}
-        chart: {{ template "application-manager.chart" . }}
+        chart: {{ template "subscription-release.chart" . }}
       annotations:
         productName: "IBM Multicloud Manager - Klusterlet"
         productID: "c18240a57c1c41969d5e81b39435da6c"
@@ -41,7 +41,7 @@ spec:
       - hostnames:
         - {{ .Values.subscriptionrelease.hostname }}
         ip: {{ .Values.subscriptionrelease.ip }}
-      serviceAccountName: {{ template "application-manager.fullname" . }}
+      serviceAccountName: {{ template "subscription-release.fullname" . }}
       containers:
       - name: subscription-release-controller
         image: "{{ .Values.subscriptionrelease.image.repository }}:{{ .Values.subscriptionrelease.image.tag }}"

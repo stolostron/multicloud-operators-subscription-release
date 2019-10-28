@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-for f in $1/*
+for f in "$1"/*
 do 
-  helm package $f -d test/helmrepo 
+  helm package "$f" -d test/helmrepo 
 done
 helm repo index test/helmrepo 
