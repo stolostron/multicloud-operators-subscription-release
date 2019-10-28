@@ -94,6 +94,18 @@ check: lint
 lint: lint-all
 
 ############################################################
+# generate helm repo for test
+############################################################
+
+generate-helmrepo:
+	@rm -rf test/helmrepo
+	@mkdir test/helmrepo
+	@helm init --client-only 
+	@helm package test/github/subscription-release-test-1 -d test/helmrepo --version "0.2.0"
+	@build/generate-helmrepo.sh test/github
+	@cd test/helmrepo & helm repo index test/helmrepo
+
+############################################################
 # test section
 ############################################################
 
