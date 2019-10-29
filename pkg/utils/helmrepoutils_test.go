@@ -22,9 +22,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 func TestDownloadChartFromGitHub(t *testing.T) {
@@ -115,3 +116,10 @@ func TestDownloadGitHubRepo(t *testing.T) {
 
 	assert.NotEqual(t, commitID, "")
 }
+
+// func TestUntar(t *testing.T) {
+// 	r, err := os.Open("/Users/dvernier/Downloads/ibm-mcm-prod-99.99.99.tgz")
+// 	assert.NoError(t, err)
+// 	err = Untar("/Users/dvernier/Downloads/test", r)
+// 	assert.Error(t, err)
+// }

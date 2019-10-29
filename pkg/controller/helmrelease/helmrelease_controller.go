@@ -19,10 +19,16 @@ package helmrelease
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
 	"math"
+	"os"
 	"reflect"
 	"time"
 
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,9 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 var log = logf.Log.WithName("controller_helmrelease")
@@ -60,12 +63,26 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
+	if chartsDir == "" {
+		chartsDir, err := ioutil.TempDir("/tmp", "charts")
+		if err != nil {
+			return err
+		}
+
+		err = os.Setenv(appv1alpha1.ChartsDir, chartsDir)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Create a new controller
 	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Set predicate")
 	// Watch for changes to primary resource HelmRelease
 	p := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -166,7 +183,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 		_, _, err = mgr.UpdateRelease(context.TODO())
 		if err != nil {
-			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
+			srLogger.Error(err, "Failed to while update chart", "sr.Spec.ChartName", sr.Spec.ChartName)
 			return err
 		}
 	} else {
@@ -174,7 +191,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 		_, err = mgr.InstallRelease(context.TODO())
 		if err != nil {
-			srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
+			srLogger.Error(err, "Failed to while install chart", "sr.Spec.ChartName", sr.Spec.ChartName)
 			return err
 		}
 	}

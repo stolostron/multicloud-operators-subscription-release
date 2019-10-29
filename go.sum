@@ -322,6 +322,8 @@ github.com/operator-framework/operator-registry v1.0.1/go.mod h1:1xEdZjjUg2hPEd5
 github.com/operator-framework/operator-registry v1.0.4/go.mod h1:hve6YwcjM2nGVlscLtNsp9sIIBkNZo6jlJgzWw7vP9s=
 github.com/operator-framework/operator-sdk v0.10.0 h1:k2yovBNxaya06yIkJ1e6lNsqiWjhS32G+d2LUdjuu/E=
 github.com/operator-framework/operator-sdk v0.10.0/go.mod h1:7eW7ldXmvenehIMVdO2zCdERf/828Mrftq4u7GS0I68=
+github.com/operator-framework/operator-sdk v0.11.0 h1:tQumPT2UjD6uhggfAerRbPt+rWOPKC80DmgKUEqeGYo=
+github.com/operator-framework/operator-sdk v0.12.0 h1:9eAD1L8e6pPCpFCAacBUVf2eloDkRuVm29GTCOktLqQ=
 github.com/pborman/uuid v1.2.0 h1:J7Q5mO4ysT1dv8hyrUGHb9+ooztCXu1D8MY8DZYsu3g=
 github.com/pborman/uuid v1.2.0/go.mod h1:X/NO0urCmaxf9VXbdlT7C2Yzkj2IKimNn4k+gtPdI/k=
 github.com/pelletier/go-buffruneio v0.2.0/go.mod h1:JkE26KsDizTr40EUHkXVtNPvgGtbSNq5BcowyYOWdKo=

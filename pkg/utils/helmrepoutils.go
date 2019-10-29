@@ -472,6 +472,8 @@ func Untar(dst string, r io.Reader) error {
 				}
 			}
 		case tar.TypeReg: // if it's a file create it
+			srLogger.Info("Untar", "target", target)
+
 			dir := filepath.Dir(target)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(dir, 0755); err != nil {
@@ -480,7 +482,12 @@ func Untar(dst string, r io.Reader) error {
 				}
 			}
 
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if _, err := os.Stat(target); err == nil {
+				srLogger.Info("A previous version exist then delete", "target", target)
+				os.Remove(target)
+			}
+
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
 				srLogger.Error(err, "")
 				return err
