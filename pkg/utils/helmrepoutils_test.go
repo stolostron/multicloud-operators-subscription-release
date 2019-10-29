@@ -22,10 +22,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 func TestDownloadChartFromGitHub(t *testing.T) {
@@ -68,8 +67,7 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://github.com/IBM/multicloud-operators-subscription-release/" +
-						"blob/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz?raw=true"},
+					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
 			ChartName:   "subscription-release-test-1",
