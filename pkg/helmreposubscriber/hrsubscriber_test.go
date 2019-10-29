@@ -19,6 +19,7 @@ package helmreposubscriber
 import (
 	"testing"
 
+	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
@@ -91,6 +92,37 @@ entries:
     - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-mcmk-prod-3.1.2.tgz
     version: 3.1.3
 `
+
+const sub1 = `apiVersion: app.ibm.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    tillerVersion: 2.4.0
+  name: test
+  namespace: default
+spec:
+  channel: default/ope
+  autoUpgrade: true
+  name: "ibm-cfee-installer"
+  chartsSource: 
+    type: helmrepo
+    helmRepo:
+      urls:
+      - https://mycluster.icp:8443/helm-repo/charts
+  packageFilter:
+    keywords:
+    - ICP
+    annotations:
+      tillerVersion: 2.4.0
+    version: ">0.2.2"
+  configRef:
+    name: mycluster-config
+  packageOverrides:
+  - packageName: ibm-cfee-installer
+    packageOverrides:
+    - path: spec.values
+      value: |
+        att1: hello`
 
 func TestLoadIndex(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
@@ -332,4 +364,39 @@ func Test_filterChartsLatest(t *testing.T) {
 
 	versrionedChart := versionedCharts[0]
 	assert.Equal(t, "3.2.0-beta", versrionedChart.GetVersion())
+}
+
+func TestNewHelmChartHelmReleaseForCR(t *testing.T) {
+	s := &appv1alpha1.HelmChartSubscription{}
+	err := yaml.Unmarshal([]byte(sub1), s)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		HelmChartSubscription: s,
+	}
+
+	indexFile, err := LoadIndex([]byte(index))
+	assert.NoError(t, err)
+
+	hr, err := subscriber.newHelmChartHelmReleaseForCR(indexFile.Entries["ibm-cfee-installer"][0])
+	assert.NoError(t, err)
+	assert.Equal(t, "ibm-cfee-installer-test-default", hr.Spec.ReleaseName)
+}
+
+func TestGetValues(t *testing.T) {
+	s := &appv1alpha1.HelmChartSubscription{}
+	err := yaml.Unmarshal([]byte(sub1), s)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		HelmChartSubscription: s,
+	}
+
+	indexFile, err := LoadIndex([]byte(index))
+	assert.NoError(t, err)
+
+	values, err := subscriber.getValues(indexFile.Entries["ibm-cfee-installer"][0])
+	assert.NoError(t, err)
+
+	assert.Equal(t, "att1: hello", values)
 }

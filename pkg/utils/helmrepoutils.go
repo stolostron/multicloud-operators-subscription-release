@@ -214,7 +214,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 			options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
 		}
 
-		os.RemoveAll(chartDir)
+		os.RemoveAll(destRepo)
 
 		_, err = git.PlainClone(destRepo, false, options)
 		if err != nil {
@@ -292,6 +292,13 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 			resp, downloadErr = httpClient.Do(req)
 			if downloadErr != nil {
 				srLogger.Error(downloadErr, "Http request failed: ", "urlelem", urlelem)
+				continue
+			}
+
+			if resp.StatusCode != 200 {
+				downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
+				srLogger.Error(downloadErr, "Unable to retrieve chart")
+
 				continue
 			}
 
@@ -465,6 +472,8 @@ func Untar(dst string, r io.Reader) error {
 				}
 			}
 		case tar.TypeReg: // if it's a file create it
+			srLogger.Info("Untar", "target", target)
+
 			dir := filepath.Dir(target)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(dir, 0755); err != nil {
@@ -473,7 +482,12 @@ func Untar(dst string, r io.Reader) error {
 				}
 			}
 
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_RDWR, os.FileMode(header.Mode))
+			if _, err := os.Stat(target); err == nil {
+				srLogger.Info("A previous version exist then delete", "target", target)
+				os.Remove(target)
+			}
+
+			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
 				srLogger.Error(err, "")
 				return err
