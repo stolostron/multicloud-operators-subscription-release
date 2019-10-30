@@ -66,7 +66,7 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 		},
 		Spec: appv1alpha1.HelmReleaseSpec{
 			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.GitHubSourceType,
+				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},

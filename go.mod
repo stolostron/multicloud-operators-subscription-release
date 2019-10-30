@@ -7,13 +7,11 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.0
 	github.com/jstemmer/go-junit-report v0.9.1 // indirect
-	github.com/martinlindhe/base36 v0.0.0-20180729042928-5cda0030da17
 	github.com/onsi/gomega v1.4.3
-	github.com/operator-framework/operator-lifecycle-manager v0.0.0-20190128024246-5eb7ae5bdb7a
 	github.com/operator-framework/operator-sdk v0.10.0
-	github.com/pborman/uuid v1.2.0
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
+	golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
@@ -21,7 +19,6 @@ require (
 	k8s.io/helm v2.13.1+incompatible
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208
 	sigs.k8s.io/controller-runtime v0.1.12
-	sigs.k8s.io/controller-tools v0.1.10
 )
 
 // Pinned to kubernetes-1.13.4

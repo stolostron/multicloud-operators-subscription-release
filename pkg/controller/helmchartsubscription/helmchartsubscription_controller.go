@@ -174,7 +174,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 	if !subscriber.IsStarted() {
 		reqLogger.Info("Subscription didn't start")
 
-		err = r.cleanSubscriber(subkey)
+		err := r.cleanSubscriber(subkey)
 		if err != nil {
 			return r.SetStatus(instance, err)
 		}

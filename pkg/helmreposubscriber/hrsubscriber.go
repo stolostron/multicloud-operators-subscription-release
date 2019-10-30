@@ -269,6 +269,11 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 			continue
 		}
 
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("%s %s", resp.Status, cleanRepoURL+"/index.yaml")
+			continue
+		}
+
 		subLogger.Info("Get succeeded", "cleanRepoURL", cleanRepoURL)
 
 		defer resp.Body.Close()

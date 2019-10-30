@@ -108,40 +108,6 @@ spec:
                 *placementv1alpha1.Placement `json:\"placement,omitempty\"` Secret
                 to use to access the helm-repo defined in the CatalogSource."
               type: object
-            status:
-              properties:
-                lastUpdateTime:
-                  format: date-time
-                  type: string
-                message:
-                  type: string
-                packages:
-                  additionalProperties:
-                    properties:
-                      lastUpdateTime:
-                        format: date-time
-                        type: string
-                      message:
-                        type: string
-                      reason:
-                        type: string
-                      status:
-                        description: Phase are Propagated if it is in hub or Subscribed
-                          if it is in endpoint
-                        type: string
-                    required:
-                    - lastUpdateTime
-                    type: object
-                  type: object
-                reason:
-                  type: string
-                status:
-                  description: Phase are Propagated if it is in hub or Subscribed
-                    if it is in endpoint
-                  type: string
-              required:
-              - lastUpdateTime
-              type: object
           required:
           - channel
           type: object

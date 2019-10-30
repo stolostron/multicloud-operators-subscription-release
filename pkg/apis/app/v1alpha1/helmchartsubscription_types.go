@@ -108,8 +108,6 @@ type HelmChartSubscriptionSpec struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configRef,omitempty"`
-
-	Status HelmChartSubscriptionStatus `json:"status,omitempty"`
 }
 
 //Approval approval types

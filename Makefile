@@ -122,7 +122,7 @@ coverage:
 # generate code section
 ############################################################
 
-generate: operator-sdk-install
+generate:
 	operator-sdk generate k8s
 	operator-sdk generate openapi
 

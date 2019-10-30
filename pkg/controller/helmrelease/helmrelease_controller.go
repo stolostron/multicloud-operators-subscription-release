@@ -26,12 +26,10 @@ import (
 	"reflect"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -41,6 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 var log = logf.Log.WithName("controller_helmrelease")
@@ -58,7 +60,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileHelmRelease{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileHelmRelease{config: mgr.GetConfig(), client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -113,6 +115,7 @@ var _ reconcile.Reconciler = &ReconcileHelmRelease{}
 type ReconcileHelmRelease struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
+	config *rest.Config
 	client client.Client
 	scheme *runtime.Scheme
 }
@@ -164,7 +167,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	srLogger.Info("Create Manager")
 
-	mgr, err := helmreleasemgr.NewManager(configMap, secret, sr)
+	mgr, err := helmreleasemgr.NewManager(r.config, configMap, secret, sr)
 	if err != nil {
 		srLogger.Error(err, "Failed to create NewManager ", "sr.Spec.ChartName", sr.Spec.ChartName)
 		return err
