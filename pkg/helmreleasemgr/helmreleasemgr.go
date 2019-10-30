@@ -24,7 +24,7 @@ import (
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
@@ -35,13 +35,8 @@ import (
 var log = logf.Log.WithName("helmreleasemgr")
 
 //NewManager create a new manager
-func NewManager(configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
+func NewManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
 	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "HelmRelease.Name", s.Name)
-
-	cfg, err := config.GetConfig()
-	if err != nil {
-		return nil, err
-	}
 
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())

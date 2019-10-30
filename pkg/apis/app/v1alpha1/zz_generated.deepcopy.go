@@ -161,7 +161,6 @@ func (in *HelmChartSubscriptionSpec) DeepCopyInto(out *HelmChartSubscriptionSpec
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
-	in.Status.DeepCopyInto(&out.Status)
 	return
 }
 
