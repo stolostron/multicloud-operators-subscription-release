@@ -31,6 +31,8 @@ import (
 	"strings"
 	"time"
 
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,9 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 //HelmRepoSubscriber the object thar represent a subscriber of a helmRepo
@@ -85,8 +84,6 @@ func (s *HelmRepoSubscriber) Restart() error {
 		}
 	}
 
-	s.stopCh = make(chan struct{})
-
 	s.HelmRepoHash = ""
 
 	approval := strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval))
@@ -95,6 +92,8 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 	if approval != "" && strings.EqualFold(approval, string(appv1alpha1.ApprovalAutomatic)) {
 		subLogger.Info("Start helm-repo monitoring")
+
+		s.stopCh = make(chan struct{})
 
 		go wait.Until(func() {
 			err := s.doHelmChartSubscription()
@@ -105,6 +104,7 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 		s.started = true
 	} else {
+		s.started = false
 		err := s.doHelmChartSubscription()
 		if err != nil {
 			return err
@@ -120,7 +120,9 @@ func (s *HelmRepoSubscriber) Stop() error {
 		"HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace,
 		"Subscrption.Name", s.HelmChartSubscription.Name)
 	subLogger.Info("begin")
-	close(s.stopCh)
+	if s.started {
+		close(s.stopCh)
+	}
 	s.started = false
 
 	return nil
@@ -658,9 +660,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 					return err
 				}
 			} else {
-				// sr.ObjectMeta = found.ObjectMeta
-				// err = s.Client.Update(context.TODO(), sr)
-				if !reflect.DeepEqual(found.Spec, sr.Spec) {
+				if !reflect.DeepEqual(found.Spec, sr.Spec) || found.Status.Status != appv1alpha1.HelmReleaseSuccess {
 					subLogger.Info("Update a the HelmRelease", "HelmRelease.Namespace", sr.Namespace, "HelmRelease.Name", sr.Name)
 					subLogger.Info("found", "Spec", found.Spec)
 					subLogger.Info("sr", "Spec", sr.Spec)
