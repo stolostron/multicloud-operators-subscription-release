@@ -17,13 +17,19 @@ limitations under the License.
 package helmreposubscriber
 
 import (
+	"context"
 	"testing"
-
-	"github.com/ghodss/yaml"
-	"github.com/stretchr/testify/assert"
+	"time"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/ghodss/yaml"
+	"github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
+
+var c client.Client
 
 const index = `apiVersion: v1
 entries:
@@ -98,7 +104,7 @@ kind: Subscription
 metadata:
   annotations:
     tillerVersion: 2.4.0
-  name: test
+  name: test-helmsubscriber
   namespace: default
 spec:
   channel: default/ope
@@ -124,6 +130,231 @@ spec:
       value: |
         att1: hello`
 
+const helmRepoSub = `apiVersion: app.ibm.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    tillerVersion: 2.4.0
+  name: test-helmsubscriber
+  namespace: default
+spec:
+  channel: default/ope
+  installPlanApproval: Manual
+  name: "subscription-release-test-1"
+  chartsSource: 
+    type: helmrepo
+    helmRepo:
+      urls:
+      - https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo
+  packageFilter:
+    keywords:
+    - MCM
+    version: ">0.1.0"
+  packageOverrides:
+  - packageName: subscription-release-test-1
+    packageOverrides:
+    - path: spec.values
+      value: |
+        att1: hello`
+
+const gitRepoSub = `apiVersion: app.ibm.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    tillerVersion: 2.4.0
+  name: test-helmsubscriber
+  namespace: default
+spec:
+  channel: default/ope
+  installPlanApproval: Manual
+  name: "subscription-release-test-1"
+  chartsSource:
+    type: github
+    github:
+      urls:
+      - https://github.com/IBM/multicloud-operators-subscription-release.git
+      chartsPath: test/github
+  packageFilter:
+    version: "0.1.0"
+  packageOverrides:
+  - packageName: subscription-release-test-1
+    packageOverrides:
+    - path: spec.values
+      value: |
+        att1: hello`
+
+func TestRestart(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	mgr, err := manager.New(cfg, manager.Options{})
+	assert.NoError(t, err)
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	subscription := &appv1alpha1.HelmChartSubscription{}
+	err = yaml.Unmarshal([]byte(gitRepoSub), subscription)
+	assert.NoError(t, err)
+
+	subscription.Spec.InstallPlanApproval = appv1alpha1.ApprovalAutomatic
+
+	c = mgr.GetClient()
+
+	err = c.Create(context.TODO(), subscription)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		Client:                c,
+		Scheme:                mgr.GetScheme(),
+		HelmChartSubscription: subscription,
+	}
+
+	//Start subscriber
+	err = subscriber.Restart()
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, subscriber.started)
+
+	time.Sleep(2 * time.Second)
+
+	helmReleaseList := &appv1alpha1.HelmReleaseList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(helmReleaseList.Items))
+
+	//Update subscriber
+	err = subscriber.Update(subscription)
+	assert.NoError(t, err)
+
+	assert.Equal(t, true, subscriber.started)
+
+	//Stop subscriber
+
+	err = subscriber.Stop()
+	assert.NoError(t, err)
+
+	assert.Equal(t, false, subscriber.started)
+
+	subscription.Spec.InstallPlanApproval = appv1alpha1.ApprovalManual
+
+	//Start subscriber in Manual mode
+	err = subscriber.Restart()
+	assert.NoError(t, err)
+
+	assert.Equal(t, false, subscriber.started)
+
+	//Update subscriber in Manual mode
+	err = subscriber.Update(subscription)
+	assert.NoError(t, err)
+
+	assert.Equal(t, false, subscriber.started)
+
+	//Stop subscriber in Manual mode
+
+	err = subscriber.Stop()
+	assert.NoError(t, err)
+
+	assert.Equal(t, false, subscriber.started)
+
+	for _, hr := range helmReleaseList.Items {
+		err = c.Delete(context.TODO(), &hr)
+		assert.NoError(t, err)
+	}
+
+	subscriptionList := &appv1alpha1.HelmChartSubscriptionList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, subscriptionList)
+	assert.NoError(t, err)
+
+	for _, s := range subscriptionList.Items {
+		err = c.Delete(context.TODO(), &s)
+		assert.NoError(t, err)
+	}
+}
+
+func TestDoHelmChartSubscription(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	mgr, err := manager.New(cfg, manager.Options{})
+	assert.NoError(t, err)
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	subscription := &appv1alpha1.HelmChartSubscription{}
+	err = yaml.Unmarshal([]byte(gitRepoSub), subscription)
+	assert.NoError(t, err)
+
+	c = mgr.GetClient()
+
+	err = c.Create(context.TODO(), subscription)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		Client:                c,
+		Scheme:                mgr.GetScheme(),
+		HelmChartSubscription: subscription,
+	}
+
+	err = subscriber.doHelmChartSubscription()
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	helmReleaseList := &appv1alpha1.HelmReleaseList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(helmReleaseList.Items))
+
+	//Rerun for update, no new helmRelease must be created because hash didn't change
+	err = subscriber.doHelmChartSubscription()
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	helmReleaseList = &appv1alpha1.HelmReleaseList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(helmReleaseList.Items))
+
+	//Rerun for update, no new helmRelease must be created because already exist and Spec identical
+	subscriber.HelmRepoHash = ""
+	err = subscriber.doHelmChartSubscription()
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	helmReleaseList = &appv1alpha1.HelmReleaseList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(helmReleaseList.Items))
+
+	for _, hr := range helmReleaseList.Items {
+		err = c.Delete(context.TODO(), &hr)
+		assert.NoError(t, err)
+	}
+
+	subscriptionList := &appv1alpha1.HelmChartSubscriptionList{}
+	err = c.List(context.TODO(), &client.ListOptions{}, subscriptionList)
+	assert.NoError(t, err)
+
+	for _, s := range subscriptionList.Items {
+		err = c.Delete(context.TODO(), &s)
+		assert.NoError(t, err)
+	}
+}
+
 func TestLoadIndex(t *testing.T) {
 	indexFile, err := LoadIndex([]byte(index))
 	assert.NoError(t, err)
@@ -146,7 +377,8 @@ func Test_MatchingNameCharts(t *testing.T) {
 			},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(indexFile.Entries))
 
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
@@ -162,7 +394,8 @@ func Test_MatchingWithoutPackageName(t *testing.T) {
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(indexFile.Entries))
 
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
@@ -178,7 +411,8 @@ func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
 			Spec: appv1alpha1.HelmChartSubscriptionSpec{},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(indexFile.Entries))
 
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
@@ -192,7 +426,8 @@ func Test_MatchingWithoutSubscriptionSpec(t *testing.T) {
 	s := &HelmRepoSubscriber{
 		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 3, len(indexFile.Entries))
 
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
@@ -214,7 +449,8 @@ func Test_MatchingDigest(t *testing.T) {
 			},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(indexFile.Entries))
 
 	chartVersions := indexFile.Entries["ibm-cfee-installer"]
@@ -236,7 +472,8 @@ func Test_MatchingTillerVersion(t *testing.T) {
 			},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, len(indexFile.Entries))
 
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
@@ -259,7 +496,8 @@ func Test_MatchingTillerVersionNotFound(t *testing.T) {
 		},
 	}
 
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 0, len(indexFile.Entries))
 }
 
@@ -276,7 +514,8 @@ func Test_MatchingVersion(t *testing.T) {
 			},
 		},
 	}
-	s.filterCharts(indexFile)
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
 	assert.Equal(t, 2, len(indexFile.Entries))
 
 	versionedCharts := indexFile.Entries["ibm-cfee-installer"]
@@ -380,7 +619,7 @@ func TestNewHelmChartHelmReleaseForCR(t *testing.T) {
 
 	hr, err := subscriber.newHelmChartHelmReleaseForCR(indexFile.Entries["ibm-cfee-installer"][0])
 	assert.NoError(t, err)
-	assert.Equal(t, "ibm-cfee-installer-test-default", hr.Spec.ReleaseName)
+	assert.Equal(t, "ibm-cfee-installer-test-helmsubscriber-default", hr.Spec.ReleaseName)
 }
 
 func TestGetValues(t *testing.T) {
@@ -399,4 +638,38 @@ func TestGetValues(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "att1: hello", values)
+}
+
+func TestGetHelmIndex(t *testing.T) {
+	subscription := &appv1alpha1.HelmChartSubscription{}
+	err := yaml.Unmarshal([]byte(helmRepoSub), subscription)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		HelmChartSubscription: subscription,
+	}
+
+	indexFile, hash, err := subscriber.getHelmRepoIndex()
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, "", hash)
+
+	assert.Equal(t, 2, len(indexFile.Entries))
+}
+
+func TestGenerateHelmIndexYAML(t *testing.T) {
+	subscription := &appv1alpha1.HelmChartSubscription{}
+	err := yaml.Unmarshal([]byte(gitRepoSub), subscription)
+	assert.NoError(t, err)
+
+	subscriber := &HelmRepoSubscriber{
+		HelmChartSubscription: subscription,
+	}
+
+	indexFile, hash, err := subscriber.generateIndexYAML()
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, "", hash)
+
+	assert.Equal(t, 2, len(indexFile.Entries))
 }
