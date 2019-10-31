@@ -1,9 +1,9 @@
 # multicloud-operators-subscription-release
 
-[![Build](http://35.227.205.240/badge.svg?jobs=build_multicloud-operators-subscription)](http://35.227.205.240/?job=images_multicloud-operators-subscription_postsubmit)
-[![GoDoc](https://godoc.org/github.com/IBM/multicloud-operators-subscription?status.svg)](https://godoc.org/github.com/IBM/multicloud-operators-subscription)
-[![Go Report Card](https://goreportcard.com/badge/github.com/IBM/multicloud-operators-subscription)](https://goreportcard.com/report/github.com/IBM/multicloud-operators-subscription)
-[![Code Coverage](https://codecov.io/gh/IBM/multicloud-operators-subscription/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/gh/IBM/multicloud-operators-subscription?branch=master)
+[![Build](http://35.227.205.240/badge.svg?jobs=build_multicloud-operators-subscription-release)](http://35.227.205.240/?job=images_multicloud-operators-subscription-release_postsubmit)
+[![GoDoc](https://godoc.org/github.com/IBM/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/IBM/multicloud-operators-subscription-release)
+[![Go Report Card](https://goreportcard.com/badge/github.com/IBM/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/IBM/multicloud-operators-subscription-release)
+[![Code Coverage](https://codecov.io/gh/IBM/multicloud-operators-subscription-release/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/gh/IBM/multicloud-operators-subscription-release?branch=master)
 [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
