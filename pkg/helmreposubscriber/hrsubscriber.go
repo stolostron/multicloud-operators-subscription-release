@@ -31,8 +31,6 @@ import (
 	"strings"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"github.com/blang/semver"
 	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -45,6 +43,9 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 //HelmRepoSubscriber the object thar represent a subscriber of a helmRepo
@@ -113,6 +114,7 @@ func (s *HelmRepoSubscriber) Stop() error {
 	if s.started {
 		close(s.stopCh)
 	}
+
 	s.started = false
 
 	return nil

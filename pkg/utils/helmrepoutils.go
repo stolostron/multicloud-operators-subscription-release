@@ -32,7 +32,6 @@ import (
 	"strings"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
@@ -41,6 +40,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
@@ -228,7 +229,6 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-
 	if s.Spec.Source.HelmRepo == nil {
 		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
 		return "", err
@@ -343,7 +343,6 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmChartSubscription) (destRepo string, commitID string, err error) {
-
 	if s.Spec.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", "", err
@@ -417,7 +416,6 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 //Untar untars the reader into the dst directory
 func Untar(dst string, r io.Reader) error {
-
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		klog.Error(err)
