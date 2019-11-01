@@ -42,9 +42,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/repo"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 //HelmRepoSubscriber the object thar represent a subscriber of a helmRepo
@@ -56,8 +56,6 @@ type HelmRepoSubscriber struct {
 	started               bool
 	stopCh                chan struct{}
 }
-
-var log = logf.Log.WithName("helmreposubscriber")
 
 var (
 	subscriptionPeriod = 10 * time.Second
@@ -71,11 +69,7 @@ const DeploymentProcessBitnami = "bitnami"
 
 // Restart a helm repo subscriber
 func (s *HelmRepoSubscriber) Restart() error {
-	subLogger := log.WithValues("method", "Restart",
-		"HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace,
-		"Subscrption.Name", s.HelmChartSubscription.Name)
-
-	subLogger.Info("begin")
+	klog.V(5).Info("Restart Subscriber")
 
 	if s.started {
 		err := s.Stop()
@@ -87,18 +81,18 @@ func (s *HelmRepoSubscriber) Restart() error {
 	s.HelmRepoHash = ""
 
 	approval := strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval))
-	subLogger.Info("Check start helm-repo monitoring",
+	klog.V(5).Info("Check start helm-repo monitoring",
 		"s.HelmChartSubscription.Spec.InstallPlanApproval", s.HelmChartSubscription.Spec.InstallPlanApproval)
 
 	if approval != "" && strings.EqualFold(approval, string(appv1alpha1.ApprovalAutomatic)) {
-		subLogger.Info("Start helm-repo monitoring")
+		klog.V(5).Info("Start helm-repo monitoring")
 
 		s.stopCh = make(chan struct{})
 
 		go wait.Until(func() {
 			err := s.doHelmChartSubscription()
 			if err != nil {
-				subLogger.Error(err, "Error while managing the helmChartSubscription")
+				klog.Error(err, "Error while managing the helmChartSubscription")
 			}
 		}, subscriptionPeriod, s.stopCh)
 
@@ -116,10 +110,6 @@ func (s *HelmRepoSubscriber) Restart() error {
 
 // Stop a helm repo subscriber
 func (s *HelmRepoSubscriber) Stop() error {
-	subLogger := log.WithValues("method", "Stop",
-		"HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace,
-		"Subscrption.Name", s.HelmChartSubscription.Name)
-	subLogger.Info("begin")
 	if s.started {
 		close(s.stopCh)
 	}
@@ -130,17 +120,11 @@ func (s *HelmRepoSubscriber) Stop() error {
 
 // Update a namespace subscriber
 func (s *HelmRepoSubscriber) Update(sub *appv1alpha1.HelmChartSubscription) error {
-	subLogger := log.WithValues("method", "Update",
-		"HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace,
-		"Subscrption.Name", s.HelmChartSubscription.Name)
-
-	subLogger.Info("begin")
-
 	s.HelmChartSubscription = sub
 	approval := strings.ToLower(string(s.HelmChartSubscription.Spec.InstallPlanApproval))
 
-	subLogger.Info("InstallPlanApproval", "InstallPlanApproval", approval)
-	subLogger.Info("ApprovalManual", "ApprovalManual", strings.ToLower(string(appv1alpha1.ApprovalManual)))
+	klog.V(5).Info("InstallPlanApproval: ", approval)
+	klog.V(5).Info("ApprovalManual :", strings.ToLower(string(appv1alpha1.ApprovalManual)))
 
 	if approval == "" || strings.EqualFold(string(s.HelmChartSubscription.Spec.InstallPlanApproval), string(appv1alpha1.ApprovalManual)) {
 		return s.Stop()
@@ -155,14 +139,10 @@ func (s *HelmRepoSubscriber) IsStarted() bool {
 }
 
 func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
-	subLogger := log.WithValues("method", "doHelmChartSubscription",
-		"HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace,
-		"Subscrption.Name", s.HelmChartSubscription.Name)
-	subLogger.Info("start")
 	//Retrieve the helm repo
 	repoURL := s.HelmChartSubscription.Spec.Source.String()
-	subLogger.Info("Source: " + repoURL)
-	subLogger.Info("name: " + s.HelmChartSubscription.GetName())
+	klog.V(5).Info("Source: ", repoURL)
+	klog.Info("Subscription Name: ", s.HelmChartSubscription.GetName())
 
 	var indexFile *repo.IndexFile
 
@@ -182,24 +162,24 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	}
 
 	if err != nil {
-		subLogger.Error(err, "Unable to retrieve the helm repo index ", "url", url)
+		klog.Error(err, "Unable to retrieve the helm repo index at ", url)
 		return err
 	}
 
-	subLogger.Info("Hashes", "hash", hash, "s.HelmRepoHash", s.HelmRepoHash)
+	klog.V(5).Info(fmt.Sprintf("New hashes %s, old hash %s", hash, s.HelmRepoHash))
 
 	if hash != s.HelmRepoHash {
-		subLogger.Info("HelmRepo changed or subscription changed", "URL", repoURL)
+		klog.Info("HelmRepo changed or subscription changed: ", repoURL)
 
 		s.HelmRepoHash = hash
 
 		err = s.processHelmChartSubscription(indexFile)
 		if err != nil {
-			subLogger.Error(err, "Error processing subscription")
+			klog.Error(err, "Error processing subscription")
 			return err
 		}
 	} else {
-		subLogger.Info("HelmRepo didn't change", "URL", repoURL)
+		klog.Info("HelmRepo didn't change at ", repoURL)
 	}
 
 	return nil
@@ -207,11 +187,9 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 
 // do a helm repo subscriber
 func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexFile) error {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-
 	err := s.filterCharts(indexFile)
 	if err != nil {
-		subLogger.Error(err, "Unable to filter ")
+		klog.Error(err, "Unable to filter ")
 		return err
 	}
 
@@ -220,23 +198,20 @@ func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexF
 
 //getHelmRepoIndex retrieves the index.yaml, loads it into a repo.IndexFile and filters it
 func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-	subLogger.Info("begin")
-
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
-		subLogger.Error(err, "Failed to retrieve configMap ", "s.Spec.ConfigMapRef.Name", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
+		klog.Error(err, "Failed to retrieve configMap ", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
 	}
 
 	httpClient, err := utils.GetHelmRepoClient(s.HelmChartSubscription.Namespace, configMap)
 	if err != nil {
-		subLogger.Error(err, "Unable to create client for helm repo",
+		klog.Error(err, "Unable to create client for helm repo",
 			"s.HelmChartSubscription.Spec.Source.HelmRepo.Urls", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	}
 
 	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
 	if err != nil {
-		subLogger.Error(err, "Failed to retrieve secret ", "s.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
+		klog.Error(err, "Failed to retrieve secret ", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
 
 	for _, url := range s.HelmChartSubscription.Spec.Source.HelmRepo.Urls {
@@ -246,7 +221,7 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 
 		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
 		if err != nil {
-			subLogger.Error(err, "Can not build request: ", "cleanRepoURL", cleanRepoURL)
+			klog.Error(err, "Can not build request: ", cleanRepoURL)
 			continue
 		}
 
@@ -267,7 +242,7 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 
 		resp, err = httpClient.Do(req)
 		if err != nil {
-			subLogger.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
+			klog.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
 			continue
 		}
 
@@ -276,7 +251,7 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 			continue
 		}
 
-		subLogger.Info("Get succeeded", "cleanRepoURL", cleanRepoURL)
+		klog.V(5).Info("Get index.yaml succeeded from ", cleanRepoURL)
 
 		defer resp.Body.Close()
 
@@ -284,25 +259,25 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 
 		body, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			subLogger.Error(err, "Unable to read body: ", "cleanRepoURL", cleanRepoURL)
+			klog.Error(err, "Unable to read body of ", cleanRepoURL)
 			continue
 		}
 
 		hash, err = hashKey(body)
 		if err != nil {
-			subLogger.Error(err, "Unable to generate hashkey")
+			klog.Error(err, "Unable to generate hashkey")
 			continue
 		}
 
 		indexFile, err = LoadIndex(body)
 		if err != nil {
-			subLogger.Error(err, "Unable to parse the indexfile of ", "cleanRepoURL", cleanRepoURL)
+			klog.Error(err, "Unable to parse the indexfile of ", cleanRepoURL)
 			continue
 		}
 	}
 
 	if err != nil {
-		subLogger.Error(err, "All repo URL tested and all failed")
+		klog.Error(err, "All repo URL tested and all failed")
 		return nil, "", err
 	}
 
@@ -310,8 +285,6 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 }
 
 func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error) {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
 		return nil, "", err
@@ -319,7 +292,7 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 
 	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
 	if err != nil {
-		subLogger.Error(err, "Failed to retrieve secret ", "sr.HelmChartSubscription.Spec.SecretRef.Name", s.HelmChartSubscription.Spec.SecretRef.Name)
+		klog.Error(err, "Failed to retrieve secret ", s.HelmChartSubscription.Spec.SecretRef.Name)
 		return nil, "", err
 	}
 
@@ -327,19 +300,19 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 	if chartsDir == "" {
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {
-			subLogger.Error(err, "Can not create tempdir")
+			klog.Error(err, "Can not create tempdir")
 			return nil, "", err
 		}
 	}
 
 	repoRoot, hash, err := utils.DownloadGitHubRepo(configMap, secret, chartsDir, s.HelmChartSubscription)
 	if err != nil {
-		subLogger.Error(err, "Failed to download the repo")
+		klog.Error(err, "Failed to download the repo")
 		return nil, "", err
 	}
 
 	chartsPath := filepath.Join(repoRoot, s.HelmChartSubscription.Spec.Source.GitHub.ChartsPath)
-	subLogger.Info("chartsPath", "chartsPath", chartsPath)
+	klog.V(3).Info("chartsPath: ", chartsPath)
 
 	///////////////////////////////////////////////
 	// Get chart directories first
@@ -355,16 +328,16 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 				return err
 			}
 			if info.IsDir() {
-				subLogger.Info("Ignoring subfolders", "folder", currentChartDir)
+				klog.V(5).Info("Ignoring subfolders ", currentChartDir)
 				if _, err := os.Stat(path + "/Chart.yaml"); err == nil {
-					subLogger.Info("Found Chart.yaml in ", "dir", path)
+					klog.Info("Found Chart.yaml in directory ", path)
 					if !strings.HasPrefix(path, currentChartDir) {
-						subLogger.Info("This is a helm chart folder.")
+						klog.V(5).Info("This is a helm chart folder.")
 						chartDirs[path+"/"] = path + "/"
 						currentChartDir = path + "/"
 					}
 				} else if !strings.HasPrefix(path, currentChartDir) && !strings.HasPrefix(path, repoRoot+"/.git") {
-					subLogger.Info("This is not a helm chart directory. ", "dir", path)
+					klog.V(5).Info("This is not a helm chart directory ", path)
 					resourceDirs[path+"/"] = path + "/"
 				}
 			}
@@ -397,7 +370,7 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 
 		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
 		if err != nil {
-			subLogger.Error(err, "There was a problem in generating helm charts index file: ")
+			klog.Error(err, "There was a problem in generating helm charts index file: ")
 			return nil, "", err
 		}
 
@@ -409,7 +382,7 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 	indexFile.SortEntries()
 
 	b, _ := yaml.Marshal(indexFile)
-	subLogger.Info("New index file ", "content:", string(b), "hash:", hash)
+	klog.V(5).Info("New index file content ", string(b), " with hash:", hash)
 
 	return indexFile, hash, nil
 }
@@ -444,11 +417,10 @@ func hashKey(b []byte) (string, error) {
 
 //filterCharts filters the indexFile by name, tillerVersion, version, digest
 func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error) {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Removes all entries from the indexFile with non matching name
 	err = s.removeNoMatchingName(indexFile)
 	if err != nil {
-		subLogger.Error(err, "Failed to removeNoMatchingName")
+		klog.Error(err, "Failed to removeNoMatchingName")
 		return err
 	}
 	//Removes non matching version, tillerVersion, digest
@@ -456,7 +428,7 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 	//Keep only the lastest version if multiple remains after filtering.
 	err = s.takeLatestVersion(indexFile)
 	if err != nil {
-		subLogger.Error(err, "Failed to takeLatestVersion")
+		klog.Error(err, "Failed to takeLatestVersion")
 		return err
 	}
 
@@ -550,8 +522,6 @@ func (s *HelmRepoSubscriber) checkDigest(chartVersion *repo.ChartVersion) bool {
 
 //checkTillerVersion Checks if the TillerVersion matches
 func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-
 	if s.HelmChartSubscription != nil {
 		if s.HelmChartSubscription.Spec.PackageFilter != nil {
 			if s.HelmChartSubscription.Spec.PackageFilter.Annotations != nil {
@@ -560,13 +530,13 @@ func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion)
 					if tillerVersion != "" {
 						tillerVersionVersion, err := semver.ParseRange(tillerVersion)
 						if err != nil {
-							subLogger.Error(err, "Error while parsing", "tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
+							klog.Error(err, "Error while parsing tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
 							return false
 						}
 
 						filterTillerVersion, err := semver.Parse(filterTillerVersion)
 						if err != nil {
-							subLogger.Error(err, "Failed to Parse ", filterTillerVersion)
+							klog.Error(err, "Failed to Parse filterTillerVersion: ", filterTillerVersion)
 							return false
 						}
 
@@ -582,8 +552,6 @@ func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion)
 
 //checkVersion checks if the version matches
 func (s *HelmRepoSubscriber) checkVersion(chartVersion *repo.ChartVersion) bool {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
-
 	if s.HelmChartSubscription != nil {
 		if s.HelmChartSubscription.Spec.PackageFilter != nil {
 			if s.HelmChartSubscription.Spec.PackageFilter.Version != "" {
@@ -591,13 +559,13 @@ func (s *HelmRepoSubscriber) checkVersion(chartVersion *repo.ChartVersion) bool 
 
 				versionVersion, err := semver.Parse(version)
 				if err != nil {
-					subLogger.Error(err, "Failed to parse ", version)
+					klog.Error(err, "Failed to parse version: ", version)
 					return false
 				}
 
 				filterVersion, err := semver.ParseRange(s.HelmChartSubscription.Spec.PackageFilter.Version)
 				if err != nil {
-					subLogger.Error(err, "Failed to parse range ", "s.HelmChartSubscription.Spec.PackageFilter.Version", s.HelmChartSubscription.Spec.PackageFilter.Version)
+					klog.Error(err, "Failed to parse range ", s.HelmChartSubscription.Spec.PackageFilter.Version)
 					return false
 				}
 
@@ -621,7 +589,7 @@ func (s *HelmRepoSubscriber) takeLatestVersion(indexFile *repo.IndexFile) (err e
 		// "*" is equivalent to ">=0.0.0"
 		chartVersion, err := indexFile.Get(k, ">=0.0.0")
 		if err != nil {
-			log.Error(err, "Failed to get the latest version")
+			klog.Error(err, "Failed to get the latest version")
 			return err
 		}
 
@@ -632,7 +600,6 @@ func (s *HelmRepoSubscriber) takeLatestVersion(indexFile *repo.IndexFile) (err e
 }
 
 func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFile) error {
-	subLogger := log.WithValues("HelmChartSubscription.Namespace", s.HelmChartSubscription.Namespace, "Subscrption.Name", s.HelmChartSubscription.Name)
 	//Loop on all packages selected by the subscription
 	for _, chartVersions := range indexFile.Entries {
 		if len(chartVersions) != 0 {
@@ -650,7 +617,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 			err = s.Client.Get(context.TODO(), types.NamespacedName{Name: sr.Name, Namespace: sr.Namespace}, found)
 			if err != nil {
 				if errors.IsNotFound(err) {
-					subLogger.Info("Creating a new HelmRelease", "HelmRelease.Namespace", sr.Namespace, "HelmRelease.Name", sr.Name)
+					klog.Info("Creating a new HelmRelease: ", sr.Namespace, "/", sr.Name)
 
 					err = s.Client.Create(context.TODO(), sr)
 					if err != nil {
@@ -661,9 +628,9 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 				}
 			} else {
 				if !reflect.DeepEqual(found.Spec, sr.Spec) || found.Status.Status != appv1alpha1.HelmReleaseSuccess {
-					subLogger.Info("Update a the HelmRelease", "HelmRelease.Namespace", sr.Namespace, "HelmRelease.Name", sr.Name)
-					subLogger.Info("found", "Spec", found.Spec)
-					subLogger.Info("sr", "Spec", sr.Spec)
+					klog.Info("Update a the HelmRelease: ", sr.Namespace, "/", sr.Name)
+					klog.V(5).Info("found Spec: ", found.Spec)
+					klog.V(5).Info("sr Spec", sr.Spec)
 					found.Spec = sr.Spec
 
 					err = s.Client.Update(context.TODO(), found)
