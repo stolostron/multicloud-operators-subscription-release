@@ -19,11 +19,12 @@ package helmreleasemgr
 import (
 	"testing"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 var (
@@ -64,5 +65,4 @@ func TestNewManager(t *testing.T) {
 
 	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
-
 }

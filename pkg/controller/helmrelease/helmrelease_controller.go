@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -37,15 +38,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
-
-var log = logf.Log.WithName("controller_helmrelease")
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -84,7 +82,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	fmt.Println("Set predicate")
 	// Watch for changes to primary resource HelmRelease
 	p := predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -126,8 +123,7 @@ type ReconcileHelmRelease struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling HelmRelease")
+	klog.Info("Reconciling HelmRelease")
 
 	// Fetch the HelmRelease instance
 	instance := &appv1alpha1.HelmRelease{}
@@ -151,8 +147,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 }
 
 func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
-	srLogger := log.WithValues("HelmRelease.Namespace", sr.Namespace, "SubscrptionRelease.Name", sr.Name)
-	srLogger.Info("chart: ", "sr.Spec.ChartName", sr.Spec.ChartName, "sr.Spec.Version", sr.Spec.Version)
+	klog.V(3).Info(fmt.Sprintf("chart: %s-%s", sr.Spec.ChartName, sr.Spec.Version))
 
 	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)
 	if err != nil {
@@ -161,40 +156,40 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	secret, err := utils.GetSecret(r.client, sr.Namespace, sr.Spec.SecretRef)
 	if err != nil {
-		srLogger.Error(err, "Failed to retrieve secret ", "sr.Spec.SecretRef.Name", sr.Spec.SecretRef.Name)
+		klog.Error(err, "Failed to retrieve secret ", sr.Spec.SecretRef.Name)
 		return err
 	}
 
-	srLogger.Info("Create Manager")
+	klog.V(5).Info("Create Manager")
 
 	mgr, err := helmreleasemgr.NewManager(r.config, configMap, secret, sr)
 	if err != nil {
-		srLogger.Error(err, "Failed to create NewManager ", "sr.Spec.ChartName", sr.Spec.ChartName)
+		klog.Error(err, "Failed to create NewManager ", sr.Spec.ChartName)
 		return err
 	}
 
-	srLogger.Info("Sync repo")
+	klog.V(5).Info("Sync repo")
 
 	err = mgr.Sync(context.TODO())
 	if err != nil {
-		srLogger.Error(err, "Failed to while sync ", "sr.Spec.ChartName", sr.Spec.ChartName)
+		klog.Error(err, "Failed to while sync :", sr.Spec.ChartName)
 		return err
 	}
 
 	if mgr.IsInstalled() {
-		srLogger.Info("Update chart", "sr.Spec.ChartName", sr.Spec.ChartName)
+		klog.Info("Update chart ", sr.Spec.ChartName)
 
 		_, _, err = mgr.UpdateRelease(context.TODO())
 		if err != nil {
-			srLogger.Error(err, "Failed to while update chart", "sr.Spec.ChartName", sr.Spec.ChartName)
+			klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
 			return err
 		}
 	} else {
-		srLogger.Info("Install chart", "sr.Spec.ChartName", sr.Spec.ChartName)
+		klog.Info("Install chart: ", sr.Spec.ChartName)
 
 		_, err = mgr.InstallRelease(context.TODO())
 		if err != nil {
-			srLogger.Error(err, "Failed to while install chart", "sr.Spec.ChartName", sr.Spec.ChartName)
+			klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
 			return err
 		}
 	}
@@ -204,7 +199,6 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 //SetStatus set the subscription release status
 func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error) (reconcile.Result, error) {
-	srLogger := log.WithValues("HelmRelease.Namespace", s.GetNamespace(), "HelmRelease.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""
@@ -214,7 +208,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 		err := r.client.Status().Update(context.Background(), s)
 		if err != nil {
-			srLogger.Error(err, "unable to update status")
+			klog.Error(err, "unable to update status")
 
 			return reconcile.Result{
 				RequeueAfter: time.Second,
@@ -235,7 +229,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 	err := r.client.Status().Update(context.Background(), s)
 	if err != nil {
-		srLogger.Error(err, "unable to update status")
+		klog.Error(err, "unable to update status")
 
 		return reconcile.Result{
 			RequeueAfter: time.Second,
@@ -249,7 +243,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 	}
 
 	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Hour.Nanoseconds()*6)))
-	srLogger.Info("requeueAfter", "->requeueAfter", requeueAfter)
+	klog.V(5).Info("requeueAfter: ", requeueAfter)
 
 	return reconcile.Result{
 		RequeueAfter: requeueAfter,

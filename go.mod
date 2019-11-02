@@ -15,8 +15,10 @@ require (
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	k8s.io/api v0.0.0-20190612125737-db0771252981
 	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
+	k8s.io/apiserver v0.0.0-20181213151703-3ccfe8365421
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/helm v2.13.1+incompatible
+	k8s.io/klog v0.3.1
 	k8s.io/kube-openapi v0.0.0-20190603182131-db7b694dc208
 	sigs.k8s.io/controller-runtime v0.1.12
 )

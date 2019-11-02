@@ -38,18 +38,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
-var log = logf.Log.WithName("utils")
-
 //GetHelmRepoClient returns an *http.client to access the helm repo
 func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (*http.Client, error) {
-	srLogger := log.WithValues("package", "utils", "method", "GetHelmRepoClient")
-
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -68,7 +64,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (*ht
 
 	if configMap != nil {
 		configData := configMap.Data
-		srLogger.Info("ConfigRef retrieved", "configMap.Data", configData)
+		klog.V(5).Info("ConfigRef retrieved :", configData)
 		insecureSkipVerify := configData["insecureSkipVerify"]
 
 		if insecureSkipVerify != "" {
@@ -78,33 +74,31 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (*ht
 					return nil, nil
 				}
 
-				srLogger.Error(err, "Unable to parse", "insecureSkipVerify", insecureSkipVerify)
+				klog.Error(err, "Unable to parse insecureSkipVerify", insecureSkipVerify)
 
 				return nil, err
 			}
 
-			srLogger.Info("Set InsecureSkipVerify", "insecureSkipVerify", b)
+			klog.V(5).Info("Set InsecureSkipVerify: ", b)
 			transport.TLSClientConfig.InsecureSkipVerify = b
 		} else {
-			srLogger.Info("insecureSkipVerify is not specified")
+			klog.V(5).Info("insecureSkipVerify is not specified")
 		}
 	} else {
-		srLogger.Info("configMap is nil")
+		klog.V(5).Info("configMap is nil")
 	}
 
 	httpClient := http.DefaultClient
 	httpClient.Transport = transport
-	srLogger.Info("InsecureSkipVerify equal", "InsecureSkipVerify", transport.TLSClientConfig.InsecureSkipVerify)
+	klog.V(5).Info("InsecureSkipVerify equal ", transport.TLSClientConfig.InsecureSkipVerify)
 
 	return httpClient, nil
 }
 
 //GetConfigMap search the config map containing the helm repo client configuration.
 func GetConfigMap(client client.Client, parentNamespace string, configMapRef *corev1.ObjectReference) (configMap *corev1.ConfigMap, err error) {
-	srLogger := log.WithValues("package", "utils", "method", "getConfigMap")
-
 	if configMapRef != nil {
-		srLogger.Info("Retrieve configMap ", "parentNamespace", parentNamespace, "configMapRef.Name", configMapRef.Name)
+		klog.V(5).Info("Retrieve configMap ", parentNamespace, "/", configMapRef.Name)
 		ns := configMapRef.Namespace
 
 		if ns == "" {
@@ -116,18 +110,18 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: configMapRef.Name}, configMap)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				srLogger.Error(err, "ConfigMap not found ", "Name:", configMapRef.Name, " on namespace: ", ns)
+				klog.Error(err, "ConfigMap not found ", "Name: ", configMapRef.Name, " on namespace: ", ns)
 				return nil, nil
 			}
 
-			srLogger.Error(err, "Failed to get configMap ", "Name:", configMapRef.Name, " on namespace: ", ns)
+			klog.Error(err, "Failed to get configMap ", "Name: ", configMapRef.Name, " on namespace: ", ns)
 
 			return nil, err
 		}
 
-		srLogger.Info("ConfigMap found ", "Name:", configMapRef.Name, " on namespace: ", ns)
+		klog.V(5).Info("ConfigMap found ", "Name:", configMapRef.Name, " on namespace: ", ns)
 	} else {
-		srLogger.Info("no configMapRef defined ", "parentNamespace", parentNamespace)
+		klog.V(5).Info("no configMapRef defined ", "parentNamespace", parentNamespace)
 	}
 
 	return configMap, err
@@ -135,10 +129,8 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 
 //GetSecret returns the secret to access the helm-repo
 func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.ObjectReference) (secret *corev1.Secret, err error) {
-	srLogger := log.WithValues("package", "utils", "method", "getSecret")
-
 	if secretRef != nil {
-		srLogger.Info("retrieve secret", "parentNamespace", parentNamespace, "secretRef", secretRef)
+		klog.V(5).Info("retrieve secret :", parentNamespace, "/", secretRef)
 
 		ns := secretRef.Namespace
 		if ns == "" {
@@ -149,13 +141,13 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: secretRef.Name}, secret)
 		if err != nil {
-			srLogger.Error(err, "Failed to get secret ", "Name:", secretRef.Name, " on namespace: ", secretRef.Namespace)
+			klog.Error(err, "Failed to get secret ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
 			return nil, err
 		}
 
-		srLogger.Info("Secret found ", "Name:", secretRef.Name, " on namespace: ", secretRef.Namespace)
+		klog.V(5).Info("Secret found ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
 	} else {
-		srLogger.Info("No secret defined", "parentNamespace", parentNamespace)
+		klog.V(5).Info("No secret defined at ", "parentNamespace", parentNamespace)
 	}
 
 	return secret, err
@@ -174,8 +166,6 @@ func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir
 
 //DownloadChartFromGitHub downloads a chart into the charsDir
 func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
-
 	if s.Spec.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", err
@@ -184,7 +174,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
 		err := os.MkdirAll(chartsDir, 0755)
 		if err != nil {
-			srLogger.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
+			klog.Error(err, "Unable to create chartDir: ", chartsDir)
 			return "", err
 		}
 	}
@@ -200,7 +190,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 		}
 
 		if secret != nil && secret.Data != nil {
-			srLogger.Info("Add credentials")
+			klog.V(5).Info("Add credentials")
 
 			options.Auth = &githttp.BasicAuth{
 				Username: string(secret.Data["user"]),
@@ -219,14 +209,14 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 		_, err = git.PlainClone(destRepo, false, options)
 		if err != nil {
 			os.RemoveAll(destRepo)
-			srLogger.Error(err, "Clone failed", "url", url)
+			klog.Error(err, "Clone failed", "url", url)
 
 			continue
 		}
 	}
 
 	if err != nil {
-		srLogger.Error(err, "All urls failed")
+		klog.Error(err, "All urls failed")
 	}
 
 	chartDir = filepath.Join(destRepo, s.Spec.Source.GitHub.ChartPath)
@@ -239,8 +229,6 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
-
 	if s.Spec.Source.HelmRepo == nil {
 		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
 		return "", err
@@ -249,14 +237,14 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
 		err := os.MkdirAll(chartsDir, 0755)
 		if err != nil {
-			srLogger.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
+			klog.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
 			return "", err
 		}
 	}
 
 	httpClient, err := GetHelmRepoClient(s.Namespace, configMap)
 	if err != nil {
-		srLogger.Error(err, "Failed to create httpClient ", "sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
+		klog.Error(err, "Failed to create httpClient sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
 		return "", err
 	}
 
@@ -267,7 +255,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 		URLP, downloadErr = url.Parse(urlelem)
 		if downloadErr != nil {
-			srLogger.Error(downloadErr, "url", urlelem)
+			klog.Error(downloadErr, "url", urlelem)
 			continue
 		}
 
@@ -279,7 +267,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 			req, downloadErr = http.NewRequest(http.MethodGet, urlelem, nil)
 			if downloadErr != nil {
-				srLogger.Error(downloadErr, "Can not build request: ", "urlelem", urlelem)
+				klog.Error(downloadErr, "Can not build request: ", "urlelem", urlelem)
 				continue
 			}
 
@@ -291,18 +279,18 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 			resp, downloadErr = httpClient.Do(req)
 			if downloadErr != nil {
-				srLogger.Error(downloadErr, "Http request failed: ", "urlelem", urlelem)
+				klog.Error(downloadErr, "Http request failed: ", "urlelem", urlelem)
 				continue
 			}
 
 			if resp.StatusCode != 200 {
 				downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
-				srLogger.Error(downloadErr, "Unable to retrieve chart")
+				klog.Error(downloadErr, "Unable to retrieve chart")
 
 				continue
 			}
 
-			srLogger.Info("Get succeeded: ", "urlelem", urlelem)
+			klog.V(5).Info("Download chart form helmrepo succeeded: ", urlelem)
 
 			defer resp.Body.Close()
 
@@ -310,7 +298,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 			out, downloadErr = os.Create(chartZip)
 			if downloadErr != nil {
-				srLogger.Error(downloadErr, "Failed to create: ", "chartZip", chartZip)
+				klog.Error(downloadErr, "Failed to create: ", chartZip)
 				continue
 			}
 
@@ -319,7 +307,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 			// Write the body to file
 			_, downloadErr = io.Copy(out, resp.Body)
 			if downloadErr != nil {
-				srLogger.Error(downloadErr, "Failed to copy body: ", "chartZip", chartZip)
+				klog.Error(downloadErr, "Failed to copy body:", chartZip)
 				continue
 			}
 		}
@@ -328,7 +316,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 		r, downloadErr = os.Open(chartZip)
 		if downloadErr != nil {
-			srLogger.Error(downloadErr, "Failed to open: ", "chartZip", chartZip)
+			klog.Error(downloadErr, "Failed to open: ", chartZip)
 			continue
 		}
 
@@ -341,7 +329,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 		if downloadErr != nil {
 			//Remove zip because failed to untar and so probably corrupted
 			os.RemoveAll(chartZip)
-			srLogger.Error(downloadErr, "Failed to unzip: ", "chartZip", chartZip)
+			klog.Error(downloadErr, "Failed to unzip: ", chartZip)
 
 			continue
 		}
@@ -355,8 +343,6 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmChartSubscription) (destRepo string, commitID string, err error) {
-	srLogger := log.WithValues("HelmRelease.Namespace", s.Namespace, "SubscrptionRelease.Name", s.Name)
-
 	if s.Spec.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", "", err
@@ -365,7 +351,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
 		err := os.MkdirAll(chartsDir, 0755)
 		if err != nil {
-			srLogger.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
+			klog.Error(err, "Unable to create chartDir: ", chartsDir)
 			return "", "", err
 		}
 	}
@@ -381,7 +367,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 		}
 
 		if secret != nil && secret.Data != nil {
-			srLogger.Info("Add credentials")
+			klog.V(5).Info("Add credentials")
 
 			options.Auth = &githttp.BasicAuth{
 				Username: string(secret.Data["user"]),
@@ -401,7 +387,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errClone != nil {
 			os.RemoveAll(destRepo)
-			srLogger.Error(errClone, "Clone failed", "url", url)
+			klog.Error(errClone, "Clone failed: ", url)
 			err = errClone
 
 			continue
@@ -411,18 +397,18 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errHead != nil {
 			os.RemoveAll(destRepo)
-			srLogger.Error(errHead, "Get Head failed", "url", url)
+			klog.Error(errHead, "Get Head failed: ", url)
 			err = errHead
 
 			continue
 		}
 
 		commitID = h.Hash().String()
-		srLogger.Info("commitID", "commitID", commitID)
+		klog.V(5).Info("commitID: ", commitID)
 	}
 
 	if err != nil {
-		srLogger.Error(err, "All urls failed")
+		klog.Error(err, "All urls failed")
 	}
 
 	return destRepo, commitID, err
@@ -430,11 +416,9 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 //Untar untars the reader into the dst directory
 func Untar(dst string, r io.Reader) error {
-	srLogger := log.WithValues("destination", dst)
-
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
-		srLogger.Error(err, "")
+		klog.Error(err)
 		return err
 	}
 
@@ -449,7 +433,7 @@ func Untar(dst string, r io.Reader) error {
 		case err == io.EOF: // if no more files are found return
 			return nil
 		case err != nil: // return any other error
-			srLogger.Error(err, "")
+			klog.Error(err)
 			return err
 		case header == nil: // if the header is nil, just skip it (not sure how this happens)
 			continue
@@ -467,35 +451,35 @@ func Untar(dst string, r io.Reader) error {
 		case tar.TypeDir: // if its a dir and it doesn't exist create it
 			if _, err := os.Stat(target); err != nil {
 				if err := os.MkdirAll(target, 0755); err != nil {
-					srLogger.Error(err, "")
+					klog.Error(err)
 					return err
 				}
 			}
 		case tar.TypeReg: // if it's a file create it
-			srLogger.Info("Untar", "target", target)
+			klog.V(3).Info("Untar to target :", target)
 
 			dir := filepath.Dir(target)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(dir, 0755); err != nil {
-					srLogger.Error(err, "")
+					klog.Error(err)
 					return err
 				}
 			}
 
 			if _, err := os.Stat(target); err == nil {
-				srLogger.Info("A previous version exist then delete", "target", target)
+				klog.Info(fmt.Sprintf("A previous version exist of %s then delete", target))
 				os.Remove(target)
 			}
 
 			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
-				srLogger.Error(err, "")
+				klog.Error(err)
 				return err
 			}
 
 			// copy over contents
 			if _, err := io.Copy(f, tr); err != nil {
-				srLogger.Error(err, "")
+				klog.Error(err)
 				return err
 			}
 

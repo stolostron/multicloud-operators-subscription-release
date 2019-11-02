@@ -18,6 +18,7 @@ package helmchartsubscription
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"time"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
@@ -46,8 +47,6 @@ type ControllerCMDOptions struct {
 
 //Options the command line options
 var Options = ControllerCMDOptions{}
-
-var log = logf.Log.WithName("controller_helmchartsubscription")
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -130,8 +129,7 @@ type ReconcileSubscription struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Subscription")
+	klog.Info("Reconciling Subscription")
 
 	// Fetch the Subscription instance
 	instance := &appv1alpha1.HelmChartSubscription{}
@@ -143,18 +141,18 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			reqLogger.Info("Subscription deleted but request already created, cleaning subscriber")
+			klog.V(3).Info("Subscription deleted but request already created, cleaning subscriber")
 			return reconcile.Result{}, r.cleanSubscriber(subkey)
 		}
 		// Error reading the object - requeue the request.
-		reqLogger.Error(err, "Error reading the object - requeue the request")
+		klog.Error(err, "Error reading the object - requeue the request")
 
 		return reconcile.Result{}, err
 	}
 
 	subscriber := r.subscriberMap[subkey]
 	if subscriber == nil {
-		reqLogger.Info("subscriber does not exist")
+		klog.V(2).Info(fmt.Sprintf("subscriber %s does not exist", instance.Name))
 
 		subscriber = &helmreposubscriber.HelmRepoSubscriber{
 			Client:                r.client,
@@ -162,17 +160,15 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			HelmChartSubscription: instance,
 		}
 
-		reqLogger.Info("Subscription", "subscription.Name", instance.Name)
-
 		r.subscriberMap[subkey] = subscriber
 		err = subscriber.Restart()
 	} else {
-		reqLogger.Info("subscriber does exist")
+		klog.V(2).Info("Subscriber does exist")
 		err = subscriber.Update(instance)
 	}
 	//If the subscriber didn't start then clean
 	if !subscriber.IsStarted() {
-		reqLogger.Info("Subscription didn't start")
+		klog.V(3).Info("Subscriber didn't start")
 
 		err := r.cleanSubscriber(subkey)
 		if err != nil {
@@ -184,11 +180,9 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 }
 
 func (r *ReconcileSubscription) cleanSubscriber(subkey string) error {
-	reqLogger := log.WithValues("subkey", subkey)
-
 	subscriber := r.subscriberMap[subkey]
 	if subscriber != nil {
-		reqLogger.Info("Cleaning subscriber map and stopping subscriber")
+		klog.V(3).Info("Cleaning subscriber map and stopping subscriber")
 
 		err := subscriber.Stop()
 
@@ -202,7 +196,6 @@ func (r *ReconcileSubscription) cleanSubscriber(subkey string) error {
 
 //SetStatus set the subscription status
 func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, issue error) (reconcile.Result, error) {
-	srLogger := log.WithValues("HelmChartSubscription.Namespace", s.GetNamespace(), "HelmChartSubscription.Name", s.GetName())
 	//Success
 	if issue == nil {
 		s.Status.Message = ""
@@ -212,7 +205,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 
 		err := r.client.Status().Update(context.Background(), s)
 		if err != nil {
-			srLogger.Error(err, "unable to update status")
+			klog.Error(err, "unable to update status")
 
 			return reconcile.Result{
 				RequeueAfter: time.Second,
@@ -233,7 +226,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 
 	err := r.client.Status().Update(context.Background(), s)
 	if err != nil {
-		srLogger.Error(err, "unable to update status")
+		klog.Error(err, "unable to update status")
 
 		return reconcile.Result{
 			RequeueAfter: time.Second,
@@ -246,8 +239,8 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 		retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
 	}
 
-	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Hour.Nanoseconds()*6)))
-	srLogger.Info("requeueAfter", "->requeueAfter", requeueAfter)
+	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Minute.Nanoseconds()*2)))
+	klog.V(5).Info("requeueAfter: ", requeueAfter)
 
 	return reconcile.Result{
 		RequeueAfter: requeueAfter,
