@@ -5,14 +5,14 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Deployment Guide](#deployment-guide)
-  - [Environment variable](#environment-variable)
-  - [RBAC](#rbac)
-    - [Deployment](#deployment)
-    - [General process](#general-process)
-    - [HelmChartSubscriptions](#helmchartsubscriptions)
-    - [Helm-charts filtering](#helm-charts-filtering)
-    - [Authentication](#authentication)
-    - [Helm-repo client configuration](#helm-repo-client-configuration)
+    - [Environment variable](#environment-variable)
+    - [RBAC](#rbac)
+        - [Deployment](#deployment)
+        - [General process](#general-process)
+        - [HelmChartSubscriptions](#helmchartsubscriptions)
+        - [Helm-charts filtering](#helm-charts-filtering)
+        - [Authentication](#authentication)
+        - [Helm-repo client configuration](#helm-repo-client-configuration)
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Environment variable
