@@ -71,8 +71,9 @@ spec:
     name: mycluster-config
   name: ibm-myapp-api
   packageFilter:
-    keywords:
-    - ICP
+    labelSelector:
+      matchLabels:
+        "ICP": "true"
     annotations:
       tillerVersion: 2.4.0
     version: '>0.2.2'
@@ -112,7 +113,7 @@ Filtering is done on:
 - the version of the helm-chart (semver expression),
 - the tiller version of the helm-chart (Should may be removed as the operator has its own tiller)
 - the digest must match
-- the keywords, if the helm-chart has a least 1 listed keywords then it eligible for deployment.
+- the labelSelector allows to check if the helm-charts has the required keywords.
 
 ### Authentication
 
