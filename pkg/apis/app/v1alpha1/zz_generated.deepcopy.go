@@ -397,11 +397,6 @@ func (in *PackageFilter) DeepCopyInto(out *PackageFilter) {
 		*out = new(metav1.LabelSelector)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Keywords != nil {
-		in, out := &in.Keywords, &out.Keywords
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
 	if in.Annotations != nil {
 		in, out := &in.Annotations, &out.Annotations
 		*out = make(map[string]string, len(*in))

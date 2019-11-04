@@ -24,6 +24,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -70,7 +71,6 @@ entries:
     description: IBM Multicloud Manager
     digest: 1b5038b4380a388ac30cfcd057519a6827e0100a09f983687ec80d985fda8860
     keywords:
-    - ICP
     - Analytics
     - deploy
     - Commercial
@@ -528,6 +528,36 @@ func Test_MatchingVersion(t *testing.T) {
 
 	versionedCharts = indexFile.Entries["ibm-mcmk-prod"]
 	assert.Equal(t, 1, len(versionedCharts))
+}
+
+func Test_CheckKeywords(t *testing.T) {
+	indexFile, err := LoadIndex([]byte(index))
+	assert.NoError(t, err)
+
+	s := &HelmRepoSubscriber{
+		HelmChartSubscription: &appv1alpha1.HelmChartSubscription{
+			Spec: appv1alpha1.HelmChartSubscriptionSpec{
+				PackageFilter: &appv1alpha1.PackageFilter{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"ICP": "true",
+						},
+					},
+				},
+			},
+		},
+	}
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(indexFile.Entries))
+
+	indexFile, err = LoadIndex([]byte(index))
+	assert.NoError(t, err)
+
+	s.HelmChartSubscription.Spec.PackageFilter = nil
+	err = s.filterCharts(indexFile)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, len(indexFile.Entries))
 }
 
 func Test_takeLatestVersion(t *testing.T) {
