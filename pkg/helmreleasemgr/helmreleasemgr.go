@@ -37,7 +37,12 @@ func NewManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Se
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
-	releaseName := s.Spec.ReleaseName[0:4]
+
+	releaseName := s.Spec.ReleaseName
+	if len(releaseName) > 4 {
+		releaseName = releaseName[:4]
+	}
+
 	o.SetName(releaseName)
 	klog.V(2).Info("ReleaseName :", o.GetName())
 	o.SetUID(s.GetUID())
