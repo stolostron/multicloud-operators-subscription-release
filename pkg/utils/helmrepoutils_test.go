@@ -284,9 +284,37 @@ func TestDownloadGitHubRepo(t *testing.T) {
 	assert.NotEqual(t, commitID, "")
 }
 
-// func TestUntar(t *testing.T) {
-// 	r, err := os.Open("/Users/dvernier/Downloads/ibm-mcm-prod-99.99.99.tgz")
-// 	assert.NoError(t, err)
-// 	err = Untar("/Users/dvernier/Downloads/test", r)
-// 	assert.Error(t, err)
-// }
+func TestKeywordsChecker(t *testing.T) {
+	req0 := metav1.LabelSelectorRequirement{
+		Key:      "l1",
+		Operator: metav1.LabelSelectorOpIn,
+		Values:   []string{"true"},
+	}
+	labelSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			"l1": "true",
+			"l2": "true",
+		},
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			req0,
+		},
+	}
+	ks := []string{"l1", "l2"}
+	b := KeywordsChecker(labelSelector, ks)
+	assert.Equal(t, true, b)
+
+	//No keywords
+	ks = nil
+	b = KeywordsChecker(labelSelector, ks)
+	assert.Equal(t, false, b)
+
+	//No keywords and no selector
+	labelSelector = nil
+	b = KeywordsChecker(labelSelector, ks)
+	assert.Equal(t, true, b)
+
+	//Keywords and no selector
+	ks = []string{"l1", "l2"}
+	b = KeywordsChecker(labelSelector, ks)
+	assert.Equal(t, true, b)
+}

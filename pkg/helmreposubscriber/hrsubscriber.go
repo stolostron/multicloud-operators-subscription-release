@@ -486,25 +486,12 @@ func (s *HelmRepoSubscriber) filterIndexFile(indexFile *repo.IndexFile) {
 
 //checkKeywords Checks if the charts has at least 1 keyword from the packageFilter.Keywords array
 func (s *HelmRepoSubscriber) checkKeywords(chartVersion *repo.ChartVersion) bool {
-	if s.HelmChartSubscription != nil {
-		if s.HelmChartSubscription.Spec.PackageFilter != nil {
-			if s.HelmChartSubscription.Spec.PackageFilter.Keywords == nil {
-				return true
-			}
-
-			for _, filterKeyword := range s.HelmChartSubscription.Spec.PackageFilter.Keywords {
-				for _, chartKeyword := range chartVersion.Keywords {
-					if filterKeyword == chartKeyword {
-						return true
-					}
-				}
-			}
-
-			return false
-		}
+	var labelSelector *metav1.LabelSelector
+	if s.HelmChartSubscription.Spec.PackageFilter != nil {
+		labelSelector = s.HelmChartSubscription.Spec.PackageFilter.LabelSelector
 	}
 
-	return true
+	return utils.KeywordsChecker(labelSelector, chartVersion.Keywords)
 }
 
 //checkDigest Checks if the digest matches

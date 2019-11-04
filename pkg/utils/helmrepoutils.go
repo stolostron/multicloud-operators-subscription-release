@@ -37,6 +37,7 @@ import (
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -488,4 +489,13 @@ func Untar(dst string, r io.Reader) error {
 			f.Close()
 		}
 	}
+}
+
+func KeywordsChecker(labelSelector *metav1.LabelSelector, ks []string) bool {
+	ls := make(map[string]string)
+	for _, k := range ks {
+		ls[k] = "true"
+	}
+
+	return LabelsChecker(labelSelector, ls)
 }

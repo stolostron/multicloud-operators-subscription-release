@@ -76,10 +76,6 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
-                keywords:
-                  items:
-                    type: string
-                  type: array
                 labelSelector:
                   type: object
                 version:
