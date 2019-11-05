@@ -101,3 +101,83 @@ func TestNewManagerShortReleaseName(t *testing.T) {
 	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
 }
+
+func TestNewManagerValues(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	mgr, err := manager.New(cfg, manager.Options{})
+	assert.NoError(t, err)
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	instance := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ReleaseName: "sub",
+			ChartName:   "subscription-release-test-1",
+			Values:      "l1:v1",
+		},
+	}
+	//Values well formed
+	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	assert.NoError(t, err)
+	//Values not a yaml
+	instance.Spec.Values = "l1:\nl2"
+	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	assert.Error(t, err)
+}
+
+func TestNewManagerErrors(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	mgr, err := manager.New(cfg, manager.Options{})
+	assert.NoError(t, err)
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	instance := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ReleaseName: "sub",
+			ChartName:   "subscription-release-test-1",
+		},
+	}
+	//Config nil
+	_, err = NewManager(nil, nil, nil, instance)
+	assert.Error(t, err)
+	//Download Chart should fail
+	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
+	instance.Spec.Values = "l1:\nl2"
+	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	assert.Error(t, err)
+}

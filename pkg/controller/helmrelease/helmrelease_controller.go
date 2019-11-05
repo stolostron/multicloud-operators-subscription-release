@@ -87,13 +87,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			subRelOld := e.ObjectOld.(*appv1alpha1.HelmRelease)
 			subRelNew := e.ObjectNew.(*appv1alpha1.HelmRelease)
-			if !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec) {
-				return true
-			}
-			if subRelNew.Status.Status == subRelOld.Status.Status {
-				return false
-			}
-			return true
+			return !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
 		},
 	}
 
