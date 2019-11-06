@@ -36,6 +36,7 @@ func schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref common.ReferenceCall
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "HelmChartSubscription is the Schema for the subscriptions API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -79,6 +80,7 @@ func schema_pkg_apis_app_v1alpha1_HelmRelease(ref common.ReferenceCallback) comm
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "HelmRelease is the Schema for the subscriptionreleases API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -122,6 +124,7 @@ func schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "HelmReleaseSpec defines the desired state of HelmRelease",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"source": {
 						SchemaProps: spec.SchemaProps{

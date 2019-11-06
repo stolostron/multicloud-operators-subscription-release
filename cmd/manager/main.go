@@ -36,6 +36,10 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
+	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
@@ -54,7 +58,6 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apiserver/pkg/util/logs"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -91,9 +94,9 @@ func main() {
 
 	pflag.Parse()
 
-	logs.InitLogs()
+	klog.InitFlags(nil)
 
-	defer logs.FlushLogs()
+	defer klog.Flush()
 
 	printVersion()
 

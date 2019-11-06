@@ -21,14 +21,13 @@ import (
 	"testing"
 	"time"
 
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/ghodss/yaml"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 var c client.Client
@@ -187,7 +186,9 @@ spec:
 func TestRestart(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -223,7 +224,7 @@ func TestRestart(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	helmReleaseList := &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, 1, len(helmReleaseList.Items))
@@ -268,7 +269,7 @@ func TestRestart(t *testing.T) {
 	}
 
 	subscriptionList := &appv1alpha1.HelmChartSubscriptionList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, subscriptionList)
+	err = c.List(context.TODO(), subscriptionList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	for _, s := range subscriptionList.Items {
@@ -280,7 +281,9 @@ func TestRestart(t *testing.T) {
 func TestDoHelmChartSubscription(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -311,7 +314,7 @@ func TestDoHelmChartSubscription(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	helmReleaseList := &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, 1, len(helmReleaseList.Items))
@@ -323,7 +326,7 @@ func TestDoHelmChartSubscription(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	helmReleaseList = &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, 1, len(helmReleaseList.Items))
@@ -336,7 +339,7 @@ func TestDoHelmChartSubscription(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	helmReleaseList = &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	assert.Equal(t, 1, len(helmReleaseList.Items))
@@ -347,7 +350,7 @@ func TestDoHelmChartSubscription(t *testing.T) {
 	}
 
 	subscriptionList := &appv1alpha1.HelmChartSubscriptionList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, subscriptionList)
+	err = c.List(context.TODO(), subscriptionList, &client.ListOptions{})
 	assert.NoError(t, err)
 
 	for _, s := range subscriptionList.Items {
