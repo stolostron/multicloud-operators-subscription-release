@@ -69,7 +69,7 @@ include common/Makefile.common.mk
 ############################################################
 init:
 	@find .git/hooks -type l -exec rm {} \;
-	@find .githooks -type f -exec ln -sf ../../{} .git/hooks/ \;
+	@find common/scripts/.githooks -type f -exec ln -sf ../../{} .git/hooks/ \;
 
 ############################################################
 # work section
