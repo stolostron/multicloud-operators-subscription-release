@@ -43,7 +43,6 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
@@ -234,7 +233,7 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 				if token := utils.GetAccessToken(secret); token != "" {
 					req.SetBasicAuth(string(user), token)
 				} else {
-					err = fmt.Errorf("No accessToken nor password found in secret for basic authentication")
+					err = fmt.Errorf("no accessToken nor password found in secret for basic authentication")
 					continue
 				}
 			}
