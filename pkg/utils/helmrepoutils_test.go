@@ -43,7 +43,9 @@ var (
 func TestGetConfig(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -91,7 +93,9 @@ func TestGetConfig(t *testing.T) {
 func TestSecret(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)

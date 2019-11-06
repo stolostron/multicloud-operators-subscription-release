@@ -159,7 +159,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	mgr, err := helmreleasemgr.NewManager(r.config, configMap, secret, sr)
+	helmReleaseManager, err := helmreleasemgr.NewHelmReleaseManager(r.config, configMap, secret, sr)
 	if err != nil {
 		klog.Error(err, "Failed to create NewManager ", sr.Spec.ChartName)
 		return err
@@ -167,16 +167,16 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Sync repo")
 
-	err = mgr.Sync(context.TODO())
+	err = helmReleaseManager.Sync(context.TODO())
 	if err != nil {
 		klog.Error(err, "Failed to while sync :", sr.Spec.ChartName)
 		return err
 	}
 
-	if mgr.IsInstalled() {
+	if helmReleaseManager.IsInstalled() {
 		klog.Info("Update chart ", sr.Spec.ChartName)
 
-		_, _, err = mgr.UpdateRelease(context.TODO())
+		_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 		if err != nil {
 			klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
 			return err
@@ -184,7 +184,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 	} else {
 		klog.Info("Install chart: ", sr.Spec.ChartName)
 
-		_, err = mgr.InstallRelease(context.TODO())
+		_, err = helmReleaseManager.InstallRelease(context.TODO())
 		if err != nil {
 			klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
 			return err

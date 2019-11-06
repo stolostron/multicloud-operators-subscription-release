@@ -17,7 +17,9 @@ limitations under the License.
 package helmreleasemgr
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
@@ -28,14 +30,16 @@ import (
 )
 
 var (
-	helmReleaseName = "example-helmrelease"
-	helmReleaseNS   = "kube-system"
+	helmReleaseNS = "kube-system"
 )
 
 func TestNewManager(t *testing.T) {
+	helmReleaseName := "test-new-manager"
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -63,14 +67,24 @@ func TestNewManager(t *testing.T) {
 		},
 	}
 
-	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	c := mgr.GetClient()
+
+	err = c.Create(context.TODO(), instance)
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
 }
 
 func TestNewManagerShortReleaseName(t *testing.T) {
+	helmReleaseName := "test-new-manager-short-release-name"
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -98,14 +112,24 @@ func TestNewManagerShortReleaseName(t *testing.T) {
 		},
 	}
 
-	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	c := mgr.GetClient()
+
+	err = c.Create(context.TODO(), instance)
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
 }
 
 func TestNewManagerValues(t *testing.T) {
+	helmReleaseName := "test-new-manager-values"
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -133,19 +157,29 @@ func TestNewManagerValues(t *testing.T) {
 			Values:      "l1:v1",
 		},
 	}
+	c := mgr.GetClient()
+
+	err = c.Create(context.TODO(), instance)
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
 	//Values well formed
-	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
 	//Values not a yaml
 	instance.Spec.Values = "l1:\nl2"
-	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.Error(t, err)
 }
 
 func TestNewManagerErrors(t *testing.T) {
+	helmReleaseName := "test-new-manager-errors"
 	g := gomega.NewGomegaWithT(t)
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
 	assert.NoError(t, err)
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -172,12 +206,19 @@ func TestNewManagerErrors(t *testing.T) {
 			ChartName:   "subscription-release-test-1",
 		},
 	}
+	c := mgr.GetClient()
+
+	err = c.Create(context.TODO(), instance)
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
 	//Config nil
-	_, err = NewManager(nil, nil, nil, instance)
+	_, err = NewHelmReleaseManager(nil, nil, nil, instance)
 	assert.Error(t, err)
 	//Download Chart should fail
 	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
 	instance.Spec.Values = "l1:\nl2"
-	_, err = NewManager(mgr.GetConfig(), nil, nil, instance)
+	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.Error(t, err)
 }

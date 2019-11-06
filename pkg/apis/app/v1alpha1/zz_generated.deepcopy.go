@@ -98,7 +98,7 @@ func (in *HelmChartSubscription) DeepCopyObject() runtime.Object {
 func (in *HelmChartSubscriptionList) DeepCopyInto(out *HelmChartSubscriptionList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]HelmChartSubscription, len(*in))
@@ -247,7 +247,7 @@ func (in *HelmRelease) DeepCopyObject() runtime.Object {
 func (in *HelmReleaseList) DeepCopyInto(out *HelmReleaseList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]HelmRelease, len(*in))

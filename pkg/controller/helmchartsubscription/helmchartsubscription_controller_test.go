@@ -75,7 +75,10 @@ func TestReconcileHelmRepoSuccess(t *testing.T) {
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
+
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	c = mgr.GetClient()
@@ -112,7 +115,7 @@ func TestReconcileHelmRepoSuccess(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmChartSubscriptionSuccess))
 
 	helmReleaseList := &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(1).To(gomega.Equal(len(helmReleaseList.Items)))
@@ -123,7 +126,7 @@ func TestReconcileHelmRepoSuccess(t *testing.T) {
 	}
 
 	helmChartSubscription := &appv1alpha1.HelmChartSubscriptionList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmChartSubscription)
+	err = c.List(context.TODO(), helmChartSubscription, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	for _, hcs := range helmChartSubscription.Items {
@@ -138,7 +141,10 @@ func TestReconcileHelmRepoSuccessFilter(t *testing.T) {
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
+
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	c = mgr.GetClient()
@@ -177,13 +183,13 @@ func TestReconcileHelmRepoSuccessFilter(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmChartSubscriptionSuccess))
 
 	helmReleaseList := &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(0).To(gomega.Equal(len(helmReleaseList.Items)))
 
 	helmChartSubscription := &appv1alpha1.HelmChartSubscriptionList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmChartSubscription)
+	err = c.List(context.TODO(), helmChartSubscription, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	for _, hcs := range helmChartSubscription.Items {
@@ -198,7 +204,10 @@ func TestReconcileHelmRepoFailed(t *testing.T) {
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 
-	mgr, err := manager.New(cfg, manager.Options{})
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
+
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	c = mgr.GetClient()
@@ -237,13 +246,13 @@ func TestReconcileHelmRepoFailed(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmChartSubscriptionFailed))
 
 	helmReleaseList := &appv1alpha1.HelmReleaseList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmReleaseList)
+	err = c.List(context.TODO(), helmReleaseList, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(0).To(gomega.Equal(len(helmReleaseList.Items)))
 
 	helmChartSubscription := &appv1alpha1.HelmChartSubscriptionList{}
-	err = c.List(context.TODO(), &client.ListOptions{}, helmChartSubscription)
+	err = c.List(context.TODO(), helmChartSubscription, &client.ListOptions{})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	for _, hcs := range helmChartSubscription.Items {

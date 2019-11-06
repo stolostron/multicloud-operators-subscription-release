@@ -33,15 +33,15 @@ import (
 )
 
 //NewManager create a new manager
-func NewManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
+func NewHelmReleaseManager(cfg *rest.Config,
+	configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	s *appv1alpha1.HelmRelease) (helmManager helmrelease.Manager, err error) {
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
 
 	releaseName := s.Spec.ReleaseName
-	if len(releaseName) > 4 {
-		releaseName = releaseName[:4]
-	}
 
 	o.SetName(releaseName)
 	klog.V(2).Info("ReleaseName :", o.GetName())
@@ -50,7 +50,8 @@ func NewManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Se
 
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: s.GetNamespace(),
-		//		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+		//Disable MetricsListener
+		MetricsBindAddress: "0",
 	})
 	if err != nil {
 		klog.Error(err, "Failed to create a new manager.")
@@ -88,7 +89,7 @@ func NewManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Se
 		o.Object["spec"] = spec
 	}
 
-	helmManager, err := f.NewManager(o)
+	helmManager, err = f.NewManager(o)
 
 	return helmManager, err
 }
