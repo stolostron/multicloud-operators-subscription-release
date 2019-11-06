@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 	"github.com/onsi/gomega"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +25,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 var c client.Client
@@ -138,7 +139,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
 	//helmRepo succeeds
-	helmReleaseName = "example-helmrepo-succeeed"
+	helmReleaseName = "example-helmrepo-succeed"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
 		Namespace: helmReleaseNS,

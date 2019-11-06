@@ -20,8 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	corev1 "k8s.io/api/core/v1"
@@ -29,18 +27,21 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 //NewManager create a new manager
-func NewHelmReleaseManager(cfg *rest.Config, configMap *corev1.ConfigMap, secret *corev1.Secret, s *appv1alpha1.HelmRelease) (helmManager helmrelease.Manager, err error) {
+func NewHelmReleaseManager(cfg *rest.Config,
+	configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	s *appv1alpha1.HelmRelease) (helmManager helmrelease.Manager, err error) {
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
 
 	releaseName := s.Spec.ReleaseName
-	// if len(releaseName) > 4 {
-	// 	releaseName = releaseName[:4]
-	// }
 
 	o.SetName(releaseName)
 	klog.V(2).Info("ReleaseName :", o.GetName())
