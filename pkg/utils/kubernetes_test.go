@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -80,4 +81,37 @@ func TestConvertLabels(t *testing.T) {
 	s, err = ConvertLabels(labelSelector)
 	assert.NoError(t, err)
 	assert.Equal(t, labels.Everything(), s)
+}
+
+func TestGetAccessToken(t *testing.T) {
+	secret := &corev1.Secret{
+		Data: map[string][]byte{
+			"password": []byte("password"),
+		},
+	}
+	pw := GetAccessToken(secret)
+	assert.Equal(t, "password", pw)
+
+	secret = &corev1.Secret{
+		Data: map[string][]byte{
+			"accessToken": []byte("accessToken"),
+		},
+	}
+	pw = GetAccessToken(secret)
+	assert.Equal(t, "accessToken", pw)
+
+	secret = &corev1.Secret{
+		Data: map[string][]byte{
+			"password":    []byte("password"),
+			"accessToken": []byte("accessToken"),
+		},
+	}
+	pw = GetAccessToken(secret)
+	assert.Equal(t, "accessToken", pw)
+
+	secret = &corev1.Secret{
+		Data: map[string][]byte{},
+	}
+	pw = GetAccessToken(secret)
+	assert.Equal(t, "", pw)
 }

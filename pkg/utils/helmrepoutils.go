@@ -195,7 +195,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 
 			options.Auth = &githttp.BasicAuth{
 				Username: string(secret.Data["user"]),
-				Password: string(secret.Data["password"]),
+				Password: GetAccessToken(secret),
 			}
 		}
 
@@ -273,7 +273,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 			}
 
 			if secret != nil && secret.Data != nil {
-				req.SetBasicAuth(string(secret.Data["user"]), string(secret.Data["password"]))
+				req.SetBasicAuth(string(secret.Data["user"]), GetAccessToken(secret))
 			}
 
 			var resp *http.Response
@@ -372,7 +372,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 			options.Auth = &githttp.BasicAuth{
 				Username: string(secret.Data["user"]),
-				Password: string(secret.Data["password"]),
+				Password: GetAccessToken(secret),
 			}
 		}
 

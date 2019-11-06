@@ -14,17 +14,5 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo ">>> Installing Operator SDK"
-echo ">>> >>> Downloading source code"
-GO111MODULE=off go get -d -v github.com/operator-framework/operator-sdk
-
-cd "$GOPATH"/src/github.com/operator-framework/operator-sdk || exit 1
-
-echo ">>> >>> Checking out version 0.12.0"
-git checkout v0.12.0
-
-echo ">>> >>> Running make tidy"
-make tidy
-
-echo ">>> >>> Running make install"
-make install
+# Launches fmt and lint checks
+make check 

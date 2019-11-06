@@ -14,17 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-echo ">>> Installing Operator SDK"
-echo ">>> >>> Downloading source code"
-GO111MODULE=off go get -d -v github.com/operator-framework/operator-sdk
+# This hook is called with the following parameters:
+#
+# $1 -- Name of the remote to which the push is being done
+# $2 -- URL to which the push is being done
+#
+# If pushing without using a named remote those arguments will be equal.
+#
+# Information about the commits which are being pushed is supplied as lines to
+# the standard input in the form:
+#
+#   <local ref> <local sha1> <remote ref> <remote sha1>
+#
 
-cd "$GOPATH"/src/github.com/operator-framework/operator-sdk || exit 1
+remote="$1"
+url="$2"
 
-echo ">>> >>> Checking out version 0.12.0"
-git checkout v0.12.0
+.git/hooks/make_check.sh
 
-echo ">>> >>> Running make tidy"
-make tidy
-
-echo ">>> >>> Running make install"
-make install
+exit $?

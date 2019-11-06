@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog"
@@ -45,4 +46,15 @@ func ConvertLabels(labelSelector *metav1.LabelSelector) (labels.Selector, error)
 	}
 
 	return labels.Everything(), nil
+}
+
+//GetAccessToken retrieve the accessToken or the password if accessToken not present
+func GetAccessToken(secret *corev1.Secret) string {
+	if accessToken, ok := secret.Data["accessToken"]; ok {
+		return string(accessToken)
+	} else if password, ok := secret.Data["password"]; ok {
+		return string(password)
+	}
+
+	return ""
 }
