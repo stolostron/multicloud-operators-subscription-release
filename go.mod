@@ -48,6 +48,7 @@ replace (
 replace (
 	github.com/Masterminds/semver => github.com/Masterminds/semver v1.4.2
 	golang.org/x/net => golang.org/x/net v0.0.0-20190724013045-ca1201d0de80
+	k8s.io/helm => k8s.io/helm v2.15.1+incompatible
 )
 
 // replace (
