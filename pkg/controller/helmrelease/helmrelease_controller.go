@@ -87,6 +87,9 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			subRelOld := e.ObjectOld.(*appv1alpha1.HelmRelease)
 			subRelNew := e.ObjectNew.(*appv1alpha1.HelmRelease)
+			if !subRelNew.DeletionTimestamp.IsZero() {
+				return true
+			}
 			return !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec)
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
@@ -140,6 +143,12 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	// Define a new Pod object
 	err = r.manageHelmRelease(instance)
 
+	//if the instance was set for deletion and the finalizer already remove then
+	//no need to update the status
+	if !instance.DeletionTimestamp.IsZero() && !utils.HasFinalizer(instance) {
+		return reconcile.Result{}, nil
+	}
+
 	return r.SetStatus(instance, err)
 }
 
@@ -173,20 +182,41 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		return err
 	}
 
-	if helmReleaseManager.IsInstalled() {
-		klog.Info("Update chart ", sr.Spec.ChartName)
+	if sr.DeletionTimestamp.IsZero() {
+		if helmReleaseManager.IsInstalled() {
+			klog.Info("Update chart ", sr.Spec.ChartName)
 
-		_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
-		if err != nil {
-			klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
-			return err
+			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
+			if err != nil {
+				klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
+				return err
+			}
+		} else {
+			klog.Info("Add finalizer: ", sr.Name)
+			utils.AddFinalizer(sr)
+			err := r.client.Update(context.TODO(), sr)
+			if err != nil {
+				klog.Error(err, "Unable to add finalizer :", sr.Name)
+				return err
+			}
+			klog.Info("Install chart: ", sr.Spec.ChartName)
+			_, err = helmReleaseManager.InstallRelease(context.TODO())
+			if err != nil {
+				klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
+				return err
+			}
 		}
 	} else {
-		klog.Info("Install chart: ", sr.Spec.ChartName)
-
-		_, err = helmReleaseManager.InstallRelease(context.TODO())
+		klog.Info("Delete chart: ", sr.Spec.ChartName)
+		_, err = helmReleaseManager.UninstallRelease(context.TODO())
 		if err != nil {
-			klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
+			klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
+			return err
+		}
+		utils.RemoveFinalizer(sr)
+		err := r.client.Update(context.TODO(), sr)
+		if err != nil {
+			klog.Error(err, "Unable to remove finalizer :", sr.Name)
 			return err
 		}
 	}
