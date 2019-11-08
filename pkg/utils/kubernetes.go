@@ -48,11 +48,18 @@ func ConvertLabels(labelSelector *metav1.LabelSelector) (labels.Selector, error)
 	return labels.Everything(), nil
 }
 
-//GetAccessToken retrieve the accessToken or the password if accessToken not present
+//GetAccessToken retrieve the accessToken
 func GetAccessToken(secret *corev1.Secret) string {
 	if accessToken, ok := secret.Data["accessToken"]; ok {
 		return string(accessToken)
-	} else if password, ok := secret.Data["password"]; ok {
+	}
+
+	return ""
+}
+
+//GetPassword retrieve the password
+func GetPassword(secret *corev1.Secret) string {
+	if password, ok := secret.Data["password"]; ok {
 		return string(password)
 	}
 
