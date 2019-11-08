@@ -186,6 +186,17 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		if helmReleaseManager.IsInstalled() {
 			klog.Info("Update chart ", sr.Spec.ChartName)
 
+			if !utils.HasFinalizer(sr) {
+				klog.Info("Add finalizer: ", sr.Name)
+				utils.AddFinalizer(sr)
+
+				err := r.client.Update(context.TODO(), sr)
+				if err != nil {
+					klog.Error(err, "Unable to add finalizer :", sr.Name)
+					return err
+				}
+			}
+
 			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 			if err != nil {
 				klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
