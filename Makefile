@@ -50,7 +50,13 @@ else
     $(error "This system's OS $(LOCAL_OS) isn't recognized/supported")
 endif
 
-.PHONY: all work fmt check coverage lint test build images build-push-images
+############################################################
+# install git hooks
+############################################################
+INSTALL_HOOKS := $(shell find .git/hooks -type l -exec rm {} \; && \
+                         find common/scripts/.githooks -type f -exec ln -sf ../../{} .git/hooks/ \; )
+
+.PHONY: init all work fmt check coverage lint test build images build-push-images
 
 all: fmt check test coverage build images
 
@@ -63,13 +69,6 @@ MARKDOWN_LINT_WHITELIST := mycluster.icp
 
 include common/Makefile.common.mk
 # include Makefile.local
-
-############################################################
-# install git hooks
-############################################################
-init:
-	@find .git/hooks -type l -exec rm {} \;
-	@find common/scripts/.githooks -type f -exec ln -sf ../../{} .git/hooks/ \;
 
 ############################################################
 # work section

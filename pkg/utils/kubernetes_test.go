@@ -86,32 +86,31 @@ func TestConvertLabels(t *testing.T) {
 func TestGetAccessToken(t *testing.T) {
 	secret := &corev1.Secret{
 		Data: map[string][]byte{
-			"password": []byte("password"),
+			"accessToken": []byte("accessToken"),
 		},
 	}
 	pw := GetAccessToken(secret)
-	assert.Equal(t, "password", pw)
-
-	secret = &corev1.Secret{
-		Data: map[string][]byte{
-			"accessToken": []byte("accessToken"),
-		},
-	}
-	pw = GetAccessToken(secret)
-	assert.Equal(t, "accessToken", pw)
-
-	secret = &corev1.Secret{
-		Data: map[string][]byte{
-			"password":    []byte("password"),
-			"accessToken": []byte("accessToken"),
-		},
-	}
-	pw = GetAccessToken(secret)
 	assert.Equal(t, "accessToken", pw)
 
 	secret = &corev1.Secret{
 		Data: map[string][]byte{},
 	}
 	pw = GetAccessToken(secret)
+	assert.Equal(t, "", pw)
+}
+
+func TestGetPassword(t *testing.T) {
+	secret := &corev1.Secret{
+		Data: map[string][]byte{
+			"password": []byte("password"),
+		},
+	}
+	pw := GetPassword(secret)
+	assert.Equal(t, "password", pw)
+
+	secret = &corev1.Secret{
+		Data: map[string][]byte{},
+	}
+	pw = GetPassword(secret)
 	assert.Equal(t, "", pw)
 }

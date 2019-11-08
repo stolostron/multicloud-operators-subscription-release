@@ -202,7 +202,7 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 		if s.Spec.Source.GitHub.Branch == "" {
 			options.ReferenceName = plumbing.Master
 		} else {
-			options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
+			options.ReferenceName = plumbing.ReferenceName("refs/heads/" + s.Spec.Source.GitHub.Branch)
 		}
 
 		os.RemoveAll(destRepo)
@@ -273,7 +273,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 			}
 
 			if secret != nil && secret.Data != nil {
-				req.SetBasicAuth(string(secret.Data["user"]), GetAccessToken(secret))
+				req.SetBasicAuth(string(secret.Data["user"]), GetPassword(secret))
 			}
 
 			var resp *http.Response

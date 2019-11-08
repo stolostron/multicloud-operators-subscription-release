@@ -231,10 +231,10 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 			if authHeader, ok := secret.Data["authHeader"]; ok {
 				req.Header.Set("Authorization", string(authHeader))
 			} else if user, ok := secret.Data["user"]; ok {
-				if token := utils.GetAccessToken(secret); token != "" {
-					req.SetBasicAuth(string(user), token)
+				if password := utils.GetPassword(secret); password != "" {
+					req.SetBasicAuth(string(user), password)
 				} else {
-					err = fmt.Errorf("no accessToken nor password found in secret for basic authentication")
+					err = fmt.Errorf("password found in secret for basic authentication")
 					continue
 				}
 			}
