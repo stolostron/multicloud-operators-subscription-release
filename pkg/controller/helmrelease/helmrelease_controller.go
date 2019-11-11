@@ -192,7 +192,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 				err := r.client.Update(context.TODO(), sr)
 				if err != nil {
-					klog.Error(err, "Unable to add finalizer :", sr.Name)
+					klog.Error(err, "Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
 					return err
 				}
 			}
@@ -222,12 +222,12 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		_, err = helmReleaseManager.UninstallRelease(context.TODO())
 		if err != nil {
 			klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
-			return err
 		}
+		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
 		err := r.client.Update(context.TODO(), sr)
 		if err != nil {
-			klog.Error(err, "Unable to remove finalizer :", sr.Name)
+			klog.Error(err, "Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
 			return err
 		}
 	}

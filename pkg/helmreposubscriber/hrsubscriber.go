@@ -18,27 +18,22 @@ package helmreposubscriber
 
 import (
 	"context"
-	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"time"
 
 	"github.com/blang/semver"
-	"github.com/ghodss/yaml"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -141,11 +136,6 @@ func (s *HelmRepoSubscriber) IsStarted() bool {
 }
 
 func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
-	//Retrieve the helm repo
-	repoURL := s.HelmChartSubscription.Spec.Source.String()
-	klog.V(5).Info("Source: ", repoURL)
-	klog.Info("Subscription Name: ", s.HelmChartSubscription.GetName())
-
 	var indexFile *repo.IndexFile
 
 	var hash, url string
@@ -154,10 +144,10 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 
 	switch strings.ToLower(string(s.HelmChartSubscription.Spec.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
-		indexFile, hash, err = s.getHelmRepoIndex()
+		indexFile, hash, err = s.getHelmRepoIndexFile()
 		url = fmt.Sprintf("%v", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	case string(appv1alpha1.GitHubSourceType):
-		indexFile, hash, err = s.generateIndexYAML()
+		indexFile, hash, err = s.generateGitHubIndexFile()
 		url = fmt.Sprintf("%v", s.HelmChartSubscription.Spec.Source.GitHub.Urls)
 	default:
 		err = fmt.Errorf("sourceType '%s' unsupported", s.HelmChartSubscription.Spec.Source.SourceType)
@@ -171,7 +161,7 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	klog.V(5).Info(fmt.Sprintf("New hashes %s, old hash %s", hash, s.HelmRepoHash))
 
 	if hash != s.HelmRepoHash {
-		klog.Info("HelmRepo changed or subscription changed: ", repoURL)
+		klog.Info("HelmRepo changed or subscription changed: ", url)
 
 		s.HelmRepoHash = hash
 
@@ -181,7 +171,7 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 			return err
 		}
 	} else {
-		klog.Info("HelmRepo didn't change at ", repoURL)
+		klog.Info("HelmRepo didn't change at ", url)
 	}
 
 	return nil
@@ -199,16 +189,10 @@ func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexF
 }
 
 //getHelmRepoIndex retrieves the index.yaml, loads it into a repo.IndexFile and filters it
-func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash string, err error) {
+func (s *HelmRepoSubscriber) getHelmRepoIndexFile() (indexFile *repo.IndexFile, hash string, err error) {
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
 		klog.Error(err, "Failed to retrieve configMap ", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
-	}
-
-	httpClient, err := utils.GetHelmRepoClient(s.HelmChartSubscription.Namespace, configMap)
-	if err != nil {
-		klog.Error(err, "Unable to create client for helm repo",
-			"s.HelmChartSubscription.Spec.Source.HelmRepo.Urls", s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	}
 
 	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
@@ -216,77 +200,16 @@ func (s *HelmRepoSubscriber) getHelmRepoIndex() (indexFile *repo.IndexFile, hash
 		klog.Error(err, "Failed to retrieve secret ", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
 
-	for _, url := range s.HelmChartSubscription.Spec.Source.HelmRepo.Urls {
-		cleanRepoURL := strings.TrimSuffix(url, "/")
-
-		var req *http.Request
-
-		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
-		if err != nil {
-			klog.Error(err, "Can not build request: ", cleanRepoURL)
-			continue
-		}
-
-		if secret != nil && secret.Data != nil {
-			if authHeader, ok := secret.Data["authHeader"]; ok {
-				req.Header.Set("Authorization", string(authHeader))
-			} else if user, ok := secret.Data["user"]; ok {
-				if password := utils.GetPassword(secret); password != "" {
-					req.SetBasicAuth(string(user), password)
-				} else {
-					err = fmt.Errorf("password found in secret for basic authentication")
-					continue
-				}
-			}
-		}
-
-		var resp *http.Response
-
-		resp, err = httpClient.Do(req)
-		if err != nil {
-			klog.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
-			continue
-		}
-
-		if resp.StatusCode != 200 {
-			err = fmt.Errorf("%s %s", resp.Status, cleanRepoURL+"/index.yaml")
-			continue
-		}
-
-		klog.V(5).Info("Get index.yaml succeeded from ", cleanRepoURL)
-
-		defer resp.Body.Close()
-
-		var body []byte
-
-		body, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			klog.Error(err, "Unable to read body of ", cleanRepoURL)
-			continue
-		}
-
-		hash, err = hashKey(body)
-		if err != nil {
-			klog.Error(err, "Unable to generate hashkey")
-			continue
-		}
-
-		indexFile, err = LoadIndex(body)
-		if err != nil {
-			klog.Error(err, "Unable to parse the indexfile of ", cleanRepoURL)
-			continue
-		}
-	}
-
+	indexFile, hash, err = utils.GetHelmRepoIndex(configMap, secret, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	if err != nil {
-		klog.Error(err, "All repo URL tested and all failed")
+		klog.Error(err, "Failed to get the index.yaml")
 		return nil, "", err
 	}
 
 	return indexFile, hash, err
 }
 
-func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error) {
+func (s *HelmRepoSubscriber) generateGitHubIndexFile() (*repo.IndexFile, string, error) {
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
 		return nil, "", err
@@ -307,114 +230,22 @@ func (s *HelmRepoSubscriber) generateIndexYAML() (*repo.IndexFile, string, error
 		}
 	}
 
-	repoRoot, hash, err := utils.DownloadGitHubRepo(configMap, secret, chartsDir, s.HelmChartSubscription)
+	destRepo := filepath.Join(chartsDir, s.HelmChartSubscription.Name, s.HelmChartSubscription.Namespace)
+
+	github := s.HelmChartSubscription.Spec.Source.GitHub
+
+	indexFile, hash, err := utils.GenerateGitHubIndexFile(configMap,
+		secret,
+		destRepo,
+		github.Urls,
+		github.ChartsPath,
+		github.Branch)
 	if err != nil {
-		klog.Error(err, "Failed to download the repo")
+		klog.Error(err, "Can not generate index file")
 		return nil, "", err
 	}
-
-	chartsPath := filepath.Join(repoRoot, s.HelmChartSubscription.Spec.Source.GitHub.ChartsPath)
-	klog.V(3).Info("chartsPath: ", chartsPath)
-
-	///////////////////////////////////////////////
-	// Get chart directories first
-	///////////////////////////////////////////////
-	chartDirs := make(map[string]string)
-	resourceDirs := make(map[string]string)
-
-	currentChartDir := "NONE"
-
-	err = filepath.Walk(chartsPath,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				klog.V(5).Info("Ignoring subfolders ", currentChartDir)
-				if _, err := os.Stat(path + "/Chart.yaml"); err == nil {
-					klog.Info("Found Chart.yaml in directory ", path)
-					if !strings.HasPrefix(path, currentChartDir) {
-						klog.V(5).Info("This is a helm chart folder.")
-						chartDirs[path+"/"] = path + "/"
-						currentChartDir = path + "/"
-					}
-				} else if !strings.HasPrefix(path, currentChartDir) && !strings.HasPrefix(path, repoRoot+"/.git") {
-					klog.V(5).Info("This is not a helm chart directory ", path)
-					resourceDirs[path+"/"] = path + "/"
-				}
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, "", err
-	}
-
-	//////
-	// Generate index.yaml
-	/////
-
-	keys := make([]string, 0)
-	for k := range chartDirs {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	indexFile := repo.NewIndexFile()
-
-	for _, k := range keys {
-		chartDir := chartDirs[k]
-		//	for chartDir := range chartDirs {
-		chartFolderName := filepath.Base(chartDir)
-		chartParentDir := strings.Split(chartDir, chartFolderName)[0]
-		// Get the relative parent directory from the git repo root
-		chartBaseDir := strings.SplitAfter(chartParentDir, chartsPath+"/")[1]
-
-		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
-		if err != nil {
-			klog.Error(err, "There was a problem in generating helm charts index file: ")
-			return nil, "", err
-		}
-
-		if !indexFile.Has(chartMetadata.Name, chartMetadata.Version) {
-			indexFile.Add(chartMetadata, chartFolderName, chartBaseDir, "generated-by-multicloud-operators-subscription")
-		}
-	}
-
-	indexFile.SortEntries()
-
-	b, _ := yaml.Marshal(indexFile)
-	klog.V(5).Info("New index file content ", string(b), " with hash:", hash)
 
 	return indexFile, hash, nil
-}
-
-//LoadIndex loads data into a repo.IndexFile
-func LoadIndex(data []byte) (*repo.IndexFile, error) {
-	i := &repo.IndexFile{}
-	if err := yaml.Unmarshal(data, i); err != nil {
-		return i, err
-	}
-
-	i.SortEntries()
-
-	if i.APIVersion == "" {
-		return i, repo.ErrNoAPIVersion
-	}
-
-	return i, nil
-}
-
-//hashKey Calculate a hash key
-func hashKey(b []byte) (string, error) {
-	h := sha1.New()
-
-	_, err := h.Write(b)
-	if err != nil {
-		return "", err
-	}
-
-	return string(h.Sum(nil)), nil
 }
 
 //filterCharts filters the indexFile by name, tillerVersion, version, digest
@@ -617,7 +448,7 @@ func (s *HelmRepoSubscriber) manageHelmChartSubscription(indexFile *repo.IndexFi
 				}
 			} else {
 				if !reflect.DeepEqual(found.Spec, sr.Spec) || found.Status.Status != appv1alpha1.HelmReleaseSuccess {
-					klog.Info("Update a the HelmRelease: ", sr.Namespace, "/", sr.Name)
+					klog.Info("Update the HelmRelease: ", sr.Namespace, "/", sr.Name)
 					klog.V(5).Info("found Spec: ", found.Spec)
 					klog.V(5).Info("sr Spec", sr.Spec)
 					found.Spec = sr.Spec
