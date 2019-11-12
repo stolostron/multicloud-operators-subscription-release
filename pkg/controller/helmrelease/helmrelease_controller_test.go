@@ -79,7 +79,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: "subscription-release-test-1",
+			ReleaseName: helmReleaseName,
 			ChartName:   "subscription-release-test-1",
 		},
 	}
@@ -118,7 +118,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "wrong path",
 				},
 			},
-			ReleaseName: "subscription-release-test-1",
+			ReleaseName: helmReleaseName,
 			ChartName:   "subscription-release-test-1",
 		},
 	}
@@ -156,8 +156,8 @@ func TestReconcile(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
+			ReleaseName: helmReleaseName,
 			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1",
 		},
 	}
 
@@ -174,7 +174,6 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	t.Logf("instanceResp: %v", instanceResp)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
 	//helmRepo failure
@@ -195,8 +194,8 @@ func TestReconcile(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/wrongurl"},
 				},
 			},
+			ReleaseName: helmReleaseName,
 			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1",
 		},
 	}
 
