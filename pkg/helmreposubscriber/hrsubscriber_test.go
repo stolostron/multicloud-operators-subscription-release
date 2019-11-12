@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 var c client.Client
@@ -126,33 +127,6 @@ spec:
     name: mycluster-config
   packageOverrides:
   - packageName: ibm-cfee-installer
-    packageOverrides:
-    - path: spec.values
-      value: |
-        att1: hello`
-
-const helmRepoSub = `apiVersion: app.ibm.com/v1alpha1
-kind: Subscription
-metadata:
-  annotations:
-    tillerVersion: 2.4.0
-  name: test-helmsubscriber
-  namespace: default
-spec:
-  channel: default/ope
-  installPlanApproval: Manual
-  name: "subscription-release-test-1"
-  chartsSource: 
-    type: helmrepo
-    helmRepo:
-      urls:
-      - https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo
-  packageFilter:
-    keywords:
-    - MCM
-    version: ">0.1.0"
-  packageOverrides:
-  - packageName: subscription-release-test-1
     packageOverrides:
     - path: spec.values
       value: |
@@ -360,19 +334,8 @@ func TestDoHelmChartSubscription(t *testing.T) {
 	}
 }
 
-func TestLoadIndex(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
-	assert.NoError(t, err)
-
-	chartVersions := indexFile.Entries["ibm-cfee-installer"]
-	assert.Equal(t, 2, len(chartVersions))
-
-	name := chartVersions[1].GetName()
-	assert.Equal(t, "ibm-cfee-installer", name)
-}
-
 func Test_MatchingNameCharts(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -391,7 +354,7 @@ func Test_MatchingNameCharts(t *testing.T) {
 }
 
 func Test_MatchingWithoutPackageName(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -408,7 +371,7 @@ func Test_MatchingWithoutPackageName(t *testing.T) {
 }
 
 func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -425,7 +388,7 @@ func Test_MatchingWithoutOPSubscriptionSpec(t *testing.T) {
 }
 
 func Test_MatchingWithoutSubscriptionSpec(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -440,7 +403,7 @@ func Test_MatchingWithoutSubscriptionSpec(t *testing.T) {
 }
 
 func Test_MatchingDigest(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -463,7 +426,7 @@ func Test_MatchingDigest(t *testing.T) {
 }
 
 func Test_MatchingTillerVersion(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -486,7 +449,7 @@ func Test_MatchingTillerVersion(t *testing.T) {
 }
 
 func Test_MatchingTillerVersionNotFound(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -507,7 +470,7 @@ func Test_MatchingTillerVersionNotFound(t *testing.T) {
 }
 
 func Test_MatchingVersion(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -535,7 +498,7 @@ func Test_MatchingVersion(t *testing.T) {
 }
 
 func Test_CheckKeywords(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -555,7 +518,7 @@ func Test_CheckKeywords(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(indexFile.Entries))
 
-	indexFile, err = LoadIndex([]byte(index))
+	indexFile, err = utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s.HelmChartSubscription.Spec.PackageFilter = nil
@@ -565,7 +528,7 @@ func Test_CheckKeywords(t *testing.T) {
 }
 
 func Test_takeLatestVersion(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{}
@@ -594,7 +557,7 @@ func Test_takeLatestVersion(t *testing.T) {
 }
 
 func Test_filterCharts(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -618,7 +581,7 @@ func Test_filterCharts(t *testing.T) {
 }
 
 func Test_filterChartsLatest(t *testing.T) {
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	s := &HelmRepoSubscriber{
@@ -649,7 +612,7 @@ func TestNewHelmChartHelmReleaseForCR(t *testing.T) {
 		HelmChartSubscription: s,
 	}
 
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	hr, err := subscriber.newHelmChartHelmReleaseForCR(indexFile.Entries["ibm-cfee-installer"][0])
@@ -666,45 +629,11 @@ func TestGetValues(t *testing.T) {
 		HelmChartSubscription: s,
 	}
 
-	indexFile, err := LoadIndex([]byte(index))
+	indexFile, err := utils.UnmarshalIndex([]byte(index))
 	assert.NoError(t, err)
 
 	values, err := subscriber.getValues(indexFile.Entries["ibm-cfee-installer"][0])
 	assert.NoError(t, err)
 
 	assert.Equal(t, "att1: hello", values)
-}
-
-func TestGetHelmIndex(t *testing.T) {
-	subscription := &appv1alpha1.HelmChartSubscription{}
-	err := yaml.Unmarshal([]byte(helmRepoSub), subscription)
-	assert.NoError(t, err)
-
-	subscriber := &HelmRepoSubscriber{
-		HelmChartSubscription: subscription,
-	}
-
-	indexFile, hash, err := subscriber.getHelmRepoIndex()
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, "", hash)
-
-	assert.Equal(t, 2, len(indexFile.Entries))
-}
-
-func TestGenerateHelmIndexYAML(t *testing.T) {
-	subscription := &appv1alpha1.HelmChartSubscription{}
-	err := yaml.Unmarshal([]byte(gitRepoSub), subscription)
-	assert.NoError(t, err)
-
-	subscriber := &HelmRepoSubscriber{
-		HelmChartSubscription: subscription,
-	}
-
-	indexFile, hash, err := subscriber.generateIndexYAML()
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, "", hash)
-
-	assert.Equal(t, 2, len(indexFile.Entries))
 }

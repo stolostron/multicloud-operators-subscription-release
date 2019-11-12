@@ -183,19 +183,13 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 	}
 
 	if sr.DeletionTimestamp.IsZero() {
+		err = r.addFinalizer(sr)
+		if err != nil {
+			return err
+		}
+
 		if helmReleaseManager.IsInstalled() {
 			klog.Info("Update chart ", sr.Spec.ChartName)
-
-			if !utils.HasFinalizer(sr) {
-				klog.Info("Add finalizer: ", sr.Name)
-				utils.AddFinalizer(sr)
-
-				err := r.client.Update(context.TODO(), sr)
-				if err != nil {
-					klog.Error(err, "Unable to add finalizer :", sr.Name)
-					return err
-				}
-			}
 
 			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 			if err != nil {
@@ -203,14 +197,8 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 				return err
 			}
 		} else {
-			klog.Info("Add finalizer: ", sr.Name)
-			utils.AddFinalizer(sr)
-			err := r.client.Update(context.TODO(), sr)
-			if err != nil {
-				klog.Error(err, "Unable to add finalizer :", sr.Name)
-				return err
-			}
 			klog.Info("Install chart: ", sr.Spec.ChartName)
+
 			_, err = helmReleaseManager.InstallRelease(context.TODO())
 			if err != nil {
 				klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
@@ -222,12 +210,27 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		_, err = helmReleaseManager.UninstallRelease(context.TODO())
 		if err != nil {
 			klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
-			return err
 		}
+		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
 		err := r.client.Update(context.TODO(), sr)
 		if err != nil {
-			klog.Error(err, "Unable to remove finalizer :", sr.Name)
+			klog.Error(err, "Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *ReconcileHelmRelease) addFinalizer(sr *appv1alpha1.HelmRelease) error {
+	if !utils.HasFinalizer(sr) {
+		klog.Info("Add finalizer: ", sr.Name)
+		utils.AddFinalizer(sr)
+
+		err := r.client.Update(context.TODO(), sr)
+		if err != nil {
+			klog.Error(err, "Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
 			return err
 		}
 	}

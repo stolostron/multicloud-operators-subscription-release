@@ -19,34 +19,38 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
-	"context"
+	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
-func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (*http.Client, error) {
+func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (rest.HTTPClient, error) {
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -96,128 +100,40 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (*ht
 	return httpClient, nil
 }
 
-//GetConfigMap search the config map containing the helm repo client configuration.
-func GetConfigMap(client client.Client, parentNamespace string, configMapRef *corev1.ObjectReference) (configMap *corev1.ConfigMap, err error) {
-	if configMapRef != nil {
-		klog.V(5).Info("Retrieve configMap ", parentNamespace, "/", configMapRef.Name)
-		ns := configMapRef.Namespace
-
-		if ns == "" {
-			ns = parentNamespace
-		}
-
-		configMap = &corev1.ConfigMap{}
-
-		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: configMapRef.Name}, configMap)
+func DownloadChart(configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	chartsDir string,
+	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
+	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
+		err := os.MkdirAll(destRepo, 0755)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				klog.Error(err, "ConfigMap not found ", "Name: ", configMapRef.Name, " on namespace: ", ns)
-				return nil, nil
-			}
-
-			klog.Error(err, "Failed to get configMap ", "Name: ", configMapRef.Name, " on namespace: ", ns)
-
-			return nil, err
+			klog.Error(err, "Unable to create chartDir: ", destRepo)
+			return "", err
 		}
-
-		klog.V(5).Info("ConfigMap found ", "Name:", configMapRef.Name, " on namespace: ", ns)
-	} else {
-		klog.V(5).Info("no configMapRef defined ", "parentNamespace", parentNamespace)
 	}
 
-	return configMap, err
-}
-
-//GetSecret returns the secret to access the helm-repo
-func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.ObjectReference) (secret *corev1.Secret, err error) {
-	if secretRef != nil {
-		klog.V(5).Info("retrieve secret :", parentNamespace, "/", secretRef)
-
-		ns := secretRef.Namespace
-		if ns == "" {
-			ns = parentNamespace
-		}
-
-		secret = &corev1.Secret{}
-
-		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: secretRef.Name}, secret)
-		if err != nil {
-			klog.Error(err, "Failed to get secret ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
-			return nil, err
-		}
-
-		klog.V(5).Info("Secret found ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
-	} else {
-		klog.V(5).Info("No secret defined at ", "parentNamespace", parentNamespace)
-	}
-
-	return secret, err
-}
-
-func DownloadChart(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
 	switch strings.ToLower(string(s.Spec.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
-		return DownloadChartFromHelmRepo(configMap, secret, chartsDir, s)
+		return DownloadChartFromHelmRepo(configMap, secret, destRepo, s)
 	case string(appv1alpha1.GitHubSourceType):
-		return DownloadChartFromGitHub(configMap, secret, chartsDir, s)
+		return DownloadChartFromGitHub(configMap, secret, destRepo, s)
 	default:
 		return "", fmt.Errorf("sourceType '%s' unsupported", s.Spec.Source.SourceType)
 	}
 }
 
 //DownloadChartFromGitHub downloads a chart into the charsDir
-func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
 	if s.Spec.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", err
 	}
 
-	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
-		err := os.MkdirAll(chartsDir, 0755)
-		if err != nil {
-			klog.Error(err, "Unable to create chartDir: ", chartsDir)
-			return "", err
-		}
-	}
-
-	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
-
-	for _, url := range s.Spec.Source.GitHub.Urls {
-		options := &git.CloneOptions{
-			URL:               url,
-			Depth:             1,
-			SingleBranch:      true,
-			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
-		}
-
-		if secret != nil && secret.Data != nil {
-			klog.V(5).Info("Add credentials")
-
-			options.Auth = &githttp.BasicAuth{
-				Username: string(secret.Data["user"]),
-				Password: GetAccessToken(secret),
-			}
-		}
-
-		if s.Spec.Source.GitHub.Branch == "" {
-			options.ReferenceName = plumbing.Master
-		} else {
-			options.ReferenceName = plumbing.ReferenceName("refs/heads/" + s.Spec.Source.GitHub.Branch)
-		}
-
-		os.RemoveAll(destRepo)
-
-		_, err = git.PlainClone(destRepo, false, options)
-		if err != nil {
-			os.RemoveAll(destRepo)
-			klog.Error(err, "Clone failed", "url", url)
-
-			continue
-		}
-	}
+	_, err = DownloadGitHubRepo(configMap, secret, destRepo, s.Spec.Source.GitHub.Urls, s.Spec.Source.GitHub.Branch)
 
 	if err != nil {
-		klog.Error(err, "All urls failed")
+		return "", err
 	}
 
 	chartDir = filepath.Join(destRepo, s.Spec.Source.GitHub.ChartPath)
@@ -225,141 +141,12 @@ func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret,
 	return chartDir, err
 }
 
-//DownloadChartFromHelmRepo downloads a chart into the charsDir
-func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
-	secret *corev1.Secret,
-	chartsDir string,
-	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	if s.Spec.Source.HelmRepo == nil {
-		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
-		return "", err
-	}
-
-	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
-		err := os.MkdirAll(chartsDir, 0755)
-		if err != nil {
-			klog.Error(err, "Unable to create chartDir: ", "chartsDir", chartsDir)
-			return "", err
-		}
-	}
-
-	httpClient, err := GetHelmRepoClient(s.Namespace, configMap)
-	if err != nil {
-		klog.Error(err, "Failed to create httpClient sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
-		return "", err
-	}
-
-	var downloadErr error
-
-	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
-		var URLP *url.URL
-
-		URLP, downloadErr = url.Parse(urlelem)
-		if downloadErr != nil {
-			klog.Error(downloadErr, "url", urlelem)
-			continue
-		}
-
-		fileName := filepath.Base(URLP.Path)
-		// Create the file
-		chartZip := filepath.Join(chartsDir, fileName)
-		if _, err := os.Stat(chartZip); os.IsNotExist(err) {
-			var req *http.Request
-
-			req, downloadErr = http.NewRequest(http.MethodGet, urlelem, nil)
-			if downloadErr != nil {
-				klog.Error(downloadErr, "Can not build request: ", "urlelem", urlelem)
-				continue
-			}
-
-			if secret != nil && secret.Data != nil {
-				req.SetBasicAuth(string(secret.Data["user"]), GetPassword(secret))
-			}
-
-			var resp *http.Response
-
-			resp, downloadErr = httpClient.Do(req)
-			if downloadErr != nil {
-				klog.Error(downloadErr, "Http request failed: ", "urlelem", urlelem)
-				continue
-			}
-
-			if resp.StatusCode != 200 {
-				downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
-				klog.Error(downloadErr, "Unable to retrieve chart")
-
-				continue
-			}
-
-			klog.V(5).Info("Download chart form helmrepo succeeded: ", urlelem)
-
-			defer resp.Body.Close()
-
-			var out *os.File
-
-			out, downloadErr = os.Create(chartZip)
-			if downloadErr != nil {
-				klog.Error(downloadErr, "Failed to create: ", chartZip)
-				continue
-			}
-
-			defer out.Close()
-
-			// Write the body to file
-			_, downloadErr = io.Copy(out, resp.Body)
-			if downloadErr != nil {
-				klog.Error(downloadErr, "Failed to copy body:", chartZip)
-				continue
-			}
-		}
-
-		var r *os.File
-
-		r, downloadErr = os.Open(chartZip)
-		if downloadErr != nil {
-			klog.Error(downloadErr, "Failed to open: ", chartZip)
-			continue
-		}
-
-		chartDirUnzip := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace)
-		chartDir = filepath.Join(chartDirUnzip, s.Spec.ChartName)
-		//Clean before untar
-		os.RemoveAll(chartDirUnzip)
-
-		downloadErr = Untar(chartDirUnzip, r)
-		if downloadErr != nil {
-			//Remove zip because failed to untar and so probably corrupted
-			os.RemoveAll(chartZip)
-			klog.Error(downloadErr, "Failed to unzip: ", chartZip)
-
-			continue
-		}
-	}
-
-	return chartDir, downloadErr
-}
-
 //DownloadGitHubRepo downloads a github repo into the charsDir
 func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
-	chartsDir string,
-	s *appv1alpha1.HelmChartSubscription) (destRepo string, commitID string, err error) {
-	if s.Spec.Source.GitHub == nil {
-		err := fmt.Errorf("github type but Spec.GitHub is not defined")
-		return "", "", err
-	}
-
-	if _, err := os.Stat(chartsDir); os.IsNotExist(err) {
-		err := os.MkdirAll(chartsDir, 0755)
-		if err != nil {
-			klog.Error(err, "Unable to create chartDir: ", chartsDir)
-			return "", "", err
-		}
-	}
-
-	destRepo = filepath.Join(chartsDir, s.Name, s.Namespace)
-
-	for _, url := range s.Spec.Source.GitHub.Urls {
+	destRepo string,
+	urls []string, branch string) (commitID string, err error) {
+	for _, url := range urls {
 		options := &git.CloneOptions{
 			URL:               url,
 			Depth:             1,
@@ -376,10 +163,10 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 			}
 		}
 
-		if s.Spec.Source.GitHub.Branch == "" {
+		if branch == "" {
 			options.ReferenceName = plumbing.Master
 		} else {
-			options.ReferenceName = plumbing.ReferenceName(s.Spec.Source.GitHub.Branch)
+			options.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
 		}
 
 		os.RemoveAll(destRepo)
@@ -412,7 +199,123 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 		klog.Error(err, "All urls failed")
 	}
 
-	return destRepo, commitID, err
+	return commitID, err
+}
+
+//DownloadChartFromHelmRepo downloads a chart into the charsDir
+func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	destRepo string,
+	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	if s.Spec.Source.HelmRepo == nil {
+		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
+		return "", err
+	}
+
+	httpClient, err := GetHelmRepoClient(s.Namespace, configMap)
+	if err != nil {
+		klog.Error(err, "Failed to create httpClient sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
+		return "", err
+	}
+
+	var downloadErr error
+
+	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
+		chartZip, err := downloadFile(httpClient, urlelem, secret, destRepo)
+		if err != nil {
+			klog.Error(downloadErr, "url", urlelem)
+			continue
+		}
+
+		var r *os.File
+
+		r, downloadErr = os.Open(chartZip)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Failed to open: ", chartZip)
+			continue
+		}
+
+		chartDir = filepath.Join(destRepo, s.Spec.ChartName)
+		//Clean before untar
+		os.RemoveAll(chartDir)
+
+		downloadErr = Untar(destRepo, r)
+		if downloadErr != nil {
+			//Remove zip because failed to untar and so probably corrupted
+			os.RemoveAll(chartZip)
+			klog.Error(downloadErr, "Failed to unzip: ", chartZip)
+
+			continue
+		}
+	}
+
+	return chartDir, downloadErr
+}
+
+func downloadFile(client rest.HTTPClient,
+	fileURL string,
+	secret *corev1.Secret,
+	chartsDir string) (string, error) {
+	URLP, downloadErr := url.Parse(fileURL)
+	if downloadErr != nil {
+		klog.Error(downloadErr, "url", fileURL)
+		return "", downloadErr
+	}
+
+	fileName := filepath.Base(URLP.Path)
+	// Create the file
+	chartZip := filepath.Join(chartsDir, fileName)
+	if _, err := os.Stat(chartZip); os.IsNotExist(err) {
+		var req *http.Request
+
+		req, downloadErr = http.NewRequest(http.MethodGet, fileURL, nil)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Can not build request: ", "fileURL", fileURL)
+			return "", downloadErr
+		}
+
+		if secret != nil && secret.Data != nil {
+			req.SetBasicAuth(string(secret.Data["user"]), GetPassword(secret))
+		}
+
+		var resp *http.Response
+
+		resp, downloadErr = client.Do(req)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Http request failed: ", "fileURL", fileURL)
+			return "", downloadErr
+		}
+
+		if resp.StatusCode != 200 {
+			downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
+			klog.Error(downloadErr, "Unable to retrieve chart")
+
+			return "", downloadErr
+		}
+
+		klog.V(5).Info("Download chart form helmrepo succeeded: ", fileURL)
+
+		defer resp.Body.Close()
+
+		var out *os.File
+
+		out, downloadErr = os.Create(chartZip)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Failed to create: ", chartZip)
+			return "", downloadErr
+		}
+
+		defer out.Close()
+
+		// Write the body to file
+		_, downloadErr = io.Copy(out, resp.Body)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Failed to copy body:", chartZip)
+			return "", downloadErr
+		}
+	}
+
+	return chartZip, nil
 }
 
 //Untar untars the reader into the dst directory
@@ -498,4 +401,207 @@ func KeywordsChecker(labelSelector *metav1.LabelSelector, ks []string) bool {
 	}
 
 	return LabelsChecker(labelSelector, ls)
+}
+
+//UnmarshalIndex loads data into a repo.IndexFile
+func UnmarshalIndex(data []byte) (*repo.IndexFile, error) {
+	i := &repo.IndexFile{}
+	if err := yaml.Unmarshal(data, i); err != nil {
+		return i, err
+	}
+
+	i.SortEntries()
+
+	if i.APIVersion == "" {
+		return i, repo.ErrNoAPIVersion
+	}
+
+	return i, nil
+}
+
+func GenerateGitHubIndexFile(configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	destDir string,
+	urls []string,
+	chartsPath string,
+	branch string) (indexFile *repo.IndexFile, hash string, err error) {
+	hash, err = DownloadGitHubRepo(configMap, secret, destDir, urls, branch)
+	if err != nil {
+		klog.Error(err, "Failed to download the repo")
+		return nil, "", err
+	}
+
+	chartsPath = filepath.Join(destDir, chartsPath)
+	klog.V(3).Info("chartsPath: ", chartsPath)
+
+	indexFile, err = generateIndexFile(chartsPath)
+	if err != nil {
+		klog.Error(err, "Can not generate index file")
+		return nil, "", err
+	}
+
+	b, _ := yaml.Marshal(indexFile)
+	klog.V(5).Info("New index file content ", string(b), " with hash:", hash)
+
+	return indexFile, hash, nil
+}
+
+func generateIndexFile(chartsPath string) (*repo.IndexFile, error) {
+	///////////////////////////////////////////////
+	// Get chart directories first
+	///////////////////////////////////////////////
+	chartDirs := make(map[string]string)
+
+	currentChartDir := "NONE"
+
+	err := filepath.Walk(chartsPath,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				klog.V(5).Info("Ignoring subfolders ", currentChartDir)
+				if _, err := os.Stat(path + "/Chart.yaml"); err == nil {
+					klog.Info("Found Chart.yaml in directory ", path)
+					if !strings.HasPrefix(path, currentChartDir) {
+						klog.V(5).Info("This is a helm chart folder.")
+						chartDirs[path+"/"] = path + "/"
+						currentChartDir = path + "/"
+					}
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	//////
+	// Generate index.yaml
+	/////
+
+	keys := make([]string, 0)
+	for k := range chartDirs {
+		keys = append(keys, k)
+	}
+
+	sort.Strings(keys)
+
+	indexFile := repo.NewIndexFile()
+
+	for _, k := range keys {
+		chartDir := chartDirs[k]
+		//	for chartDir := range chartDirs {
+		chartFolderName := filepath.Base(chartDir)
+		chartParentDir := strings.Split(chartDir, chartFolderName)[0]
+		// Get the relative parent directory from the git repo root
+		chartBaseDir := strings.SplitAfter(chartParentDir, chartsPath+"/")[1]
+
+		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
+		if err != nil {
+			klog.Error(err, "There was a problem in generating helm charts index file: ")
+			return nil, err
+		}
+
+		if !indexFile.Has(chartMetadata.Name, chartMetadata.Version) {
+			indexFile.Add(chartMetadata, chartFolderName, chartBaseDir, "generated-by-multicloud-operators-subscription")
+		}
+	}
+
+	indexFile.SortEntries()
+
+	return indexFile, nil
+}
+
+//GetHelmRepoIndex retrieves the index.yaml, loads it into a repo.IndexFile and filters it
+func GetHelmRepoIndex(configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	parentNamespace string,
+	urls []string) (indexFile *repo.IndexFile, hash string, err error) {
+	httpClient, err := GetHelmRepoClient(parentNamespace, configMap)
+	if err != nil {
+		klog.Error(err, "Unable to create client for helm repo",
+			"urls", urls)
+	}
+
+	for _, url := range urls {
+		cleanRepoURL := strings.TrimSuffix(url, "/")
+
+		var req *http.Request
+
+		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
+		if err != nil {
+			klog.Error(err, "Can not build request: ", cleanRepoURL)
+			continue
+		}
+
+		if secret != nil && secret.Data != nil {
+			if authHeader, ok := secret.Data["authHeader"]; ok {
+				req.Header.Set("Authorization", string(authHeader))
+			} else if user, ok := secret.Data["user"]; ok {
+				if password := GetPassword(secret); password != "" {
+					req.SetBasicAuth(string(user), password)
+				} else {
+					err = fmt.Errorf("password found in secret for basic authentication")
+					continue
+				}
+			}
+		}
+
+		var resp *http.Response
+
+		resp, err = httpClient.Do(req)
+		if err != nil {
+			klog.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
+			continue
+		}
+
+		if resp.StatusCode != 200 {
+			err = fmt.Errorf("%s %s", resp.Status, cleanRepoURL+"/index.yaml")
+			continue
+		}
+
+		klog.V(5).Info("Get index.yaml succeeded from ", cleanRepoURL)
+
+		defer resp.Body.Close()
+
+		var body []byte
+
+		body, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			klog.Error(err, "Unable to read body of ", cleanRepoURL)
+			continue
+		}
+
+		hash, err = HashKey(body)
+		if err != nil {
+			klog.Error(err, "Unable to generate hashkey")
+			continue
+		}
+
+		indexFile, err = UnmarshalIndex(body)
+		if err != nil {
+			klog.Error(err, "Unable to parse the indexfile of ", cleanRepoURL)
+			continue
+		}
+	}
+
+	if err != nil {
+		klog.Error(err, "All repo URL tested and all failed")
+		return nil, "", err
+	}
+
+	return indexFile, hash, err
+}
+
+//HashKey Calculate a hash key
+func HashKey(b []byte) (string, error) {
+	h := sha1.New()
+
+	_, err := h.Write(b)
+	if err != nil {
+		return "", err
+	}
+
+	return string(h.Sum(nil)), nil
 }

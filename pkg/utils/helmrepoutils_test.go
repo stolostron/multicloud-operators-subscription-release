@@ -33,6 +33,73 @@ import (
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
+const index = `apiVersion: v1
+entries:
+  ibm-cfee-installer:
+  - created: 2019-06-25T17:38:32.128540891Z
+    description: Cloud Foundry Enterprise Environment deployment tool
+    digest: c3a86622131b877863bf292a2c991a66a5c1132a2db3297eea8c423cd001ab24
+    icon: https://www.ibm.com/cloud-computing/images/new-cloud/img/cloud.png
+    keywords:
+    - amd64
+    - DevOps
+    - Development
+    - ICP
+    name: ibm-cfee-installer
+    tillerVersion: '>=2.4.0'
+    urls:
+    - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-cfee-installer-3.2.0-60-481af98.20190501110704.tgz
+    version: 3.2.0-alpha
+  - created: 2019-06-25T17:38:32.21333478Z
+    description: Cloud Foundry Enterprise Environment deployment tool
+    digest: cd7d7e7c109dae92c7a92896efe924a43829b395d37f9ec2cfb481d66b9b14d0
+    icon: https://www.ibm.com/cloud-computing/images/new-cloud/img/cloud.png
+    keywords:
+    - amd64
+    - DevOps
+    - Development
+    - ICP
+    name: ibm-cfee-installer
+    tillerVersion: '>=2.4.0'
+    urls:
+    - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-cfee-installer-3.2.0-62.tgz
+    version: 3.2.0-beta
+  ibm-mcm-prod:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: 2019-06-25T17:38:32.41778815Z
+    description: IBM Multicloud Manager
+    digest: 1b5038b4380a388ac30cfcd057519a6827e0100a09f983687ec80d985fda8860
+    keywords:
+    - Analytics
+    - deploy
+    - Commercial
+    - amd64
+    name: ibm-mcm-prod
+    tillerVersion: '>=2.7.3'
+    urls:
+    - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-mcm-prod-3.1.2.tgz
+    version: 3.1.2
+  ibm-mcmk-prod:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: 2019-06-25T17:38:32.511798404Z
+    description: IBM Multicloud Manager Klusterlet
+    digest: e80c01b33b83b3b16da7ee67434ed672b3b6483d2bc0c1f1f2171bfe449ed84b
+    keywords:
+    - ICP
+    - Analytics
+    - deploy
+    - Commercial
+    - amd64
+    - ppc64le
+    name: ibm-mcmk-prod
+    tillerVersion: '>=2.7.3'
+    urls:
+    - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-mcmk-prod-3.1.2.tgz
+    version: 3.1.3
+`
+
 var (
 	configMapName = "cm-helmoutils"
 	configMapNS   = "default"
@@ -184,7 +251,7 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 				},
 			},
 			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1",
+			ReleaseName: "subscription-release-test-1-release",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -259,27 +326,14 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 }
 
 func TestDownloadGitHubRepo(t *testing.T) {
-	s := &appv1alpha1.HelmChartSubscription{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "subscription-release-test-1-cr",
-			Namespace: "default",
-		},
-		Spec: appv1alpha1.HelmChartSubscriptionSpec{
-			Source: &appv1alpha1.SourceSubscription{
-				SourceType: appv1alpha1.GitHubSourceType,
-				GitHub: &appv1alpha1.GitHubSubscription{
-					Urls:       []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
-					ChartsPath: "test/github/subscription-release-test-1",
-				},
-			},
-		},
-	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
 	assert.NoError(t, err)
 
 	defer os.RemoveAll(dir)
 
-	destRepo, commitID, err := DownloadGitHubRepo(nil, nil, dir, s)
+	destRepo := filepath.Join(dir, "test")
+	commitID, err := DownloadGitHubRepo(nil, nil, destRepo,
+		[]string{"https://github.com/IBM/multicloud-operators-subscription-release.git"}, "")
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destRepo, "OWNERS"))
@@ -321,4 +375,42 @@ func TestKeywordsChecker(t *testing.T) {
 	ks = []string{"l1", "l2"}
 	b = KeywordsChecker(labelSelector, ks)
 	assert.Equal(t, true, b)
+}
+
+func TestUnmarshalIndex(t *testing.T) {
+	indexFile, err := UnmarshalIndex([]byte(index))
+	assert.NoError(t, err)
+
+	chartVersions := indexFile.Entries["ibm-cfee-installer"]
+	assert.Equal(t, 2, len(chartVersions))
+
+	name := chartVersions[1].GetName()
+	assert.Equal(t, "ibm-cfee-installer", name)
+}
+func TestGetHelmIndex(t *testing.T) {
+	indexFile, hash, err := GetHelmRepoIndex(nil, nil, "",
+		[]string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo"})
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, "", hash)
+
+	assert.Equal(t, 2, len(indexFile.Entries))
+}
+
+func TestGenerateHelmIndexYAML(t *testing.T) {
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	destRepo := filepath.Join(dir, "test")
+	indexFile, hash, err := GenerateGitHubIndexFile(nil, nil,
+		destRepo,
+		[]string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+		"test/github", "")
+	assert.NoError(t, err)
+
+	assert.NotEqual(t, "", hash)
+
+	assert.Equal(t, 2, len(indexFile.Entries))
 }

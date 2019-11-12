@@ -69,11 +69,11 @@ spec:
     name: mysecret
   configRef:
     name: mycluster-config
-  name: ibm-myapp-api
+  name: ibm-myapp-api #Optional but be careful to write your filters to refine the number of chart to be deployed.
   packageFilter:
     labelSelector:
       matchLabels:
-        "ICP": "true"
+        "MCM": "true"
     annotations:
       tillerVersion: 2.4.0
     version: '>0.2.2'
@@ -81,8 +81,9 @@ spec:
   - packageName: ibm-myapp-api
     packageOverrides:
     - path: spec.values
-      value: "MyAppAPI: \n  Endpoint: http://mycluster.icp:31311\n  ObjectstoreSecretName:
-        minio\n  Region: us-east-1\n"
+      value: |
+        attribute1: value1
+        attribute2: value2
   chartsSource:
     helmrepo:
       urls:
@@ -170,8 +171,9 @@ spec:
     name: mysecret
   configRef:
     name: mycluster-config
-  values: "MyAppAPI: \n  Endpoint: http://mycluster.icp:31311\n  ObjectstoreSecretName:
-    minio\n  Region: us-east-1\n"
+    value: |
+      attribute1: value1
+      attribute2: value2
   version: 0.2.3-015-20190725140717
 ```
 
