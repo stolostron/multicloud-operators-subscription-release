@@ -57,9 +57,16 @@ func remove(item string, s []string) ([]string, error) {
 		return []string{}, fmt.Errorf("%s not present in %v", item, s)
 	}
 
-	s[index] = s[len(s)-1]
-	s[len(s)-1] = ""
-	s = s[:len(s)-1]
+	for index != -1 {
+		index := findIndex(item, s)
+		if index == -1 {
+			break
+		}
+
+		s[index] = s[len(s)-1]
+		s[len(s)-1] = ""
+		s = s[:len(s)-1]
+	}
 
 	return s, nil
 }
