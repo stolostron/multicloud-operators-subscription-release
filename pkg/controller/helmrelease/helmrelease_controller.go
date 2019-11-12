@@ -207,9 +207,11 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		}
 	} else {
 		klog.Info("Delete chart: ", sr.Spec.ChartName)
-		_, err = helmReleaseManager.UninstallRelease(context.TODO())
-		if err != nil {
-			klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
+		if helmReleaseManager.IsInstalled() {
+			_, err = helmReleaseManager.UninstallRelease(context.TODO())
+			if err != nil {
+				klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
+			}
 		}
 		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
