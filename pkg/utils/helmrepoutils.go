@@ -43,6 +43,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
 
@@ -604,4 +605,22 @@ func HashKey(b []byte) (string, error) {
 	}
 
 	return string(h.Sum(nil)), nil
+}
+
+func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	dirName := filepath.Join(chartsDir, s.Spec.ChartName)
+	if _, err := os.Stat(dirName); os.IsNotExist(err) {
+		err := os.MkdirAll(dirName, 0755)
+		if err != nil {
+			klog.Error(err, "Unable to create chartDir: ", dirName)
+			return "", err
+		}
+	}
+
+	fileName := filepath.Join(dirName, "Chart.yaml")
+	chart := &chart.Metadata{
+		Name: s.Spec.ReleaseName,
+	}
+
+	return dirName, chartutil.SaveChartfile(fileName, chart)
 }

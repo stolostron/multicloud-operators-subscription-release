@@ -18,6 +18,9 @@ package helmreleasemgr
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -221,4 +224,63 @@ func TestNewManagerErrors(t *testing.T) {
 	instance.Spec.Values = "l1:\nl2"
 	_, err = NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.Error(t, err)
+}
+
+func TestNewManagerForDeletion(t *testing.T) {
+	chartsDir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(chartsDir)
+
+	err = os.Setenv(appv1alpha1.ChartsDir, chartsDir)
+	assert.NoError(t, err)
+
+	helmReleaseName := "test-new-manager-delete"
+	g := gomega.NewGomegaWithT(t)
+
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+	})
+	assert.NoError(t, err)
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	instance := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/wrongurl"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ReleaseName: "sub",
+			ChartName:   "subscription-release-test-1",
+		},
+	}
+	c := mgr.GetClient()
+
+	err = c.Create(context.TODO(), instance)
+	assert.NoError(t, err)
+
+	time.Sleep(2 * time.Second)
+
+	instance.GetObjectMeta().SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
+	mgrhr, err := NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
+	assert.NoError(t, err)
+
+	assert.Equal(t, mgrhr.ReleaseName(), "sub")
+
+	if _, err := os.Stat(filepath.Join(chartsDir, instance.Spec.ChartName, "Chart.yaml")); err != nil {
+		assert.Fail(t, err.Error())
+	}
 }
