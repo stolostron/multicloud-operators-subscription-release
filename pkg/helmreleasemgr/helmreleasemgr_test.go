@@ -259,7 +259,7 @@ func TestNewManagerForDeletion(t *testing.T) {
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
-					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/IBM/wrongurl"},
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
