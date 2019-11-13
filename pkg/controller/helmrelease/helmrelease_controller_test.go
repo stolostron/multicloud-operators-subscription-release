@@ -67,6 +67,10 @@ func TestReconcile(t *testing.T) {
 		Namespace: helmReleaseNS,
 	}
 	instance := &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
@@ -106,6 +110,10 @@ func TestReconcile(t *testing.T) {
 		Namespace: helmReleaseNS,
 	}
 	instance = &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
@@ -145,6 +153,10 @@ func TestReconcile(t *testing.T) {
 		Namespace: helmReleaseNS,
 	}
 	instance = &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
@@ -183,6 +195,10 @@ func TestReconcile(t *testing.T) {
 		Namespace: helmReleaseNS,
 	}
 	instance = &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
@@ -213,4 +229,126 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	//Github succeed create-delete
+	helmReleaseName = "example-github-delete"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ReleaseName: helmReleaseName,
+			ChartName:   "subscription-release-test-1",
+		},
+	}
+
+	//Creation
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
+
+	time.Sleep(4 * time.Second)
+
+	instanceRespCD := &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCD)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	g.Expect(instanceRespCD.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+
+	//Deletion
+	err = c.Delete(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
+
+	time.Sleep(2 * time.Second)
+
+	instanceRespDel := &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceRespDel)
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	//Github succeed create-update
+	helmReleaseName = "example-github-update"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ReleaseName: helmReleaseName,
+			ChartName:   "subscription-release-test-1",
+		},
+	}
+
+	//Creation
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
+
+	time.Sleep(4 * time.Second)
+
+	instanceRespCU := &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCU)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	g.Expect(instanceRespCU.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+
+	//Update
+	err = c.Get(context.TODO(), helmReleaseKey, instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	instance.Spec.Values = "l1:v1"
+	err = c.Update(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
+
+	time.Sleep(2 * time.Second)
+
+	instanceRespUp := &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceRespUp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 }

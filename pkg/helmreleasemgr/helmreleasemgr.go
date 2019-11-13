@@ -68,26 +68,28 @@ func NewHelmReleaseManager(cfg *rest.Config,
 	}
 
 	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
-	klog.Info("ChartDir: ", chartDir)
+	klog.V(3).Info("ChartDir: ", chartDir)
 
 	if err != nil {
 		klog.Error(err, "Failed to download the chart")
 		return nil, err
 	}
 
-	f := helmrelease.NewManagerFactory(mgr, chartDir)
+	if s.DeletionTimestamp.IsZero() {
+		if s.Spec.Values != "" {
+			var spec interface{}
 
-	if s.Spec.Values != "" {
-		var spec interface{}
+			err = yaml.Unmarshal([]byte(s.Spec.Values), &spec)
+			if err != nil {
+				klog.Error(err, "Failed to Unmarshal the values ", s.Spec.Values)
+				return nil, err
+			}
 
-		err = yaml.Unmarshal([]byte(s.Spec.Values), &spec)
-		if err != nil {
-			klog.Error(err, "Failed to Unmarshal the values ", s.Spec.Values)
-			return nil, err
+			o.Object["spec"] = spec
 		}
-
-		o.Object["spec"] = spec
 	}
+
+	f := helmrelease.NewManagerFactory(mgr, chartDir)
 
 	helmManager, err = f.NewManager(o)
 
