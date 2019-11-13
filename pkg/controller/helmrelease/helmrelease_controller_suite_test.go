@@ -17,7 +17,6 @@ limitations under the License.
 package helmrelease
 
 import (
-	"fmt"
 	stdlog "log"
 	"os"
 	"path/filepath"
@@ -52,8 +51,6 @@ func TestMain(m *testing.M) {
 	if cfg, err = t.Start(); err != nil {
 		stdlog.Fatal(err)
 	}
-
-	fmt.Printf("%v\n", cfg)
 
 	code := m.Run()
 
