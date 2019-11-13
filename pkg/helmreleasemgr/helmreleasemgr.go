@@ -67,9 +67,7 @@ func NewHelmReleaseManager(cfg *rest.Config,
 		}
 	}
 
-	var chartDir string
-
-	chartDir, err = utils.DownloadChart(configMap, secret, chartsDir, s)
+	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	klog.V(3).Info("ChartDir: ", chartDir)
 
 	if err != nil {
