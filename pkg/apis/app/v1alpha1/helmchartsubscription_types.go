@@ -152,6 +152,7 @@ type HelmChartSubscriptionStatus struct {
 
 // HelmChartSubscription is the Schema for the subscriptions API
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 type HelmChartSubscription struct {
 	metav1.TypeMeta   `json:",inline"`

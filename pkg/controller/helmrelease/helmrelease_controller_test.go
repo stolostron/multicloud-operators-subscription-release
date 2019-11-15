@@ -43,6 +43,8 @@ func TestReconcile(t *testing.T) {
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
 
+	t.Log("Create manager")
+
 	mgr, err := manager.New(cfg, manager.Options{
 		MetricsBindAddress: "0",
 	})
@@ -50,8 +52,12 @@ func TestReconcile(t *testing.T) {
 
 	c = mgr.GetClient()
 
+	t.Log("Setup test reconcile")
+
 	recFn, requests := SetupTestReconcile(newReconciler(mgr))
 	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
+
+	t.Log("Start test reconcile")
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
 
@@ -61,6 +67,8 @@ func TestReconcile(t *testing.T) {
 	}()
 
 	//Github succeed
+	t.Log("Github succeed test")
+
 	helmReleaseName := "example-github-succeed"
 	helmReleaseKey := types.NamespacedName{
 		Name:      helmReleaseName,
@@ -104,6 +112,8 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
 	//Github failed
+	t.Log("Github failed test")
+
 	helmReleaseName = "example-github-failed"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -147,6 +157,8 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
 	//helmRepo succeeds
+	t.Log("helmrepo succeed test")
+
 	helmReleaseName = "example-helmrepo-succeed"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -189,6 +201,8 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
 	//helmRepo failure
+	t.Log("Github failure test")
+
 	helmReleaseName = "example-helmrepo-failure"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -231,6 +245,8 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
 	//Github succeed create-delete
+	t.Log("Github succeed create-delete test")
+
 	helmReleaseName = "example-github-delete"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -291,6 +307,8 @@ func TestReconcile(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	//Github succeed create-update
+	t.Log("Github succeed create-update")
+
 	helmReleaseName = "example-github-update"
 	helmReleaseKey = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -319,12 +337,16 @@ func TestReconcile(t *testing.T) {
 	}
 
 	//Creation
+	t.Log("Github succeed create-update -> CR create")
+
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
 
 	time.Sleep(4 * time.Second)
+
+	t.Log("Github succeed create-update -> CR get response")
 
 	instanceRespCU := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCU)
@@ -335,10 +357,15 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceRespCU.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
 	//Update
+	t.Log("Github succeed create-update -> CR get")
+
 	err = c.Get(context.TODO(), helmReleaseKey, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	instance.Spec.Values = "l1:v1"
+
+	t.Log("Github succeed create-update -> CR update")
+
 	err = c.Update(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -347,6 +374,8 @@ func TestReconcile(t *testing.T) {
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
 
 	time.Sleep(2 * time.Second)
+
+	t.Log("Github succeed create-update -> CR get response")
 
 	instanceRespUp := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespUp)

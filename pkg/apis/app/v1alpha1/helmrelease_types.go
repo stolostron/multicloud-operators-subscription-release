@@ -111,6 +111,7 @@ type HelmReleaseSpec struct {
 
 // HelmRelease is the Schema for the subscriptionreleases API
 // +k8s:openapi-gen=true
+// +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:subresource:status
 type HelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
