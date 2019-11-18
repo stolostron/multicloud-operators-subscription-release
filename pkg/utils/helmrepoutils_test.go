@@ -19,6 +19,7 @@ package utils
 import (
 	"context"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -446,4 +447,13 @@ func TestCreateFakeChart(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "subscription-release-test-1", chart.GetMetadata().GetName())
+}
+
+func TestFileURL(t *testing.T) {
+	urlF := "file:///home/dir/file.tgz"
+	urlP, err := url.Parse(urlF)
+	assert.NoError(t, err)
+	t.Log(urlP.Path)
+	t.Log(urlP.RequestURI())
+	t.Error()
 }

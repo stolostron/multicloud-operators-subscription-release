@@ -222,8 +222,8 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	var downloadErr error
 
 	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
-		chartZip, err := downloadFile(httpClient, urlelem, secret, destRepo)
-		if err != nil {
+		chartZip, downloadErr := downloadFile(httpClient, urlelem, secret, destRepo)
+		if downloadErr != nil {
 			klog.Error(downloadErr, "url", urlelem)
 			continue
 		}
@@ -257,15 +257,47 @@ func downloadFile(client rest.HTTPClient,
 	fileURL string,
 	secret *corev1.Secret,
 	chartsDir string) (string, error) {
+	klog.V(4).Info("fileURL: ", fileURL)
+
 	URLP, downloadErr := url.Parse(fileURL)
 	if downloadErr != nil {
-		klog.Error(downloadErr, "url", fileURL)
+		klog.Error(downloadErr, " url:", fileURL)
 		return "", downloadErr
 	}
 
 	fileName := filepath.Base(URLP.Path)
+	klog.V(4).Info("fileName: ", fileName)
 	// Create the file
 	chartZip := filepath.Join(chartsDir, fileName)
+	klog.V(4).Info("chartZip: ", chartZip)
+
+	if URLP.Scheme == "file" {
+		sourceFile, downloadErr := os.Open(URLP.Path)
+		if downloadErr != nil {
+			klog.Error(downloadErr, " URLP.Path:", URLP.Path)
+			return "", downloadErr
+		}
+
+		defer sourceFile.Close()
+
+		// Create new file
+		newFile, downloadErr := os.Create(chartZip)
+		if downloadErr != nil {
+			klog.Error(downloadErr, " chartZip:", chartZip)
+			return "", downloadErr
+		}
+
+		defer newFile.Close()
+
+		_, downloadErr = io.Copy(newFile, sourceFile)
+		if downloadErr != nil {
+			klog.Error(downloadErr)
+			return "", downloadErr
+		}
+
+		return chartZip, nil
+	}
+
 	if _, err := os.Stat(chartZip); os.IsNotExist(err) {
 		var req *http.Request
 
