@@ -106,7 +106,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
+	destRepo := filepath.Join(chartsDir, s.GetName(), s.Namespace, s.Spec.ChartName)
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
 		err := os.MkdirAll(destRepo, 0755)
 		if err != nil {

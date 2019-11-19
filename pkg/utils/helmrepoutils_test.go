@@ -474,19 +474,5 @@ func TestCreateFakeChart(t *testing.T) {
 	chart, err := chartutil.LoadDir(chartDir)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "subscription-release-test-1", chart.GetMetadata().GetName())
+	assert.Equal(t, "subscription-release-test-1-cr", chart.GetMetadata().GetName())
 }
-
-// func TestFileURL(t *testing.T) {
-// 	urlF := "file:../home/dir/file.tgz"
-// 	urlP, err := url.Parse(urlF)
-// 	assert.NoError(t, err)
-// 	t.Log(urlP.Path)
-// 	t.Log(urlP.RequestURI())
-// 	urlH := "https://localhost/home/dir/file.tgz"
-// 	urlP, err = url.Parse(urlH)
-// 	assert.NoError(t, err)
-// 	t.Log(urlP.Path)
-// 	t.Log(urlP.RequestURI())
-// 	t.Error()
-// }

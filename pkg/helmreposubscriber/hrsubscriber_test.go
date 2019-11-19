@@ -617,7 +617,7 @@ func TestNewHelmChartHelmReleaseForCR(t *testing.T) {
 
 	hr, err := subscriber.newHelmChartHelmReleaseForCR(indexFile.Entries["ibm-cfee-installer"][0])
 	assert.NoError(t, err)
-	assert.Equal(t, "ibm-cfee-installer-test-helmsubscriber-default", hr.Spec.ReleaseName)
+	assert.Equal(t, "ibm-cfee-installer-test-helmsubscriber-default", hr.GetName())
 }
 
 func TestGetValues(t *testing.T) {
