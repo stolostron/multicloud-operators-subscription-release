@@ -278,7 +278,7 @@ func TestNewManagerForDeletion(t *testing.T) {
 	mgrhr, err := NewHelmReleaseManager(mgr.GetConfig(), nil, nil, instance)
 	assert.NoError(t, err)
 
-	assert.Equal(t, mgrhr.ReleaseName(), "sub")
+	assert.Equal(t, mgrhr.ReleaseName(), helmReleaseName)
 
 	if _, err := os.Stat(filepath.Join(chartsDir, instance.Spec.ChartName, "Chart.yaml")); err != nil {
 		assert.Fail(t, err.Error())
