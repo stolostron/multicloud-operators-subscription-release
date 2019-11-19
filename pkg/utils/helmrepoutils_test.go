@@ -297,7 +297,7 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDownloadChartFromHelmRepo(t *testing.T) {
+func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 	hr := &appv1alpha1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
@@ -308,6 +308,35 @@ func TestDownloadChartFromHelmRepo(t *testing.T) {
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+				},
+			},
+			ChartName:   "subscription-release-test-1",
+			ReleaseName: "subscription-release-test-1",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	chartDir, err := DownloadChartFromHelmRepo(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "Chart.yaml"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
+	hr := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.HelmRepoSourceType,
+				HelmRepo: &appv1alpha1.HelmRepo{
+					Urls: []string{"file:../../test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
 			ChartName:   "subscription-release-test-1",
@@ -445,5 +474,5 @@ func TestCreateFakeChart(t *testing.T) {
 	chart, err := chartutil.LoadDir(chartDir)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "subscription-release-test-1", chart.GetMetadata().GetName())
+	assert.Equal(t, "subscription-release-test-1-cr", chart.GetMetadata().GetName())
 }
