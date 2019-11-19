@@ -41,9 +41,7 @@ func NewHelmReleaseManager(cfg *rest.Config,
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
 
-	releaseName := s.Spec.ReleaseName
-
-	o.SetName(releaseName)
+	o.SetName(s.GetName())
 	klog.V(2).Info("ReleaseName :", o.GetName())
 	o.SetUID(s.GetUID())
 	klog.V(5).Info("uuid:", o.GetUID())
