@@ -8,11 +8,12 @@
     - [Environment variable](#environment-variable)
     - [RBAC](#rbac)
         - [Deployment](#deployment)
-        - [General process](#general-process)
+    - [General process with Subscriptions](#general-process-with-subscriptions)
         - [HelmChartSubscriptions](#helmchartsubscriptions)
         - [Helm-charts filtering](#helm-charts-filtering)
         - [Authentication](#authentication)
         - [Helm-repo client configuration](#helm-repo-client-configuration)
+    - [General process without Subscriptions](#general-process-without-subscriptions)
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Environment variable
@@ -39,14 +40,14 @@ In order for another service account to be able to access the `helmchartsubscrip
 4) `kubectl apply -f role_binding.yaml`
 5) `kubectl apply -f operator.yaml`
 
-### General process
+## General process with Subscriptions
 
-The operator generates `HelmRelease` CR for each chart to deploy in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
+The operator generates `HelmRelease` CR for each chart to deploy based on the subscription in the same namespace and named `<s.Name>-<chart_name>[-<channel_name>]`. The channel_name is added only if the channel attribute is set in the subscription.
 
-To do so, the following steps are taken:
+To do so the helmchartsubscription controller follows these steps:
 
 1) Read the index.yaml at the source address.
-2) Filter the index.yaml with the spec.Name and spec.packageFilter.
+2) Filter the index.yaml with the spec.Name and spec.packageFilter of the helmchartsubscription CR.
 3) Take the last version of a chart if multiple version are still present for the same chart after filtering.
 4) Create a HelmRelease for each entries in the filtered index.yaml
 
@@ -199,3 +200,43 @@ To do so, the following steps are taken:
 2) Unzip the tgz in `$CHARTS_DIR/<sr.Spec.ReleaseName>/<sr.namespace>/<chart_name>`
 3) Create a manager with the values provided in the HelmRelease
 4) Launch the deployment.
+
+## General process without Subscriptions
+
+The operator can run with the helmchartsubscription controller disabled by adding the flag `--helmchart-subscription-controller-disabled` to the operator launch command. Helmrelease CR are then created manually.
+
+```yaml
+apiVersion: app.ibm.com/v1alpha1
+kind: HelmRelease
+metadata:
+  name: myapp-ibm-myapp-api-ope
+  namespace: default
+spec:
+  source:
+    type: helmrepo
+    helmRepo:
+      URLs:
+      - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-myapp-api-0.2.3-015-20190725140717.tgz
+  chartName: ibm-myapp-api
+  secretRef:
+    name: mysecret
+  configRef:
+    name: mycluster-config
+    value: |
+      attribute1: value1
+      attribute2: value2
+```
+
+`file:` sheme is also supported to define the location of a local file.
+
+Source can have the following format for github:
+
+```yaml
+  source:
+    github:
+      urls:
+      - https://github.ibm.com/IBMPrivateCloud/icp-cert-manager-chart
+      chartPath: stable/ibm-cert-manager
+      branch: master
+    type: github
+```

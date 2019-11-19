@@ -67,11 +67,10 @@ func NewHelmReleaseManager(cfg *rest.Config,
 		}
 	}
 
-	var chartDir string
-	if s.DeletionTimestamp.IsZero() {
-		chartDir, err = utils.DownloadChart(configMap, secret, chartsDir, s)
-		klog.V(3).Info("ChartDir: ", chartDir)
+	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
+	klog.V(3).Info("ChartDir: ", chartDir)
 
+	if s.DeletionTimestamp.IsZero() {
 		if err != nil {
 			klog.Error(err, "Failed to download the chart")
 			return nil, err
@@ -88,16 +87,14 @@ func NewHelmReleaseManager(cfg *rest.Config,
 
 			o.Object["spec"] = spec
 		}
-	} else {
-		chartDir, err = utils.DownloadChart(configMap, secret, chartsDir, s)
-		klog.V(3).Info("ChartDir: ", chartDir)
+	} else if err != nil {
+		//If error when download for deletion then create a fake chart.yaml.
+		//The helmrelease manager needs only the releaseName
+		klog.Info("Unable to download ChartDir: ", chartDir, " creating a fake chart.yaml")
+		chartDir, err = utils.CreateFakeChart(chartsDir, s)
 		if err != nil {
-			klog.Info("Unable to download ChartDir: ", chartDir, " creating a fake chart.yaml")
-			chartDir, err = utils.CreateFakeChart(chartsDir, s)
-			if err != nil {
-				klog.Error(err, "Failed to create fake chart for uninstall")
-				return nil, err
-			}
+			klog.Error(err, "Failed to create fake chart for uninstall")
+			return nil, err
 		}
 	}
 

@@ -101,6 +101,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 	return httpClient, nil
 }
 
+//DownloadChart downloads the charts
 func DownloadChart(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
@@ -213,16 +214,10 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 		return "", err
 	}
 
-	httpClient, err := GetHelmRepoClient(s.Namespace, configMap)
-	if err != nil {
-		klog.Error(err, "Failed to create httpClient sr.Spec.SecretRef.Name", s.Spec.SecretRef.Name)
-		return "", err
-	}
-
 	var downloadErr error
 
 	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
-		chartZip, downloadErr := downloadFile(httpClient, urlelem, secret, destRepo)
+		chartZip, downloadErr := downloadFile(s.Namespace, configMap, urlelem, secret, destRepo)
 		if downloadErr != nil {
 			klog.Error(downloadErr, "url", urlelem)
 			continue
@@ -253,7 +248,8 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	return chartDir, downloadErr
 }
 
-func downloadFile(client rest.HTTPClient,
+//downloadFile downloads a files and post it in the chartsDir.
+func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	fileURL string,
 	secret *corev1.Secret,
 	chartsDir string) (string, error) {
@@ -265,46 +261,69 @@ func downloadFile(client rest.HTTPClient,
 		return "", downloadErr
 	}
 
-	fileName := filepath.Base(URLP.Path)
+	fileName := filepath.Base(URLP.RequestURI())
 	klog.V(4).Info("fileName: ", fileName)
 	// Create the file
 	chartZip := filepath.Join(chartsDir, fileName)
 	klog.V(4).Info("chartZip: ", chartZip)
 
-	if URLP.Scheme == "file" {
-		sourceFile, downloadErr := os.Open(URLP.Path)
-		if downloadErr != nil {
-			klog.Error(downloadErr, " URLP.Path:", URLP.Path)
-			return "", downloadErr
-		}
-
-		defer sourceFile.Close()
-
-		// Create new file
-		newFile, downloadErr := os.Create(chartZip)
-		if downloadErr != nil {
-			klog.Error(downloadErr, " chartZip:", chartZip)
-			return "", downloadErr
-		}
-
-		defer newFile.Close()
-
-		_, downloadErr = io.Copy(newFile, sourceFile)
-		if downloadErr != nil {
-			klog.Error(downloadErr)
-			return "", downloadErr
-		}
-
-		return chartZip, nil
+	switch URLP.Scheme {
+	case "file":
+		downloadErr = downloadFileLocal(URLP, chartZip)
+	case "http", "https":
+		downloadErr = downloadFileHTTP(parentNamespace, configMap, fileURL, secret, chartZip)
+	default:
+		downloadErr = fmt.Errorf("unsupported scheme %s", URLP.Scheme)
 	}
 
+	return chartZip, downloadErr
+}
+
+func downloadFileLocal(urlP *url.URL,
+	chartZip string) error {
+	sourceFile, downloadErr := os.Open(urlP.RequestURI())
+	if downloadErr != nil {
+		klog.Error(downloadErr, " urlP.RequestURI:", urlP.RequestURI())
+		return downloadErr
+	}
+
+	defer sourceFile.Close()
+
+	// Create new file
+	newFile, downloadErr := os.Create(chartZip)
+	if downloadErr != nil {
+		klog.Error(downloadErr, " chartZip:", chartZip)
+		return downloadErr
+	}
+
+	defer newFile.Close()
+
+	_, downloadErr = io.Copy(newFile, sourceFile)
+	if downloadErr != nil {
+		klog.Error(downloadErr)
+		return downloadErr
+	}
+
+	return nil
+}
+
+func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
+	fileURL string,
+	secret *corev1.Secret,
+	chartZip string) error {
 	if _, err := os.Stat(chartZip); os.IsNotExist(err) {
+		httpClient, downloadErr := GetHelmRepoClient(parentNamespace, configMap)
+		if downloadErr != nil {
+			klog.Error(downloadErr, "Failed to create httpClient")
+			return downloadErr
+		}
+
 		var req *http.Request
 
 		req, downloadErr = http.NewRequest(http.MethodGet, fileURL, nil)
 		if downloadErr != nil {
 			klog.Error(downloadErr, "Can not build request: ", "fileURL", fileURL)
-			return "", downloadErr
+			return downloadErr
 		}
 
 		if secret != nil && secret.Data != nil {
@@ -313,17 +332,17 @@ func downloadFile(client rest.HTTPClient,
 
 		var resp *http.Response
 
-		resp, downloadErr = client.Do(req)
+		resp, downloadErr = httpClient.Do(req)
 		if downloadErr != nil {
 			klog.Error(downloadErr, "Http request failed: ", "fileURL", fileURL)
-			return "", downloadErr
+			return downloadErr
 		}
 
 		if resp.StatusCode != 200 {
 			downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
 			klog.Error(downloadErr, "Unable to retrieve chart")
 
-			return "", downloadErr
+			return downloadErr
 		}
 
 		klog.V(5).Info("Download chart form helmrepo succeeded: ", fileURL)
@@ -335,7 +354,7 @@ func downloadFile(client rest.HTTPClient,
 		out, downloadErr = os.Create(chartZip)
 		if downloadErr != nil {
 			klog.Error(downloadErr, "Failed to create: ", chartZip)
-			return "", downloadErr
+			return downloadErr
 		}
 
 		defer out.Close()
@@ -344,11 +363,11 @@ func downloadFile(client rest.HTTPClient,
 		_, downloadErr = io.Copy(out, resp.Body)
 		if downloadErr != nil {
 			klog.Error(downloadErr, "Failed to copy body:", chartZip)
-			return "", downloadErr
+			return downloadErr
 		}
 	}
 
-	return chartZip, nil
+	return nil
 }
 
 //Untar untars the reader into the dst directory
@@ -639,6 +658,7 @@ func HashKey(b []byte) (string, error) {
 	return string(h.Sum(nil)), nil
 }
 
+//CreateFakeChart Creates a fake Chart.yaml with the release name
 func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
 	dirName := filepath.Join(chartsDir, s.Spec.ChartName)
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
