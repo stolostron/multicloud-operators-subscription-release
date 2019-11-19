@@ -671,7 +671,7 @@ func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir str
 
 	fileName := filepath.Join(dirName, "Chart.yaml")
 	chart := &chart.Metadata{
-		Name: s.Spec.ReleaseName,
+		Name: s.GetName(),
 	}
 
 	return dirName, chartutil.SaveChartfile(fileName, chart)
