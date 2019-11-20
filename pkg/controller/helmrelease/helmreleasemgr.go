@@ -79,12 +79,12 @@ func newHelmReleaseManager(r *ReconcileHelmRelease,
 	}
 
 	o := &unstructured.Unstructured{}
-	o.SetGroupVersionKind(s.GroupVersionKind())
-	o.SetNamespace(s.GetNamespace())
+	o.SetGroupVersionKind(helmReleaseSecret.GroupVersionKind())
+	o.SetNamespace(helmReleaseSecret.GetNamespace())
 
-	o.SetName(s.Spec.ReleaseName)
+	o.SetName(helmReleaseSecret.GetName())
 	klog.V(2).Info("ReleaseName :", o.GetName())
-	o.SetUID(s.GetUID())
+	o.SetUID(helmReleaseSecret.GetUID())
 	klog.V(5).Info("uuid:", o.GetUID())
 
 	mgr, err := manager.New(r.config, manager.Options{
