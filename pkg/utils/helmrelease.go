@@ -26,7 +26,9 @@ import (
 )
 
 const (
-	maxNameLength          = 63
+	// minus 26 because the generateName from the helm-operator add 26 char to the name
+	// to check if exist in history
+	maxNameLength          = 63 - 26
 	randomLength           = 5
 	maxGeneratedNameLength = maxNameLength - randomLength
 )
@@ -94,7 +96,7 @@ func findIndex(target string, s []string) int {
 func GenerateHelmReleaseName(base string, subscriptionCreationTimestamp metav1.Time) string {
 	rand.Seed(subscriptionCreationTimestamp.UnixNano())
 
-	if len(base) > maxGeneratedNameLength {
+	if len(base) > maxNameLength {
 		base = base[:maxGeneratedNameLength]
 	} else {
 		return base
