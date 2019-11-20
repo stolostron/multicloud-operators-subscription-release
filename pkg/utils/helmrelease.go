@@ -96,6 +96,8 @@ func GenerateHelmReleaseName(base string, subscriptionCreationTimestamp metav1.T
 
 	if len(base) > maxGeneratedNameLength {
 		base = base[:maxGeneratedNameLength]
+	} else {
+		return base
 	}
 
 	return fmt.Sprintf("%s%s", base, rand.String(randomLength))

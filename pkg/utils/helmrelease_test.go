@@ -51,12 +51,18 @@ func TestGenerateHelmReleaseName(t *testing.T) {
 	base := "123456789"
 	timestamp := metav1.NewTime(time.Now())
 	name1 := GenerateHelmReleaseName(base, timestamp)
-	assert.Equal(t, true, strings.HasPrefix(name1, base))
+	assert.Equal(t, name1, base)
 
 	name2 := GenerateHelmReleaseName(base, timestamp)
 	assert.Equal(t, name1, name2)
 
 	base = "1234567890123456789012345678901234567890123456789012345678901234"
 	name1 = GenerateHelmReleaseName(base, timestamp)
-	assert.Equal(t, true, len(name1) <= 63)
+	assert.Equal(t, true, len(name1) <= maxNameLength)
+	assert.Equal(t, true, strings.HasPrefix(name1, base[:maxGeneratedNameLength]))
+
+	base = "1234567890123456789012345678901234567890123456789012345678"
+	name1 = GenerateHelmReleaseName(base, timestamp)
+	assert.Equal(t, true, len(name1) <= maxNameLength)
+	assert.Equal(t, base, name1)
 }
