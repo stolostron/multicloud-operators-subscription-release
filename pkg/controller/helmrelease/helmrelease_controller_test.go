@@ -116,7 +116,7 @@ func TestReconcile(t *testing.T) {
 
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	instanceResp := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
@@ -486,7 +486,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	_, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)

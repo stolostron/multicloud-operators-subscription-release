@@ -63,6 +63,10 @@ func newHelmReleaseManager(r *ReconcileHelmRelease,
 		if err != nil {
 			return nil, err
 		}
+		helmReleaseSecret, err = utils.GetSecret(r.client, s.Namespace, &corev1.ObjectReference{Name: s.Spec.ReleaseName})
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return nil, err
 	}
