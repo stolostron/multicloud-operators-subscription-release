@@ -106,7 +106,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	destRepo := filepath.Join(chartsDir, s.GetName(), s.Namespace, s.Spec.ChartName)
+	destRepo := filepath.Join(chartsDir, s.Spec.ReleaseName, s.Namespace, s.Spec.ChartName)
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
 		err := os.MkdirAll(destRepo, 0755)
 		if err != nil {
@@ -671,7 +671,7 @@ func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir str
 
 	fileName := filepath.Join(dirName, "Chart.yaml")
 	chart := &chart.Metadata{
-		Name: s.GetName(),
+		Name: s.Spec.ReleaseName,
 	}
 
 	return dirName, chartutil.SaveChartfile(fileName, chart)
