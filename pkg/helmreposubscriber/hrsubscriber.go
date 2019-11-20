@@ -479,6 +479,8 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 
 	releaseName := chartVersion.Name + "-" + s.HelmChartSubscription.Name + "-" + s.HelmChartSubscription.Namespace
 
+	releaseName = utils.GenerateHelmReleaseName(releaseName, s.HelmChartSubscription.GetCreationTimestamp())
+
 	for i := range chartVersion.URLs {
 		parsedURL, err := url.Parse(chartVersion.URLs[i])
 		if err != nil {

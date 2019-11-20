@@ -19,7 +19,16 @@ package utils
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
+
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+)
+
+const (
+	maxNameLength          = 63
+	randomLength           = 5
+	maxGeneratedNameLength = maxNameLength - randomLength
 )
 
 const (
@@ -79,4 +88,15 @@ func findIndex(target string, s []string) int {
 	}
 
 	return -1
+}
+
+//GenerateHelmReleaseName generates a name <= 63 chars. starting with the base name
+func GenerateHelmReleaseName(base string, subscriptionCreationTimestamp metav1.Time) string {
+	rand.Seed(subscriptionCreationTimestamp.UnixNano())
+
+	if len(base) > maxGeneratedNameLength {
+		base = base[:maxGeneratedNameLength]
+	}
+
+	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
 }

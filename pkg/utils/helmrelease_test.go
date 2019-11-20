@@ -17,7 +17,9 @@ limitations under the License.
 package utils
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,4 +45,18 @@ func TestHasFinalizer(t *testing.T) {
 	AddFinalizer(hr)
 
 	assert.Equal(t, true, HasFinalizer(hr))
+}
+
+func TestGenerateHelmReleaseName(t *testing.T) {
+	base := "123456789"
+	timestamp := metav1.NewTime(time.Now())
+	name1 := GenerateHelmReleaseName(base, timestamp)
+	assert.Equal(t, true, strings.HasPrefix(name1, base))
+
+	name2 := GenerateHelmReleaseName(base, timestamp)
+	assert.Equal(t, name1, name2)
+
+	base = "1234567890123456789012345678901234567890123456789012345678901234"
+	name1 = GenerateHelmReleaseName(base, timestamp)
+	assert.Equal(t, true, len(name1) <= 63)
 }
