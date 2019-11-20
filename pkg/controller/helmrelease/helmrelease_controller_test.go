@@ -209,7 +209,7 @@ func TestReconcile(t *testing.T) {
 
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	instanceResp = &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
