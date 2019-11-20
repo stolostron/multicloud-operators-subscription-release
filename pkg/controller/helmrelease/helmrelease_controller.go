@@ -41,7 +41,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/helmreleasemgr"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
@@ -155,20 +154,9 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
 	klog.V(3).Info(fmt.Sprintf("chart: %s-%s", sr.Spec.ChartName, sr.Spec.Version))
 
-	configMap, err := utils.GetConfigMap(r.client, sr.Namespace, sr.Spec.ConfigMapRef)
-	if err != nil {
-		return err
-	}
-
-	secret, err := utils.GetSecret(r.client, sr.Namespace, sr.Spec.SecretRef)
-	if err != nil {
-		klog.Error(err, "Failed to retrieve secret ", sr.Spec.SecretRef.Name)
-		return err
-	}
-
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, err := helmreleasemgr.NewHelmReleaseManager(r.config, configMap, secret, sr)
+	helmReleaseManager, err := newHelmReleaseManager(r, sr)
 	if err != nil {
 		klog.Error(err, "Failed to create NewManager ", sr.Spec.ChartName)
 		return err

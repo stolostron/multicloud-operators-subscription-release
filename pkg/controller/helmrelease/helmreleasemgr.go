@@ -14,17 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helmreleasemgr
+package helmrelease
 
 import (
+	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -33,20 +36,58 @@ import (
 )
 
 //NewManager create a new manager
-func NewHelmReleaseManager(cfg *rest.Config,
-	configMap *corev1.ConfigMap,
-	secret *corev1.Secret,
+func newHelmReleaseManager(r *ReconcileHelmRelease,
 	s *appv1alpha1.HelmRelease) (helmManager helmrelease.Manager, err error) {
+	helmReleaseSecret, err := utils.GetSecret(r.client, s.Namespace, &corev1.ObjectReference{Name: s.Spec.ReleaseName})
+	if err == nil {
+		if !utils.IsOwned(s.ObjectMeta, helmReleaseSecret.ObjectMeta) {
+			return nil,
+				fmt.Errorf("duplicate release name: found existing release with name %q for another helmRelease %v",
+					s.Spec.ReleaseName, helmReleaseSecret.GetOwnerReferences())
+		}
+	} else if errors.IsNotFound(err) {
+		helmReleaseSecret = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      s.Spec.ReleaseName,
+				Namespace: s.GetNamespace(),
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: appv1alpha1.SchemeGroupVersion.String(),
+					Kind:       "HelmRelease",
+					Name:       s.GetName(),
+					UID:        s.GetUID(),
+				}},
+			},
+			Type: corev1.SecretTypeOpaque,
+		}
+		err = r.client.Create(context.TODO(), helmReleaseSecret)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, err
+	}
+
+	configMap, err := utils.GetConfigMap(r.client, s.Namespace, s.Spec.ConfigMapRef)
+	if err != nil {
+		return nil, err
+	}
+
+	secret, err := utils.GetSecret(r.client, s.Namespace, s.Spec.SecretRef)
+	if err != nil {
+		klog.Error(err, "Failed to retrieve secret ", s.Spec.SecretRef.Name)
+		return nil, err
+	}
+
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(s.GetNamespace())
 
-	o.SetName(s.GetName())
+	o.SetName(s.Spec.ReleaseName)
 	klog.V(2).Info("ReleaseName :", o.GetName())
 	o.SetUID(s.GetUID())
 	klog.V(5).Info("uuid:", o.GetUID())
 
-	mgr, err := manager.New(cfg, manager.Options{
+	mgr, err := manager.New(r.config, manager.Options{
 		Namespace: s.GetNamespace(),
 		//Disable MetricsListener
 		MetricsBindAddress: "0",

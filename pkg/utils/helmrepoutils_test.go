@@ -474,5 +474,5 @@ func TestCreateFakeChart(t *testing.T) {
 	chart, err := chartutil.LoadDir(chartDir)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "subscription-release-test-1-cr", chart.GetMetadata().GetName())
+	assert.Equal(t, "subscription-release-test-1", chart.GetMetadata().GetName())
 }

@@ -86,7 +86,6 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: configMapRef.Name}, configMap)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				klog.Error(err, "ConfigMap not found ", "Name: ", configMapRef.Name, " on namespace: ", ns)
 				return nil, nil
 			}
 
@@ -117,14 +116,23 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 
 		err = client.Get(context.TODO(), types.NamespacedName{Namespace: ns, Name: secretRef.Name}, secret)
 		if err != nil {
-			klog.Error(err, "Failed to get secret ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
 			return nil, err
 		}
 
-		klog.V(5).Info("Secret found ", "Name: ", secretRef.Name, " on namespace: ", secretRef.Namespace)
+		klog.V(5).Info("Secret found ", "Name: ", secretRef.Name, " on namespace: ", ns)
 	} else {
 		klog.V(5).Info("No secret defined at ", "parentNamespace", parentNamespace)
 	}
 
 	return secret, err
+}
+
+func IsOwned(owner metav1.ObjectMeta, ownee metav1.ObjectMeta) bool {
+	for _, ownerRef := range ownee.GetOwnerReferences() {
+		if ownerRef.UID == owner.UID {
+			return true
+		}
+	}
+
+	return false
 }
