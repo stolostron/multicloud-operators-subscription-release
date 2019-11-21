@@ -478,7 +478,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
