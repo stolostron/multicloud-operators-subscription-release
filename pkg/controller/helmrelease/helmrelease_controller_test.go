@@ -357,7 +357,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCD)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	g.Expect(instanceRespCD.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
