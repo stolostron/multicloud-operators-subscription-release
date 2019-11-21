@@ -156,9 +156,25 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, err := newHelmReleaseManager(r, sr)
+	helmReleaseManager, releaseSecret, err := newHelmReleaseManager(r, sr)
+	if releaseSecret != nil {
+		annotations := sr.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+
+		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
+		sr.SetAnnotations(annotations)
+
+		err := r.client.Update(context.TODO(), sr)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
 	if err != nil {
-		klog.Error(err, "Failed to create NewManager ", sr.Spec.ChartName)
+		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
 		return err
 	}
 
@@ -166,7 +182,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	err = helmReleaseManager.Sync(context.TODO())
 	if err != nil {
-		klog.Error(err, "Failed to while sync :", sr.Spec.ChartName)
+		klog.Error(err, "- Failed to while sync :", sr.Spec.ChartName)
 		return err
 	}
 
@@ -181,7 +197,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 			if err != nil {
-				klog.Error(err, "Failed to while update chart: ", sr.Spec.ChartName)
+				klog.Error(err, " - Failed to while update chart: ", sr.Spec.ChartName)
 				return err
 			}
 		} else {
@@ -189,7 +205,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 			_, err = helmReleaseManager.InstallRelease(context.TODO())
 			if err != nil {
-				klog.Error(err, "Failed to while install chart: ", sr.Spec.ChartName)
+				klog.Error(err, " - Failed to while install chart: ", sr.Spec.ChartName)
 				return err
 			}
 		}
@@ -198,14 +214,14 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		if helmReleaseManager.IsInstalled() {
 			_, err = helmReleaseManager.UninstallRelease(context.TODO())
 			if err != nil {
-				klog.Error(err, "Failed to while un-install chart: ", sr.Spec.ChartName)
+				klog.Error(err, " - Failed to while un-install chart: ", sr.Spec.ChartName)
 			}
 		}
 		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
 		err := r.client.Update(context.TODO(), sr)
 		if err != nil {
-			klog.Error(err, "Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
+			klog.Error(err, " - Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
 			return err
 		}
 	}
@@ -220,7 +236,7 @@ func (r *ReconcileHelmRelease) addFinalizer(sr *appv1alpha1.HelmRelease) error {
 
 		err := r.client.Update(context.TODO(), sr)
 		if err != nil {
-			klog.Error(err, "Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
+			klog.Error(err, " - Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
 			return err
 		}
 	}
@@ -239,7 +255,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 		err := r.client.Status().Update(context.Background(), s)
 		if err != nil {
-			klog.Error(err, "unable to update status")
+			klog.Error(err, " - unable to update status")
 
 			return reconcile.Result{
 				RequeueAfter: time.Second,
@@ -248,6 +264,8 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 		return reconcile.Result{}, nil
 	}
+
+	klog.Error(issue, " - retrying later")
 
 	var retryInterval time.Duration
 
@@ -260,7 +278,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 	err := r.client.Status().Update(context.Background(), s)
 	if err != nil {
-		klog.Error(err, "unable to update status")
+		klog.Error(err, " - unable to update status")
 
 		return reconcile.Result{
 			RequeueAfter: time.Second,

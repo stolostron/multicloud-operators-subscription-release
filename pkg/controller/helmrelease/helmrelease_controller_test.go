@@ -112,6 +112,8 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
+	time.Sleep(4 * time.Second)
+
 	var expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
 
 	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
@@ -122,6 +124,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
+	t.Logf("Reason: %s", instanceResp.Status.Reason)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
 	//
@@ -222,6 +225,23 @@ func TestReconcile(t *testing.T) {
 		Namespace: helmReleaseNS,
 	}, secret)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	//Check new ReleaseName
+	instanceResp.Spec.ReleaseName = "example-helmrepo-succeed-rename"
+	err = c.Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
+
+	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+
+	time.Sleep(2 * time.Second)
+
+	instanceResp = &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	t.Logf("Reason: %s", instanceResp.Status.Reason)
+	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
 	//Check duplicate
 	helmReleaseName = "example-helmrepo-succeed-duplicate"
@@ -337,7 +357,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCD)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	g.Expect(instanceRespCD.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
@@ -458,9 +478,9 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(6 * time.Second)
 
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 
 	// TestNewManagerShortReleaseName
@@ -486,9 +506,9 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 
 	// TestNewManagerValues
@@ -515,14 +535,14 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	//Values well formed
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 	//Values not a yaml
 	instance.Spec.Values = "l1:\nl2"
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
 
 	// TestNewManagerErrors
@@ -553,13 +573,13 @@ func TestReconcile(t *testing.T) {
 
 	//Config nil
 	rec.config = nil
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
 	//Download Chart should fail
 	rec.config = mgr.GetConfig()
 	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
 	instance.Spec.Values = "l1:\nl2"
-	_, err = newHelmReleaseManager(rec, instance)
+	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
 
 	// TestNewManagerForDeletion
@@ -594,10 +614,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	instance.GetObjectMeta().SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
-	mgrhr, err := newHelmReleaseManager(rec, instance)
+	mgrhr, _, err := newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 
 	assert.Equal(t, mgrhr.ReleaseName(), helmReleaseName)

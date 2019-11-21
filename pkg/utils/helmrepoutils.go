@@ -80,7 +80,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 					return nil, nil
 				}
 
-				klog.Error(err, "Unable to parse insecureSkipVerify", insecureSkipVerify)
+				klog.Error(err, " - Unable to parse insecureSkipVerify", insecureSkipVerify)
 
 				return nil, err
 			}
@@ -110,7 +110,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
 		err := os.MkdirAll(destRepo, 0755)
 		if err != nil {
-			klog.Error(err, "Unable to create chartDir: ", destRepo)
+			klog.Error(err, " - Unable to create chartDir: ", destRepo)
 			return "", err
 		}
 	}
@@ -177,7 +177,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errClone != nil {
 			os.RemoveAll(destRepo)
-			klog.Error(errClone, "Clone failed: ", url)
+			klog.Error(errClone, " - Clone failed: ", url)
 			err = errClone
 
 			continue
@@ -187,7 +187,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 
 		if errHead != nil {
 			os.RemoveAll(destRepo)
-			klog.Error(errHead, "Get Head failed: ", url)
+			klog.Error(errHead, " - Get Head failed: ", url)
 			err = errHead
 
 			continue
@@ -198,7 +198,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	}
 
 	if err != nil {
-		klog.Error(err, "All urls failed")
+		klog.Error(err, " - All urls failed")
 	}
 
 	return commitID, err
@@ -219,7 +219,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
 		chartZip, downloadErr := downloadFile(s.Namespace, configMap, urlelem, secret, destRepo)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "url", urlelem)
+			klog.Error(downloadErr, " - url: ", urlelem)
 			continue
 		}
 
@@ -227,7 +227,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 
 		r, downloadErr = os.Open(chartZip)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Failed to open: ", chartZip)
+			klog.Error(downloadErr, " - Failed to open: ", chartZip)
 			continue
 		}
 
@@ -239,7 +239,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 		if downloadErr != nil {
 			//Remove zip because failed to untar and so probably corrupted
 			os.RemoveAll(chartZip)
-			klog.Error(downloadErr, "Failed to unzip: ", chartZip)
+			klog.Error(downloadErr, "- Failed to unzip: ", chartZip)
 
 			continue
 		}
@@ -257,7 +257,7 @@ func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 
 	URLP, downloadErr := url.Parse(fileURL)
 	if downloadErr != nil {
-		klog.Error(downloadErr, " url:", fileURL)
+		klog.Error(downloadErr, " - url:", fileURL)
 		return "", downloadErr
 	}
 
@@ -283,7 +283,7 @@ func downloadFileLocal(urlP *url.URL,
 	chartZip string) error {
 	sourceFile, downloadErr := os.Open(urlP.RequestURI())
 	if downloadErr != nil {
-		klog.Error(downloadErr, " urlP.RequestURI:", urlP.RequestURI())
+		klog.Error(downloadErr, " - urlP.RequestURI: ", urlP.RequestURI())
 		return downloadErr
 	}
 
@@ -292,7 +292,7 @@ func downloadFileLocal(urlP *url.URL,
 	// Create new file
 	newFile, downloadErr := os.Create(chartZip)
 	if downloadErr != nil {
-		klog.Error(downloadErr, " chartZip:", chartZip)
+		klog.Error(downloadErr, " - chartZip: ", chartZip)
 		return downloadErr
 	}
 
@@ -314,7 +314,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	if _, err := os.Stat(chartZip); os.IsNotExist(err) {
 		httpClient, downloadErr := GetHelmRepoClient(parentNamespace, configMap)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Failed to create httpClient")
+			klog.Error(downloadErr, " - Failed to create httpClient")
 			return downloadErr
 		}
 
@@ -322,7 +322,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 
 		req, downloadErr = http.NewRequest(http.MethodGet, fileURL, nil)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Can not build request: ", "fileURL", fileURL)
+			klog.Error(downloadErr, "- Can not build request: ", "fileURL", fileURL)
 			return downloadErr
 		}
 
@@ -334,13 +334,13 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 
 		resp, downloadErr = httpClient.Do(req)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Http request failed: ", "fileURL", fileURL)
+			klog.Error(downloadErr, "- Http request failed: ", "fileURL", fileURL)
 			return downloadErr
 		}
 
 		if resp.StatusCode != 200 {
 			downloadErr = fmt.Errorf("return code: %d unable to retrieve chart", resp.StatusCode)
-			klog.Error(downloadErr, "Unable to retrieve chart")
+			klog.Error(downloadErr, " - Unable to retrieve chart")
 
 			return downloadErr
 		}
@@ -353,7 +353,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 
 		out, downloadErr = os.Create(chartZip)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Failed to create: ", chartZip)
+			klog.Error(downloadErr, " - Failed to create: ", chartZip)
 			return downloadErr
 		}
 
@@ -362,7 +362,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 		// Write the body to file
 		_, downloadErr = io.Copy(out, resp.Body)
 		if downloadErr != nil {
-			klog.Error(downloadErr, "Failed to copy body:", chartZip)
+			klog.Error(downloadErr, " - Failed to copy body:", chartZip)
 			return downloadErr
 		}
 	}
@@ -479,7 +479,7 @@ func GenerateGitHubIndexFile(configMap *corev1.ConfigMap,
 	branch string) (indexFile *repo.IndexFile, hash string, err error) {
 	hash, err = DownloadGitHubRepo(configMap, secret, destDir, urls, branch)
 	if err != nil {
-		klog.Error(err, "Failed to download the repo")
+		klog.Error(err, " - Failed to download the repo")
 		return nil, "", err
 	}
 
@@ -488,7 +488,7 @@ func GenerateGitHubIndexFile(configMap *corev1.ConfigMap,
 
 	indexFile, err = generateIndexFile(chartsPath)
 	if err != nil {
-		klog.Error(err, "Can not generate index file")
+		klog.Error(err, " - Can not generate index file")
 		return nil, "", err
 	}
 
@@ -551,7 +551,7 @@ func generateIndexFile(chartsPath string) (*repo.IndexFile, error) {
 
 		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
 		if err != nil {
-			klog.Error(err, "There was a problem in generating helm charts index file: ")
+			klog.Error(err, " - There was a problem in generating helm charts index file: ")
 			return nil, err
 		}
 
@@ -572,7 +572,7 @@ func GetHelmRepoIndex(configMap *corev1.ConfigMap,
 	urls []string) (indexFile *repo.IndexFile, hash string, err error) {
 	httpClient, err := GetHelmRepoClient(parentNamespace, configMap)
 	if err != nil {
-		klog.Error(err, "Unable to create client for helm repo",
+		klog.Error(err, " - Unable to create client for helm repo",
 			"urls", urls)
 	}
 
@@ -583,7 +583,7 @@ func GetHelmRepoIndex(configMap *corev1.ConfigMap,
 
 		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
 		if err != nil {
-			klog.Error(err, "Can not build request: ", cleanRepoURL)
+			klog.Error(err, " - Can not build request: ", cleanRepoURL)
 			continue
 		}
 
@@ -604,7 +604,7 @@ func GetHelmRepoIndex(configMap *corev1.ConfigMap,
 
 		resp, err = httpClient.Do(req)
 		if err != nil {
-			klog.Error(err, "Http request failed: ", "cleanRepoURL", cleanRepoURL)
+			klog.Error(err, " - Http request failed: ", "cleanRepoURL", cleanRepoURL)
 			continue
 		}
 
@@ -621,25 +621,25 @@ func GetHelmRepoIndex(configMap *corev1.ConfigMap,
 
 		body, err = ioutil.ReadAll(resp.Body)
 		if err != nil {
-			klog.Error(err, "Unable to read body of ", cleanRepoURL)
+			klog.Error(err, " - Unable to read body of ", cleanRepoURL)
 			continue
 		}
 
 		hash, err = HashKey(body)
 		if err != nil {
-			klog.Error(err, "Unable to generate hashkey")
+			klog.Error(err, " - Unable to generate hashkey")
 			continue
 		}
 
 		indexFile, err = UnmarshalIndex(body)
 		if err != nil {
-			klog.Error(err, "Unable to parse the indexfile of ", cleanRepoURL)
+			klog.Error(err, " - Unable to parse the indexfile of ", cleanRepoURL)
 			continue
 		}
 	}
 
 	if err != nil {
-		klog.Error(err, "All repo URL tested and all failed")
+		klog.Error(err, " - All repo URL tested and all failed")
 		return nil, "", err
 	}
 
@@ -664,7 +664,7 @@ func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir str
 	if _, err := os.Stat(dirName); os.IsNotExist(err) {
 		err := os.MkdirAll(dirName, 0755)
 		if err != nil {
-			klog.Error(err, "Unable to create chartDir: ", dirName)
+			klog.Error(err, " - Unable to create chartDir: ", dirName)
 			return "", err
 		}
 	}

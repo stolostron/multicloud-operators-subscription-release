@@ -32,7 +32,7 @@ import (
 func LabelsChecker(labelSelector *metav1.LabelSelector, ls map[string]string) bool {
 	clSelector, err := ConvertLabels(labelSelector)
 	if err != nil {
-		klog.Error("Failed to set label selector: ", labelSelector, " err:", err)
+		klog.Error(" - Failed to set label selector: ", labelSelector, " err:", err)
 	}
 
 	return clSelector.Matches(labels.Set(ls))
@@ -89,7 +89,7 @@ func GetConfigMap(client client.Client, parentNamespace string, configMapRef *co
 				return nil, nil
 			}
 
-			klog.Error(err, "Failed to get configMap ", "Name: ", configMapRef.Name, " on namespace: ", ns)
+			klog.Error(err, " - Failed to get configMap ", "Name: ", configMapRef.Name, " on namespace: ", ns)
 
 			return nil, err
 		}
