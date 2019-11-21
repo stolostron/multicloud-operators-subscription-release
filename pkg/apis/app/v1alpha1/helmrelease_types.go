@@ -37,6 +37,10 @@ const (
 	HelmReleaseSuccess HelmReleaseStatusEnum = "Success"
 )
 
+const (
+	ReleaseSecretAnnotationKey = "release-secret"
+)
+
 //SourceTypeEnum types of sources
 type SourceTypeEnum string
 

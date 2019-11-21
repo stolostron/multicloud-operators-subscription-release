@@ -156,9 +156,25 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, err := newHelmReleaseManager(r, sr)
+	helmReleaseManager, releaseSecret, err := newHelmReleaseManager(r, sr)
+	if releaseSecret != nil {
+		annotations := sr.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+
+		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
+		sr.SetAnnotations(annotations)
+
+		err := r.client.Update(context.TODO(), sr)
+		if err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
 	if err != nil {
-		klog.Error(err, "Failed to create NewManager ", sr.Spec.ChartName)
+		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
 		return err
 	}
 
@@ -166,7 +182,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	err = helmReleaseManager.Sync(context.TODO())
 	if err != nil {
-		klog.Error(err, "Failed to while sync :", sr.Spec.ChartName)
+		klog.Error(err, "- Failed to while sync :", sr.Spec.ChartName)
 		return err
 	}
 
@@ -248,6 +264,8 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 		return reconcile.Result{}, nil
 	}
+
+	klog.Error(issue, " - retrying later")
 
 	var retryInterval time.Duration
 
