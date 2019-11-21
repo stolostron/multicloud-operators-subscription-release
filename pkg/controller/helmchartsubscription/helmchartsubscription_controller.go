@@ -140,7 +140,7 @@ func (r *ReconcileSubscription) Reconcile(request reconcile.Request) (reconcile.
 			return reconcile.Result{}, r.cleanSubscriber(subkey)
 		}
 		// Error reading the object - requeue the request.
-		klog.Error(err, "Error reading the object - requeue the request")
+		klog.Error(err, " - Error reading the object - requeue the request")
 
 		return reconcile.Result{}, err
 	}
@@ -200,7 +200,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 
 		err := r.client.Status().Update(context.Background(), s)
 		if err != nil {
-			klog.Error(err, "unable to update status")
+			klog.Error(err, "- unable to update status")
 
 			return reconcile.Result{
 				RequeueAfter: time.Second,
@@ -221,7 +221,7 @@ func (r *ReconcileSubscription) SetStatus(s *appv1alpha1.HelmChartSubscription, 
 
 	err := r.client.Status().Update(context.Background(), s)
 	if err != nil {
-		klog.Error(err, "unable to update status")
+		klog.Error(err, " - unable to update status")
 
 		return reconcile.Result{
 			RequeueAfter: time.Second,

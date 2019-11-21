@@ -88,7 +88,7 @@ func (s *HelmRepoSubscriber) Restart() error {
 		go wait.Until(func() {
 			err := s.doHelmChartSubscription()
 			if err != nil {
-				klog.Error(err, "Error while managing the helmChartSubscription")
+				klog.Error(err, " - Error while managing the helmChartSubscription")
 			}
 		}, subscriptionPeriod, s.stopCh)
 
@@ -154,7 +154,7 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 	}
 
 	if err != nil {
-		klog.Error(err, "Unable to retrieve the helm repo index at ", url)
+		klog.Error(err, " - Unable to retrieve the helm repo index at ", url)
 		return err
 	}
 
@@ -167,7 +167,7 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 
 		err = s.processHelmChartSubscription(indexFile)
 		if err != nil {
-			klog.Error(err, "Error processing subscription")
+			klog.Error(err, " - Error processing subscription")
 			return err
 		}
 	} else {
@@ -181,7 +181,7 @@ func (s *HelmRepoSubscriber) doHelmChartSubscription() error {
 func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexFile) error {
 	err := s.filterCharts(indexFile)
 	if err != nil {
-		klog.Error(err, "Unable to filter ")
+		klog.Error(err, " - Unable to filter ")
 		return err
 	}
 
@@ -192,17 +192,17 @@ func (s *HelmRepoSubscriber) processHelmChartSubscription(indexFile *repo.IndexF
 func (s *HelmRepoSubscriber) getHelmRepoIndexFile() (indexFile *repo.IndexFile, hash string, err error) {
 	configMap, err := utils.GetConfigMap(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.ConfigMapRef)
 	if err != nil {
-		klog.Error(err, "Failed to retrieve configMap ", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
+		klog.Error(err, " - Failed to retrieve configMap ", s.HelmChartSubscription.Spec.ConfigMapRef.Name)
 	}
 
 	secret, err := utils.GetSecret(s.Client, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.SecretRef)
 	if err != nil {
-		klog.Error(err, "Failed to retrieve secret ", s.HelmChartSubscription.Spec.SecretRef.Name)
+		klog.Error(err, " - Failed to retrieve secret ", s.HelmChartSubscription.Spec.SecretRef.Name)
 	}
 
 	indexFile, hash, err = utils.GetHelmRepoIndex(configMap, secret, s.HelmChartSubscription.Namespace, s.HelmChartSubscription.Spec.Source.HelmRepo.Urls)
 	if err != nil {
-		klog.Error(err, "Failed to get the index.yaml")
+		klog.Error(err, " - Failed to get the index.yaml")
 		return nil, "", err
 	}
 
@@ -225,7 +225,7 @@ func (s *HelmRepoSubscriber) generateGitHubIndexFile() (*repo.IndexFile, string,
 	if chartsDir == "" {
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {
-			klog.Error(err, "Can not create tempdir")
+			klog.Error(err, " - Can not create tempdir")
 			return nil, "", err
 		}
 	}
@@ -241,7 +241,7 @@ func (s *HelmRepoSubscriber) generateGitHubIndexFile() (*repo.IndexFile, string,
 		github.ChartsPath,
 		github.Branch)
 	if err != nil {
-		klog.Error(err, "Can not generate index file")
+		klog.Error(err, " - Can not generate index file")
 		return nil, "", err
 	}
 
@@ -253,7 +253,7 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 	//Removes all entries from the indexFile with non matching name
 	err = s.removeNoMatchingName(indexFile)
 	if err != nil {
-		klog.Error(err, "Failed to removeNoMatchingName")
+		klog.Error(err, " - Failed to removeNoMatchingName")
 		return err
 	}
 	//Removes non matching version, tillerVersion, digest
@@ -261,7 +261,7 @@ func (s *HelmRepoSubscriber) filterCharts(indexFile *repo.IndexFile) (err error)
 	//Keep only the lastest version if multiple remains after filtering.
 	err = s.takeLatestVersion(indexFile)
 	if err != nil {
-		klog.Error(err, "Failed to takeLatestVersion")
+		klog.Error(err, " - Failed to takeLatestVersion")
 		return err
 	}
 
@@ -350,13 +350,13 @@ func (s *HelmRepoSubscriber) checkTillerVersion(chartVersion *repo.ChartVersion)
 					if tillerVersion != "" {
 						tillerVersionVersion, err := semver.ParseRange(tillerVersion)
 						if err != nil {
-							klog.Error(err, "Error while parsing tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
+							klog.Error(err, " - Error while parsing tillerVersion: ", tillerVersion, " of ", chartVersion.GetName())
 							return false
 						}
 
 						filterTillerVersion, err := semver.Parse(filterTillerVersion)
 						if err != nil {
-							klog.Error(err, "Failed to Parse filterTillerVersion: ", filterTillerVersion)
+							klog.Error(err, " - Failed to Parse filterTillerVersion: ", filterTillerVersion)
 							return false
 						}
 
@@ -379,13 +379,13 @@ func (s *HelmRepoSubscriber) checkVersion(chartVersion *repo.ChartVersion) bool 
 
 				versionVersion, err := semver.Parse(version)
 				if err != nil {
-					klog.Error(err, "Failed to parse version: ", version)
+					klog.Error(err, " - Failed to parse version: ", version)
 					return false
 				}
 
 				filterVersion, err := semver.ParseRange(s.HelmChartSubscription.Spec.PackageFilter.Version)
 				if err != nil {
-					klog.Error(err, "Failed to parse range ", s.HelmChartSubscription.Spec.PackageFilter.Version)
+					klog.Error(err, " - Failed to parse range ", s.HelmChartSubscription.Spec.PackageFilter.Version)
 					return false
 				}
 
@@ -409,7 +409,7 @@ func (s *HelmRepoSubscriber) takeLatestVersion(indexFile *repo.IndexFile) (err e
 		// "*" is equivalent to ">=0.0.0"
 		chartVersion, err := indexFile.Get(k, ">=0.0.0")
 		if err != nil {
-			klog.Error(err, "Failed to get the latest version")
+			klog.Error(err, " - Failed to get the latest version")
 			return err
 		}
 
