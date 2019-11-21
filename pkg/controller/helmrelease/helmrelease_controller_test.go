@@ -127,6 +127,10 @@ func TestReconcile(t *testing.T) {
 	t.Logf("Reason: %s", instanceResp.Status.Reason)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
 	//
 	//Github failed
 	//
@@ -173,6 +177,10 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	//
 	//helmRepo succeeds
@@ -243,6 +251,10 @@ func TestReconcile(t *testing.T) {
 	t.Logf("Reason: %s", instanceResp.Status.Reason)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
 	//Check duplicate
 	helmReleaseName = "example-helmrepo-succeed-duplicate"
 	helmReleaseKey = types.NamespacedName{
@@ -266,6 +278,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	//
 	//helmRepo failure
@@ -312,6 +328,10 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	//
 	//Github succeed create-delete
@@ -454,6 +474,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespUp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
 	// TestNewManager
 	helmReleaseName = "test-new-manager"
 
@@ -511,6 +535,10 @@ func TestReconcile(t *testing.T) {
 	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
 	// TestNewManagerValues
 	helmReleaseName = "test-new-manager-values"
 	instance = &appv1alpha1.HelmRelease{
@@ -544,6 +572,10 @@ func TestReconcile(t *testing.T) {
 	instance.Spec.Values = "l1:\nl2"
 	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	// TestNewManagerErrors
 	helmReleaseName = "test-new-manager-errors"
@@ -581,6 +613,10 @@ func TestReconcile(t *testing.T) {
 	instance.Spec.Values = "l1:\nl2"
 	_, _, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 	// TestNewManagerForDeletion
 	chartsDir, err := ioutil.TempDir("/tmp", "charts")
@@ -625,4 +661,8 @@ func TestReconcile(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(chartsDir, instance.Spec.ChartName, "Chart.yaml")); err != nil {
 		assert.Fail(t, err.Error())
 	}
+
+	err = c.Delete(context.TODO(), instance)
+	assert.NoError(t, err)
+	time.Sleep(2 * time.Second)
 }
