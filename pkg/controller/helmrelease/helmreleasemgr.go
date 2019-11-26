@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/ghodss/yaml"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
@@ -39,13 +38,13 @@ import (
 
 //newHelmReleaseManager create a new manager returns a helmManager and the new created secret
 func (r *ReconcileHelmRelease) newHelmReleaseManager(
-	s *appv1alpha1.HelmRelease) (helmrelease.Manager, *corev1.Secret, error) {
+	s *appv1alpha1.HelmRelease) (helmrelease.Manager, error) {
 	helmReleaseSecret, err := utils.GetSecret(r.GetClient(),
 		s.Namespace,
 		&corev1.ObjectReference{Name: s.Spec.ReleaseName})
 	if err == nil {
 		if !utils.IsOwned(s.ObjectMeta, helmReleaseSecret.ObjectMeta) {
-			return nil, nil,
+			return nil,
 				fmt.Errorf("duplicate release name: found existing release with name %q for another helmRelease %v",
 					s.Spec.ReleaseName, helmReleaseSecret.GetOwnerReferences())
 		}
@@ -53,22 +52,22 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 		helmReleaseSecret, err = createSecret(r, s)
 		if err != nil {
 			klog.Error(err)
-			return nil, helmReleaseSecret, err
+			return nil, err
 		}
 	} else {
-		return nil, nil, err
+		return nil, err
 	}
 
 	configMap, err := utils.GetConfigMap(r.GetClient(), s.Namespace, s.Spec.ConfigMapRef)
 	if err != nil {
 		klog.Error(err)
-		return nil, helmReleaseSecret, err
+		return nil, err
 	}
 
 	secret, err := utils.GetSecret(r.GetClient(), s.Namespace, s.Spec.SecretRef)
 	if err != nil {
 		klog.Error(err, " - Failed to retrieve secret ", s.Spec.SecretRef.Name)
-		return nil, helmReleaseSecret, err
+		return nil, err
 	}
 
 	o := &unstructured.Unstructured{}
@@ -88,17 +87,17 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {
 			klog.Error(err, " - Can not create tempdir")
-			return nil, helmReleaseSecret, err
+			return nil, err
 		}
 	}
 
 	chartDir, err := utils.DownloadChart(configMap, secret, chartsDir, s)
 	klog.V(3).Info("ChartDir: ", chartDir)
 
-	if s.DeletionTimestamp.IsZero() {
+	if s.DeletionTimestamp == nil {
 		if err != nil {
 			klog.Error(err, " - Failed to download the chart")
-			return nil, helmReleaseSecret, err
+			return nil, err
 		}
 
 		if s.Spec.Values != "" {
@@ -107,7 +106,7 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 			err = yaml.Unmarshal([]byte(s.Spec.Values), &spec)
 			if err != nil {
 				klog.Error(err, " - Failed to Unmarshal the values ", s.Spec.Values)
-				return nil, helmReleaseSecret, err
+				return nil, err
 			}
 
 			o.Object["spec"] = spec
@@ -119,7 +118,7 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 		chartDir, err = utils.CreateFakeChart(chartsDir, s)
 		if err != nil {
 			klog.Error(err, " - Failed to create fake chart for uninstall")
-			return nil, helmReleaseSecret, err
+			return nil, err
 		}
 	}
 
@@ -127,31 +126,13 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 
 	helmManager, err := f.NewManager(o)
 
-	return helmManager, helmReleaseSecret, err
+	return helmManager, err
 }
 
 func createSecret(
 	r *ReconcileHelmRelease,
 	s *appv1alpha1.HelmRelease) (*corev1.Secret, error) {
 	var err error
-
-	if releaseSecretAnnotation, ok := s.GetAnnotations()[appv1alpha1.ReleaseSecretAnnotationKey]; ok {
-		releaseSecretsAnnotation := strings.Split(releaseSecretAnnotation, "/")
-		if len(releaseSecretsAnnotation) != 2 {
-			err = fmt.Errorf("invalid release-secret annotation %s", releaseSecretAnnotation)
-			klog.Error(err)
-
-			return nil, err
-		}
-
-		if releaseSecretsAnnotation[0] != s.GetNamespace() || releaseSecretsAnnotation[1] != s.Spec.ReleaseName {
-			err = fmt.Errorf("release name can not be changed: new %s, old %s",
-				s.Spec.ReleaseName, releaseSecretsAnnotation[1])
-			klog.Error(err)
-
-			return nil, err
-		}
-	}
 
 	relsec := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{

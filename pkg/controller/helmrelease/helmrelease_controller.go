@@ -83,7 +83,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			subRelOld := e.ObjectOld.(*appv1alpha1.HelmRelease)
 			subRelNew := e.ObjectNew.(*appv1alpha1.HelmRelease)
-			if !subRelNew.DeletionTimestamp.IsZero() {
+			if subRelNew.DeletionTimestamp != nil {
+				return true
+			}
+			if len(subRelOld.GetFinalizers()) != len(subRelNew.GetFinalizers()) {
+				// finalizer changes, process it
 				return true
 			}
 			return !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec)
@@ -117,7 +121,8 @@ type ReconcileHelmRelease struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	klog.Info("Reconciling HelmRelease")
+	klog.V(1).Info("Reconciling HelmRelease:", request)
+	klog.Error("Reconciling HelmRelease:", request)
 
 	// Fetch the HelmRelease instance
 	instance := &appv1alpha1.HelmRelease{}
@@ -134,13 +139,18 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	if instance.DeletionTimestamp == nil && r.prepareHelmRelease(instance) {
+		// add finalizer and secret annotation and come again
+		return reconcile.Result{}, nil
+	}
+
 	// Define a new Pod object
 	err = r.manageHelmRelease(instance)
 
 	//if the instance was set for deletion and the finalizer already remove then
 	//no need to update the status
-	if !instance.DeletionTimestamp.IsZero() && !utils.HasFinalizer(instance) {
-		return reconcile.Result{}, nil
+	if instance.DeletionTimestamp != nil && !utils.HasFinalizer(instance) {
+		return reconcile.Result{}, r.GetClient().Update(context.TODO(), instance)
 	}
 
 	return r.SetStatus(instance, err)
@@ -151,24 +161,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, releaseSecret, err := r.newHelmReleaseManager(sr.DeepCopy())
-	if releaseSecret != nil {
-		annotations := sr.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-
-		if annotations[appv1alpha1.ReleaseSecretAnnotationKey] != releaseSecret.GetNamespace()+"/"+releaseSecret.GetName() {
-			annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
-			sr.SetAnnotations(annotations)
-
-			err := r.GetClient().Update(context.TODO(), sr)
-			if err != nil {
-				klog.Error(err)
-				return err
-			}
-		}
-	}
+	helmReleaseManager, err := r.newHelmReleaseManager(sr)
 
 	if err != nil {
 		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
@@ -183,14 +176,9 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		return err
 	}
 
-	if sr.DeletionTimestamp.IsZero() {
-		err = r.addFinalizer(sr)
-		if err != nil {
-			return err
-		}
-
+	if sr.DeletionTimestamp == nil {
 		if helmReleaseManager.IsInstalled() {
-			klog.Info("Update chart ", sr.Spec.ChartName)
+			klog.Error("Update chart ", sr.Spec.ChartName)
 
 			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 			if err != nil {
@@ -198,7 +186,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 				return err
 			}
 		} else {
-			klog.Info("Install chart: ", sr.Spec.ChartName)
+			klog.Error("Install chart: ", sr.Spec.ChartName)
 
 			_, err = helmReleaseManager.InstallRelease(context.TODO())
 			if err != nil {
@@ -207,7 +195,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 			}
 		}
 	} else {
-		klog.Info("Delete chart: ", sr.Spec.ChartName)
+		klog.Error("Delete chart: ", sr.Spec.ChartName)
 		if helmReleaseManager.IsInstalled() {
 			_, err = helmReleaseManager.UninstallRelease(context.TODO())
 			if err != nil {
@@ -216,41 +204,64 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		}
 		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
-		err := r.GetClient().Update(context.TODO(), sr)
-		if err != nil {
-			klog.Error(err, " - Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
-			return err
-		}
 	}
 
 	return nil
 }
 
-func (r *ReconcileHelmRelease) addFinalizer(sr *appv1alpha1.HelmRelease) error {
+func (r *ReconcileHelmRelease) prepareHelmRelease(sr *appv1alpha1.HelmRelease) bool {
+	needUpdate := false
+
 	if !utils.HasFinalizer(sr) {
 		klog.Info("Add finalizer: ", sr.Name)
 		utils.AddFinalizer(sr)
 
+		needUpdate = true
+	}
+
+	annotations := sr.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	exsec := annotations[appv1alpha1.ReleaseSecretAnnotationKey]
+	relsec := sr.Namespace + "/" + sr.Spec.ReleaseName
+
+	if exsec == "" {
+		exsec = relsec
+		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = relsec
+		sr.SetAnnotations(annotations)
+
+		needUpdate = true
+	}
+
+	if exsec != relsec {
+		err := fmt.Errorf("release name can not be changed: new %s, old %s", relsec, exsec)
+		_, _ = r.SetStatus(sr, err)
+
+		return true
+	}
+
+	if needUpdate {
 		err := r.GetClient().Update(context.TODO(), sr)
 		if err != nil {
-			klog.Error(err, " - Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
-			return err
+			klog.Error(err, " - Unable to prepare helmrelease:", sr.Namespace, "/", sr.Name)
 		}
 	}
 
-	return nil
+	return needUpdate
 }
 
 //SetStatus set the subscription release status
-func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error) (reconcile.Result, error) {
+func (r *ReconcileHelmRelease) SetStatus(instance *appv1alpha1.HelmRelease, issue error) (reconcile.Result, error) {
 	//Success
 	if issue == nil {
-		s.Status.Message = ""
-		s.Status.Status = appv1alpha1.HelmReleaseSuccess
-		s.Status.Reason = ""
-		s.Status.LastUpdateTime = metav1.Now()
+		instance.Status.Message = ""
+		instance.Status.Status = appv1alpha1.HelmReleaseSuccess
+		instance.Status.Reason = ""
+		instance.Status.LastUpdateTime = metav1.Now()
 
-		err := r.GetClient().Status().Update(context.Background(), s)
+		err := r.GetClient().Status().Update(context.TODO(), instance)
 		if err != nil {
 			klog.Error(err, " - unable to update status")
 
@@ -266,14 +277,14 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 
 	var retryInterval time.Duration
 
-	lastUpdate := s.Status.LastUpdateTime.Time
-	lastStatus := s.Status.Status
-	s.Status.Message = "Error, retrying later"
-	s.Status.Reason = issue.Error()
-	s.Status.Status = appv1alpha1.HelmReleaseFailed
-	s.Status.LastUpdateTime = metav1.Now()
+	lastUpdate := instance.Status.LastUpdateTime.Time
+	lastStatus := instance.Status.Status
+	instance.Status.Message = "Error, retrying later"
+	instance.Status.Reason = issue.Error()
+	instance.Status.Status = appv1alpha1.HelmReleaseFailed
+	instance.Status.LastUpdateTime = metav1.Now()
 
-	err := r.GetClient().Status().Update(context.Background(), s)
+	err := r.GetClient().Status().Update(context.TODO(), instance)
 	if err != nil {
 		klog.Error(err, " - unable to update status")
 
