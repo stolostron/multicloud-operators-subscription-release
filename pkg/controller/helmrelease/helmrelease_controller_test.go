@@ -504,8 +504,9 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err := newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
+	assert.Equal(t, true, secretCreated)
 
 	// TestNewManagerShortReleaseName
 	helmReleaseName = "test-new-manager-short-release-name"
@@ -532,8 +533,9 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
+	assert.Equal(t, true, secretCreated)
 
 	err = c.Delete(context.TODO(), instance)
 	assert.NoError(t, err)
@@ -566,12 +568,14 @@ func TestReconcile(t *testing.T) {
 	time.Sleep(6 * time.Second)
 
 	//Values well formed
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err = newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
+	assert.Equal(t, true, secretCreated)
 	//Values not a yaml
 	instance.Spec.Values = "l1:\nl2"
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
+	assert.Equal(t, false, secretCreated)
 
 	err = c.Delete(context.TODO(), instance)
 	assert.NoError(t, err)
@@ -605,14 +609,16 @@ func TestReconcile(t *testing.T) {
 
 	//Config nil
 	rec.config = nil
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
+	assert.Equal(t, false, secretCreated)
 	//Download Chart should fail
 	rec.config = mgr.GetConfig()
 	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
 	instance.Spec.Values = "l1:\nl2"
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, secretCreated, err = newHelmReleaseManager(rec, instance)
 	assert.Error(t, err)
+	assert.Equal(t, false, secretCreated)
 
 	err = c.Delete(context.TODO(), instance)
 	assert.NoError(t, err)
@@ -653,7 +659,7 @@ func TestReconcile(t *testing.T) {
 	time.Sleep(6 * time.Second)
 
 	instance.GetObjectMeta().SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
-	mgrhr, _, err := newHelmReleaseManager(rec, instance)
+	mgrhr, _, _, err := newHelmReleaseManager(rec, instance)
 	assert.NoError(t, err)
 
 	assert.Equal(t, mgrhr.ReleaseName(), helmReleaseName)

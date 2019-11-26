@@ -156,14 +156,21 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, releaseSecret, err := newHelmReleaseManager(r, sr)
-	if releaseSecret != nil {
+	helmReleaseManager, helmReleaseSecret, secretCreated, err := newHelmReleaseManager(r, sr)
+
+	if err != nil {
+		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
+		return err
+	}
+
+	//Add secret refeerence in the helmrelease
+	if secretCreated && helmReleaseSecret != nil {
 		annotations := sr.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
 
-		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
+		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = helmReleaseSecret.GetNamespace() + "/" + helmReleaseSecret.GetName()
 		sr.SetAnnotations(annotations)
 
 		err := r.client.Update(context.TODO(), sr)
@@ -171,11 +178,6 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 			klog.Error(err)
 			return err
 		}
-	}
-
-	if err != nil {
-		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
-		return err
 	}
 
 	klog.V(5).Info("Sync repo")
@@ -205,6 +207,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 			_, err = helmReleaseManager.InstallRelease(context.TODO())
 			if err != nil {
+				_ = deleteCreatedSecret(r, helmReleaseSecret, secretCreated)
 				klog.Error(err, " - Failed to while install chart: ", sr.Spec.ChartName)
 				return err
 			}
