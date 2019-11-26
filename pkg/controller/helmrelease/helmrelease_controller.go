@@ -122,7 +122,6 @@ type ReconcileHelmRelease struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	klog.V(1).Info("Reconciling HelmRelease:", request)
-	klog.Error("Reconciling HelmRelease:", request)
 
 	// Fetch the HelmRelease instance
 	instance := &appv1alpha1.HelmRelease{}
@@ -157,7 +156,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 }
 
 func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
-	klog.V(3).Info(fmt.Sprintf("chart: %s-%s", sr.Spec.ChartName, sr.Spec.Version))
+	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.Spec.ReleaseName, "annotations:", sr.GetAnnotations())
 
 	klog.V(5).Info("Create Manager")
 
@@ -178,7 +177,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	if sr.DeletionTimestamp == nil {
 		if helmReleaseManager.IsInstalled() {
-			klog.Error("Update chart ", sr.Spec.ChartName)
+			klog.Info("Update chart ", sr.Spec.ChartName)
 
 			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
 			if err != nil {
@@ -186,7 +185,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 				return err
 			}
 		} else {
-			klog.Error("Install chart: ", sr.Spec.ChartName)
+			klog.Info("Install chart: ", sr.Spec.ChartName)
 
 			_, err = helmReleaseManager.InstallRelease(context.TODO())
 			if err != nil {
@@ -195,7 +194,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 			}
 		}
 	} else {
-		klog.Error("Delete chart: ", sr.Spec.ChartName)
+		klog.Info("Delete chart: ", sr.Spec.ChartName)
 		if helmReleaseManager.IsInstalled() {
 			_, err = helmReleaseManager.UninstallRelease(context.TODO())
 			if err != nil {
@@ -210,6 +209,8 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 }
 
 func (r *ReconcileHelmRelease) prepareHelmRelease(sr *appv1alpha1.HelmRelease) bool {
+	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.Spec.ReleaseName, "annotations:", sr.GetAnnotations())
+
 	needUpdate := false
 
 	if !utils.HasFinalizer(sr) {
@@ -273,7 +274,7 @@ func (r *ReconcileHelmRelease) SetStatus(instance *appv1alpha1.HelmRelease, issu
 		return reconcile.Result{}, nil
 	}
 
-	klog.Error(issue, " - retrying later")
+	klog.Info(issue, " in helmrelease ", instance.Namespace, "/", instance.Name, " - retrying later")
 
 	var retryInterval time.Duration
 
