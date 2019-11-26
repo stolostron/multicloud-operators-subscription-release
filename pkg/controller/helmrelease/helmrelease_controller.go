@@ -28,10 +28,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -57,7 +54,7 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileHelmRelease{config: mgr.GetConfig(), client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcileHelmRelease{mgr}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -111,9 +108,7 @@ var _ reconcile.Reconciler = &ReconcileHelmRelease{}
 type ReconcileHelmRelease struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	config *rest.Config
-	client client.Client
-	scheme *runtime.Scheme
+	manager.Manager
 }
 
 // Reconcile reads that state of the cluster for a HelmRelease object and makes changes based on the state read
@@ -127,7 +122,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	// Fetch the HelmRelease instance
 	instance := &appv1alpha1.HelmRelease{}
 
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	err := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -156,20 +151,22 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 
 	klog.V(5).Info("Create Manager")
 
-	helmReleaseManager, releaseSecret, err := newHelmReleaseManager(r, sr)
+	helmReleaseManager, releaseSecret, err := r.newHelmReleaseManager(sr.DeepCopy())
 	if releaseSecret != nil {
 		annotations := sr.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
 
-		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
-		sr.SetAnnotations(annotations)
+		if annotations[appv1alpha1.ReleaseSecretAnnotationKey] != releaseSecret.GetNamespace()+"/"+releaseSecret.GetName() {
+			annotations[appv1alpha1.ReleaseSecretAnnotationKey] = releaseSecret.GetNamespace() + "/" + releaseSecret.GetName()
+			sr.SetAnnotations(annotations)
 
-		err := r.client.Update(context.TODO(), sr)
-		if err != nil {
-			klog.Error(err)
-			return err
+			err := r.GetClient().Update(context.TODO(), sr)
+			if err != nil {
+				klog.Error(err)
+				return err
+			}
 		}
 	}
 
@@ -219,7 +216,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 		}
 		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
 		utils.RemoveFinalizer(sr)
-		err := r.client.Update(context.TODO(), sr)
+		err := r.GetClient().Update(context.TODO(), sr)
 		if err != nil {
 			klog.Error(err, " - Unable to remove finalizer from helmrease: ", sr.Namespace, "/", sr.Name)
 			return err
@@ -234,7 +231,7 @@ func (r *ReconcileHelmRelease) addFinalizer(sr *appv1alpha1.HelmRelease) error {
 		klog.Info("Add finalizer: ", sr.Name)
 		utils.AddFinalizer(sr)
 
-		err := r.client.Update(context.TODO(), sr)
+		err := r.GetClient().Update(context.TODO(), sr)
 		if err != nil {
 			klog.Error(err, " - Unable to add finalizer helmrelease:", sr.Namespace, "/", sr.Name)
 			return err
@@ -253,7 +250,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 		s.Status.Reason = ""
 		s.Status.LastUpdateTime = metav1.Now()
 
-		err := r.client.Status().Update(context.Background(), s)
+		err := r.GetClient().Status().Update(context.Background(), s)
 		if err != nil {
 			klog.Error(err, " - unable to update status")
 
@@ -276,7 +273,7 @@ func (r *ReconcileHelmRelease) SetStatus(s *appv1alpha1.HelmRelease, issue error
 	s.Status.Status = appv1alpha1.HelmReleaseFailed
 	s.Status.LastUpdateTime = metav1.Now()
 
-	err := r.client.Status().Update(context.Background(), s)
+	err := r.GetClient().Status().Update(context.Background(), s)
 	if err != nil {
 		klog.Error(err, " - unable to update status")
 

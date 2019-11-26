@@ -33,21 +33,15 @@ import (
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
 )
 
-// var c client.Client
-
-const timeout = time.Second * 5
-
 var (
 	helmReleaseNS = "kube-system"
 )
 
-func TestReconcile(t *testing.T) {
+func TestGithubFailed(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
 	// channel when it is finished.
-
-	t.Log("Create manager")
 
 	mgr, err := manager.New(cfg, manager.Options{
 		MetricsBindAddress: "0",
@@ -58,18 +52,84 @@ func TestReconcile(t *testing.T) {
 	c := mgr.GetClient()
 
 	rec := &ReconcileHelmRelease{
-		config: mgr.GetConfig(),
-		client: mgr.GetClient(),
-		scheme: mgr.GetScheme(),
+		mgr,
 	}
 
-	t.Log("Setup test reconcile")
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
 
-	recFn, requests := SetupTestReconcile(newReconciler(mgr))
-	g.Expect(add(mgr, recFn)).NotTo(gomega.HaveOccurred())
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
 
-	t.Log("Start test reconcile")
+	//Github failed
+	helmReleaseName := "example-github-failed"
+	helmReleaseKey := types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance := &appv1alpha1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "app.ibm.com/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.GitHubSourceType,
+				GitHub: &appv1alpha1.GitHub{
+					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+					ChartPath: "wrong path",
+				},
+			},
+			ReleaseName: helmReleaseName,
+			ChartName:   "subscription-release-test-1",
+		},
+	}
 
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	req := reconcile.Request{}
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(1 * time.Second)
+
+	instanceResp := &appv1alpha1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	c.Delete(context.TODO(), instanceResp)
+
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
+
+func TestGithubSuccess(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	c := mgr.GetClient()
+
+	rec := &ReconcileHelmRelease{
+		mgr,
+	}
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
 
 	defer func() {
@@ -80,8 +140,6 @@ func TestReconcile(t *testing.T) {
 	//
 	//Github succeed
 	//
-	t.Log("Github succeed test")
-
 	helmReleaseName := "example-github-succeed"
 	helmReleaseKey := types.NamespacedName{
 		Name:      helmReleaseName,
@@ -112,79 +170,62 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(4 * time.Second)
+	req := reconcile.Request{}
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
 
-	var expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-
-	time.Sleep(4 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	instanceResp := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	t.Logf("Reason: %s", instanceResp.Status.Reason)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
 
-	//
-	//Github failed
-	//
-	t.Log("Github failed test")
+	c.Delete(context.TODO(), instanceResp)
 
-	helmReleaseName = "example-github-failed"
-	helmReleaseKey = types.NamespacedName{
-		Name:      helmReleaseName,
-		Namespace: helmReleaseNS,
-	}
-	instance = &appv1alpha1.HelmRelease{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmRelease",
-			APIVersion: "app.ibm.com/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      helmReleaseName,
-			Namespace: helmReleaseNS,
-		},
-		Spec: appv1alpha1.HelmReleaseSpec{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.GitHubSourceType,
-				GitHub: &appv1alpha1.GitHub{
-					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
-					ChartPath: "wrong path",
-				},
-			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
-		},
-	}
+	_, err = rec.Reconcile(req)
 
-	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
+	_, err = rec.Reconcile(req)
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
 
-	time.Sleep(2 * time.Second)
+func TestHelmRepoSuccess(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
 
-	instanceResp = &appv1alpha1.HelmRelease{}
-	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+	c := mgr.GetClient()
 
+	rec := &ReconcileHelmRelease{
+		mgr,
+	}
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
 	//
 	//helmRepo succeeds
 	//
-	t.Log("helmrepo succeed test")
-
-	helmReleaseName = "example-helmrepo-succeed"
-	helmReleaseKey = types.NamespacedName{
+	helmReleaseName := "example-helmrepo-succeed"
+	helmReleaseKey := types.NamespacedName{
 		Name:      helmReleaseName,
 		Namespace: helmReleaseNS,
 	}
-	instance = &appv1alpha1.HelmRelease{
+	instance := &appv1alpha1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
 			APIVersion: "app.ibm.com/v1alpha1",
@@ -208,13 +249,15 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
+	req := reconcile.Request{}
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(2 * time.Second)
 
-	instanceResp = &appv1alpha1.HelmRelease{}
+	instanceResp := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
@@ -231,9 +274,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Update(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
-
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(2 * time.Second)
 
@@ -242,6 +286,16 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	t.Logf("Reason: %s", instanceResp.Status.Reason)
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+
+	c.Delete(context.TODO(), instanceResp)
+
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	//Check duplicate
 	helmReleaseName = "example-helmrepo-succeed-duplicate"
@@ -256,28 +310,66 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
-
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-
-	time.Sleep(2 * time.Second)
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	time.Sleep(4 * time.Second)
 
 	instanceResp = &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
+	c.Delete(context.TODO(), instanceResp)
+
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	_, err = rec.Reconcile(req)
+
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+}
+
+func TestHelmRepoFailure(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	// Setup the Manager and Controller.  Wrap the Controller Reconcile function so it writes each request to a
+	// channel when it is finished.
+
+	t.Log("Create manager")
+
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	c := mgr.GetClient()
+
+	rec := &ReconcileHelmRelease{
+		mgr,
+	}
+
+	t.Log("Start test reconcile")
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
 	//
 	//helmRepo failure
 	//
 	t.Log("Github failure test")
 
-	helmReleaseName = "example-helmrepo-failure"
-	helmReleaseKey = types.NamespacedName{
+	helmReleaseName := "example-helmrepo-failure"
+	helmReleaseKey := types.NamespacedName{
 		Name:      helmReleaseName,
 		Namespace: helmReleaseNS,
 	}
-	instance = &appv1alpha1.HelmRelease{
+	instance := &appv1alpha1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
 			APIVersion: "app.ibm.com/v1alpha1",
@@ -301,13 +393,13 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	expectedRequest = reconcile.Request{NamespacedName: helmReleaseKey}
+	req := reconcile.Request{}
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	time.Sleep(4 * time.Second)
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(expectedRequest)))
-
-	time.Sleep(2 * time.Second)
-
-	instanceResp = &appv1alpha1.HelmRelease{}
+	instanceResp := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
@@ -349,9 +441,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
-
-	time.Sleep(4 * time.Second)
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	time.Sleep(2 * time.Second)
 
 	instanceRespCD := &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceRespCD)
@@ -364,10 +457,6 @@ func TestReconcile(t *testing.T) {
 	//Deletion
 	err = c.Delete(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	time.Sleep(2 * time.Second)
-
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
 
 	time.Sleep(2 * time.Second)
 
@@ -415,9 +504,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Create(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
-
-	time.Sleep(4 * time.Second)
+	req.NamespacedName = helmReleaseKey
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	time.Sleep(2 * time.Second)
 
 	t.Log("Github succeed create-update -> CR get response")
 
@@ -442,10 +532,8 @@ func TestReconcile(t *testing.T) {
 	err = c.Update(context.TODO(), instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(2 * time.Second)
-
-	g.Eventually(requests, timeout).Should(gomega.Receive(gomega.Equal(reconcile.Request{NamespacedName: helmReleaseKey})))
-
+	_, err = rec.Reconcile(req)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 	time.Sleep(2 * time.Second)
 
 	t.Log("Github succeed create-update -> CR get response")
@@ -480,9 +568,6 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, _, err = newHelmReleaseManager(rec, instance)
-	assert.NoError(t, err)
-
 	// TestNewManagerShortReleaseName
 	helmReleaseName = "test-new-manager-short-release-name"
 	instance = &appv1alpha1.HelmRelease{
@@ -507,9 +592,6 @@ func TestReconcile(t *testing.T) {
 	assert.NoError(t, err)
 
 	time.Sleep(6 * time.Second)
-
-	_, _, err = newHelmReleaseManager(rec, instance)
-	assert.NoError(t, err)
 
 	// TestNewManagerValues
 	helmReleaseName = "test-new-manager-values"
@@ -537,12 +619,9 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	//Values well formed
-	_, _, err = newHelmReleaseManager(rec, instance)
-	assert.NoError(t, err)
 	//Values not a yaml
 	instance.Spec.Values = "l1:\nl2"
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, err = rec.newHelmReleaseManager(instance)
 	assert.Error(t, err)
 
 	// TestNewManagerErrors
@@ -571,15 +650,10 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	//Config nil
-	rec.config = nil
-	_, _, err = newHelmReleaseManager(rec, instance)
-	assert.Error(t, err)
 	//Download Chart should fail
-	rec.config = mgr.GetConfig()
 	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
 	instance.Spec.Values = "l1:\nl2"
-	_, _, err = newHelmReleaseManager(rec, instance)
+	_, _, err = rec.newHelmReleaseManager(instance)
 	assert.Error(t, err)
 
 	// TestNewManagerForDeletion
@@ -617,7 +691,7 @@ func TestReconcile(t *testing.T) {
 	time.Sleep(6 * time.Second)
 
 	instance.GetObjectMeta().SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
-	mgrhr, _, err := newHelmReleaseManager(rec, instance)
+	mgrhr, _, err := rec.newHelmReleaseManager(instance)
 	assert.NoError(t, err)
 
 	assert.Equal(t, mgrhr.ReleaseName(), helmReleaseName)
