@@ -1,4 +1,10 @@
 approvers:
 - kuanf
-- itdove
 - jnpacker
+- itdove
+reviewers:
+- xiangjingli
+- rokej
+- ianzhang366
+- sahare
+- rwellon
