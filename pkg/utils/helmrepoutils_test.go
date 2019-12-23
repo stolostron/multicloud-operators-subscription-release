@@ -267,6 +267,92 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDownloadChartHelmRepoContainsInvalidURL(t *testing.T) {
+	hr := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.HelmRepoSourceType,
+				HelmRepo: &appv1alpha1.HelmRepo{
+					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz",
+						"https://badURL1"},
+				},
+			},
+			ChartName:   "subscription-release-test-1",
+			ReleaseName: "subscription-release-test-1-release",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	destDir, err := DownloadChart(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartHelmRepoContainsInvalidURL2(t *testing.T) {
+	hr := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.HelmRepoSourceType,
+				HelmRepo: &appv1alpha1.HelmRepo{
+					Urls: []string{"https://badURL1",
+						"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+				},
+			},
+			ChartName:   "subscription-release-test-1",
+			ReleaseName: "subscription-release-test-1-release",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	destDir, err := DownloadChart(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartHelmRepoAllInvalidURLs(t *testing.T) {
+	hr := &appv1alpha1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Spec: appv1alpha1.HelmReleaseSpec{
+			Source: &appv1alpha1.Source{
+				SourceType: appv1alpha1.HelmRepoSourceType,
+				HelmRepo: &appv1alpha1.HelmRepo{
+					Urls: []string{"https://badURL1", "https://badURL2", "https://badURL3", "https://badURL4", "https://badURL5"},
+				},
+			},
+			ChartName:   "subscription-release-test-1",
+			ReleaseName: "subscription-release-test-1-release",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	_, err = DownloadChart(nil, nil, dir, hr)
+	assert.Error(t, err)
+}
+
 func TestDownloadChartFromGitHub(t *testing.T) {
 	hr := &appv1alpha1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{

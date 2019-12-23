@@ -204,7 +204,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 	return commitID, err
 }
 
-//DownloadChartFromHelmRepo downloads a chart into the charsDir
+//DownloadChartFromHelmRepo downloads a chart into the chartDir
 func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	destRepo string,
@@ -214,38 +214,51 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 		return "", err
 	}
 
-	var downloadErr error
+	var urlsError string
 
-	for _, urlelem := range s.Spec.Source.HelmRepo.Urls {
-		chartZip, downloadErr := downloadFile(s.Namespace, configMap, urlelem, secret, destRepo)
-		if downloadErr != nil {
-			klog.Error(downloadErr, " - url: ", urlelem)
-			continue
+	for _, url := range s.Spec.Source.HelmRepo.Urls {
+		chartDir, err := downloadChartFromURL(configMap, secret, destRepo, s, url)
+		if err == nil {
+			return chartDir, nil
 		}
 
-		var r *os.File
-
-		r, downloadErr = os.Open(chartZip)
-		if downloadErr != nil {
-			klog.Error(downloadErr, " - Failed to open: ", chartZip)
-			continue
-		}
-
-		chartDir = filepath.Join(destRepo, s.Spec.ChartName)
-		//Clean before untar
-		os.RemoveAll(chartDir)
-
-		downloadErr = Untar(destRepo, r)
-		if downloadErr != nil {
-			//Remove zip because failed to untar and so probably corrupted
-			os.RemoveAll(chartZip)
-			klog.Error(downloadErr, "- Failed to unzip: ", chartZip)
-
-			continue
-		}
+		urlsError += " - url: " + url + " error: " + err.Error()
 	}
 
-	return chartDir, downloadErr
+	return "", fmt.Errorf("failed to download chart from helm repo. " + urlsError)
+}
+
+func downloadChartFromURL(configMap *corev1.ConfigMap,
+	secret *corev1.Secret,
+	destRepo string,
+	s *appv1alpha1.HelmRelease,
+	url string) (chartDir string, err error) {
+	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo)
+	if downloadErr != nil {
+		klog.Error(downloadErr, " - url: ", url)
+		return "", downloadErr
+	}
+
+	r, downloadErr := os.Open(chartZip)
+	if downloadErr != nil {
+		klog.Error(downloadErr, " - Failed to open: ", chartZip, " using url: ", url)
+		return "", downloadErr
+	}
+
+	chartDir = filepath.Join(destRepo, s.Spec.ChartName)
+	//Clean before untar
+	os.RemoveAll(chartDir)
+
+	downloadErr = Untar(destRepo, r)
+	if downloadErr != nil {
+		//Remove zip because failed to untar and so probably corrupted
+		os.RemoveAll(chartZip)
+		klog.Error(downloadErr, "- Failed to unzip: ", chartZip, " using url: ", url)
+
+		return "", downloadErr
+	}
+
+	return chartDir, nil
 }
 
 //downloadFile downloads a files and post it in the chartsDir.
@@ -266,6 +279,11 @@ func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	// Create the file
 	chartZip := filepath.Join(chartsDir, fileName)
 	klog.V(4).Info("chartZip: ", chartZip)
+
+	if chartZip == chartsDir {
+		downloadErr = fmt.Errorf("failed to parse fileName from fileURL %s", fileURL)
+		return "", downloadErr
+	}
 
 	switch URLP.Scheme {
 	case "file":
@@ -311,7 +329,15 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	fileURL string,
 	secret *corev1.Secret,
 	chartZip string) error {
-	if _, err := os.Stat(chartZip); os.IsNotExist(err) {
+	fileInfo, err := os.Stat(chartZip)
+	if fileInfo != nil && fileInfo.IsDir() {
+		downloadErr := fmt.Errorf("expecting chartZip to be a file but it's a directory: %s", chartZip)
+		klog.Error(downloadErr)
+
+		return downloadErr
+	}
+
+	if os.IsNotExist(err) {
 		httpClient, downloadErr := GetHelmRepoClient(parentNamespace, configMap)
 		if downloadErr != nil {
 			klog.Error(downloadErr, " - Failed to create httpClient")
@@ -365,6 +391,8 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 			klog.Error(downloadErr, " - Failed to copy body:", chartZip)
 			return downloadErr
 		}
+	} else {
+		klog.V(5).Info("Skip download chartZip already exists: ", chartZip)
 	}
 
 	return nil
