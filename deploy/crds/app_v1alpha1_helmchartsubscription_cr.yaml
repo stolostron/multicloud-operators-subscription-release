@@ -5,3 +5,4 @@ metadata:
 spec:
   # Add fields here
   size: 3
+  channel: dev-helmrepo
