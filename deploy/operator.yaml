@@ -62,7 +62,7 @@ spec:
       containers:
       - name: multicloud-operators-subscription-release
         # Replace this with the built image name
-        image: hyc-cloud-private-integration-docker-local.artifactory.swg-devops.com/ibmcom/multicloud-operators-subscription-release-amd64:latest
+        image: quay.io/multicloudlab/multicloud-operators-subscription-release
         command:
         - multicloud-operators-subscription-release
         imagePullPolicy: Always
