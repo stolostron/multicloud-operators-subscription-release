@@ -197,7 +197,7 @@ Once the HelmRelease is created or modified, the operator will deploy each chart
 To do so, the following steps are taken:
 
 1) Download the chart tgz in the `$CHARTS_DIR`.
-2) Unzip the tgz in `$CHARTS_DIR/<sr.Spec.ReleaseName>/<sr.namespace>/<chart_name>`
+2) Unzip the tgz in `$CHARTS_DIR/<sr.name>/<sr.namespace>/<chart_name>`
 3) Create a manager with the values provided in the HelmRelease
 4) Launch the deployment.
 

@@ -222,8 +222,7 @@ func TestDownloadChartGitHub(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: "subscription-release-test-1",
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -251,8 +250,7 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1-release",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -281,8 +279,7 @@ func TestDownloadChartHelmRepoContainsInvalidURL(t *testing.T) {
 						"https://badURL1"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1-release",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -311,8 +308,7 @@ func TestDownloadChartHelmRepoContainsInvalidURL2(t *testing.T) {
 						"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1-release",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -340,8 +336,7 @@ func TestDownloadChartHelmRepoAllInvalidURLs(t *testing.T) {
 					Urls: []string{"https://badURL1", "https://badURL2", "https://badURL3", "https://badURL4", "https://badURL5"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1-release",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -367,8 +362,7 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: "subscription-release-test-1",
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -396,8 +390,7 @@ func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -425,8 +418,7 @@ func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
 					Urls: []string{"file:../../test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ChartName:   "subscription-release-test-1",
-			ReleaseName: "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -549,8 +541,7 @@ func TestCreateFakeChart(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ChartName:   "subscription-release-test-1-c",
-			ReleaseName: "subscription-release-test-1",
+			ChartName: "subscription-release-test-1-c",
 		},
 	}
 
@@ -560,5 +551,5 @@ func TestCreateFakeChart(t *testing.T) {
 	chart, err := chartutil.LoadDir(chartDir)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "subscription-release-test-1", chart.GetMetadata().GetName())
+	assert.Equal(t, "subscription-release-test-1-cr", chart.GetMetadata().GetName())
 }
