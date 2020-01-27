@@ -19,7 +19,6 @@ package helmrelease
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -156,7 +155,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 }
 
 func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
-	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.Spec.ReleaseName, "annotations:", sr.GetAnnotations())
+	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.GetName(), "annotations:", sr.GetAnnotations())
 
 	klog.V(5).Info("Create Manager")
 
@@ -209,7 +208,7 @@ func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) er
 }
 
 func (r *ReconcileHelmRelease) prepareHelmRelease(sr *appv1alpha1.HelmRelease) bool {
-	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.Spec.ReleaseName, "annotations:", sr.GetAnnotations())
+	klog.V(3).Info("namespace: ", sr.Namespace, " name: ", sr.Name, " chart: ", sr.Spec.ChartName)
 
 	needUpdate := false
 
@@ -218,29 +217,6 @@ func (r *ReconcileHelmRelease) prepareHelmRelease(sr *appv1alpha1.HelmRelease) b
 		utils.AddFinalizer(sr)
 
 		needUpdate = true
-	}
-
-	annotations := sr.GetAnnotations()
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
-
-	exsec := annotations[appv1alpha1.ReleaseSecretAnnotationKey]
-	relsec := sr.Namespace + "/" + sr.Spec.ReleaseName
-
-	if exsec == "" {
-		exsec = relsec
-		annotations[appv1alpha1.ReleaseSecretAnnotationKey] = relsec
-		sr.SetAnnotations(annotations)
-
-		needUpdate = true
-	}
-
-	if exsec != relsec {
-		err := fmt.Errorf("release name can not be changed: new %s, old %s", relsec, exsec)
-		_, _ = r.SetStatus(sr, err)
-
-		return true
 	}
 
 	if needUpdate {

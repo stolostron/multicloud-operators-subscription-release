@@ -24,7 +24,6 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
@@ -96,8 +95,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -140,8 +138,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "wrong path",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -182,8 +179,7 @@ func TestReconcile(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -196,45 +192,6 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
-
-	secret := &corev1.Secret{}
-	err = c.Get(context.TODO(), types.NamespacedName{
-		Name:      helmReleaseName,
-		Namespace: helmReleaseNS,
-	}, secret)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	//Check new ReleaseName
-	instanceResp.Spec.ReleaseName = "example-helmrepo-succeed-rename"
-	err = c.Update(context.TODO(), instanceResp)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	time.Sleep(4 * time.Second)
-
-	instanceResp = &appv1alpha1.HelmRelease{}
-	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	t.Logf("Reason: %s", instanceResp.Status.Reason)
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
-
-	//Check duplicate
-	helmReleaseName = "example-helmrepo-succeed-duplicate"
-	helmReleaseKey = types.NamespacedName{
-		Name:      helmReleaseName,
-		Namespace: helmReleaseNS,
-	}
-	instance.ObjectMeta = metav1.ObjectMeta{
-		Name:      helmReleaseName,
-		Namespace: helmReleaseNS,
-	}
-	err = c.Create(context.TODO(), instance)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	time.Sleep(2 * time.Second)
-
-	instanceResp = &appv1alpha1.HelmRelease{}
-	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
 
 	//
 	//helmRepo failure
@@ -262,8 +219,7 @@ func TestReconcile(t *testing.T) {
 					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/wrongurl"},
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -305,8 +261,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -363,8 +318,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -423,8 +377,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: "subscription-release-test-1",
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -451,8 +404,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -479,9 +431,8 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
-			Values:      "l1:v1",
+			ChartName: "subscription-release-test-1",
+			Values:    "l1:v1",
 		},
 	}
 
@@ -514,8 +465,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 
@@ -554,8 +504,7 @@ func TestReconcile(t *testing.T) {
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
-			ReleaseName: helmReleaseName,
-			ChartName:   "subscription-release-test-1",
+			ChartName: "subscription-release-test-1",
 		},
 	}
 

@@ -477,7 +477,12 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 		return nil, err
 	}
 
-	releaseName := chartVersion.Name + "-" + s.HelmChartSubscription.Name + "-" + s.HelmChartSubscription.Namespace
+	name := chartVersion.Name
+	subUID := string(s.HelmChartSubscription.UID)
+
+	if len(subUID) >= 5 {
+		name += "-" + subUID[:5]
+	}
 
 	for i := range chartVersion.URLs {
 		parsedURL, err := url.Parse(chartVersion.URLs[i])
@@ -494,7 +499,7 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 	//Compose release name
 	sr := &appv1alpha1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        releaseName,
+			Name:        name,
 			Namespace:   s.HelmChartSubscription.Namespace,
 			Annotations: annotations,
 		},
@@ -503,7 +508,6 @@ func (s *HelmRepoSubscriber) newHelmChartHelmReleaseForCR(chartVersion *repo.Cha
 			ConfigMapRef: s.HelmChartSubscription.Spec.ConfigMapRef,
 			SecretRef:    s.HelmChartSubscription.Spec.SecretRef,
 			ChartName:    chartVersion.Name,
-			ReleaseName:  releaseName,
 			Version:      chartVersion.GetVersion(),
 			Values:       values,
 		},

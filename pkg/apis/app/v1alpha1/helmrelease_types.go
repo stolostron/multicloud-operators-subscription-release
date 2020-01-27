@@ -37,10 +37,6 @@ const (
 	HelmReleaseSuccess HelmReleaseStatusEnum = "Success"
 )
 
-const (
-	ReleaseSecretAnnotationKey = "release-secret"
-)
-
 //SourceTypeEnum types of sources
 type SourceTypeEnum string
 
@@ -99,8 +95,6 @@ type HelmReleaseSpec struct {
 	Source *Source `json:"source,omitempty"`
 	// ChartName is the name of the chart within the repo
 	ChartName string `json:"chartName,omitempty"`
-	// ReleaseName is the Name of the release given to Tiller. Defaults to namespace-name. Must not be changed after initial object creation.
-	ReleaseName string `json:"releaseName,omitempty"`
 	// Version is the chart version
 	Version string `json:"version,omitempty"`
 	// Values is a string containing (unparsed) YAML values

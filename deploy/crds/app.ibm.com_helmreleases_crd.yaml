@@ -71,11 +71,6 @@ spec:
                   description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
                   type: string
               type: object
-            releaseName:
-              description: ReleaseName is the Name of the release given to Tiller.
-                Defaults to namespace-name. Must not be changed after initial object
-                creation.
-              type: string
             secretRef:
               description: Secret to use to access the helm-repo defined in the CatalogSource.
               properties:

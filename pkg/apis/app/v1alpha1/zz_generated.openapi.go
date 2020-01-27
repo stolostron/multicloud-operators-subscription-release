@@ -139,13 +139,6 @@ func schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref common.ReferenceCallback) 
 							Format:      "",
 						},
 					},
-					"releaseName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReleaseName is the Name of the release given to Tiller. Defaults to namespace-name. Must not be changed after initial object creation.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"version": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Version is the chart version",
