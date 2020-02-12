@@ -7,7 +7,6 @@ rules:
 - apiGroups:
   - app.ibm.com
   resources:
-  - helmchartsubscription
   - helmreleases
   verbs:
   - get

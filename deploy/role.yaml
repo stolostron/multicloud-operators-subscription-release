@@ -58,6 +58,5 @@ rules:
   resources:
   - '*'
   - helmreleases
-  - helmchartsubscriptions
   verbs:
   - '*'

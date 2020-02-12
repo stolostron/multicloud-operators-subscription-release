@@ -43,7 +43,6 @@ import (
 
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis"
 	"github.com/IBM/multicloud-operators-subscription-release/pkg/controller"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/controller/helmchartsubscription"
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -69,12 +68,6 @@ func main() {
 	// Add flags registered by imported packages (e.g. glog and
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
-	// Add subscription operator flag set to the CLI.
-	pflag.CommandLine.BoolVar(&helmchartsubscription.Options.Disabled,
-		"helmchart-subscription-controller-disabled",
-		false,
-		"Disable the helmchart subscription controller")
 
 	pflag.Parse()
 

@@ -19,17 +19,16 @@ package helmrelease
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
-	"math"
 	"os"
-	"reflect"
 	"time"
 
+	helmController "github.com/operator-framework/operator-sdk/pkg/helm/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -37,7 +36,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
 )
 
 /**
@@ -78,26 +76,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource HelmRelease
-	p := predicate.Funcs{
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			subRelOld := e.ObjectOld.(*appv1alpha1.HelmRelease)
-			subRelNew := e.ObjectNew.(*appv1alpha1.HelmRelease)
-			if subRelNew.DeletionTimestamp != nil {
-				return true
-			}
-			if len(subRelOld.GetFinalizers()) != len(subRelNew.GetFinalizers()) {
-				// finalizer changes, process it
-				return true
-			}
-			return !reflect.DeepEqual(subRelOld.Spec, subRelNew.Spec)
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return false
-		},
-	}
-
-	err = c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForObject{}, p)
-	if err != nil {
+	if err := c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForObject{},
+		predicate.GenerationChangedPredicate{}); err != nil {
 		return err
 	}
 
@@ -137,149 +117,81 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
-	if instance.DeletionTimestamp == nil && r.prepareHelmRelease(instance) {
-		// add finalizer and secret annotation and come again
-		return reconcile.Result{}, nil
-	}
-
-	// Define a new Pod object
-	err = r.manageHelmRelease(instance)
-
-	//if the instance was set for deletion and the finalizer already remove then
-	//no need to update the status
-	if instance.DeletionTimestamp != nil && !utils.HasFinalizer(instance) {
-		return reconcile.Result{}, r.GetClient().Update(context.TODO(), instance)
-	}
-
-	return r.SetStatus(instance, err)
-}
-
-func (r *ReconcileHelmRelease) manageHelmRelease(sr *appv1alpha1.HelmRelease) error {
-	klog.V(3).Info("chart: ", sr.Spec.ChartName, " release:", sr.GetName(), "annotations:", sr.GetAnnotations())
-
-	klog.V(5).Info("Create Manager")
-
-	helmReleaseManager, err := r.newHelmReleaseManager(sr)
-
+	helmReleaseManager, err := r.newHelmReleaseManager(instance)
 	if err != nil {
-		klog.Error(err, "- Failed to create NewManager ", sr.Spec.ChartName)
-		return err
+		errUpdate := setErrorStatus(r.GetClient(), instance, err)
+		if errUpdate != nil {
+			return reconcile.Result{}, errUpdate
+		}
+
+		klog.V(1).Info("Requeue after two minutes.")
+
+		return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
 	}
 
-	klog.V(5).Info("Sync repo")
+	hor := &helmController.HelmOperatorReconciler{
+		Client:         r.GetClient(),
+		GVK:            instance.GroupVersionKind(),
+		ManagerFactory: helmReleaseManager,
+	}
 
-	err = helmReleaseManager.Sync(context.TODO())
+	result, err := hor.Reconcile(request)
 	if err != nil {
-		klog.Error(err, "- Failed to while sync :", sr.Spec.ChartName)
-		return err
-	}
+		klog.Error(err, "- Failed during HelmOperator Reconcile.")
 
-	if sr.DeletionTimestamp == nil {
-		if helmReleaseManager.IsInstalled() {
-			klog.Info("Update chart ", sr.Spec.ChartName)
-
-			_, _, err = helmReleaseManager.UpdateRelease(context.TODO())
-			if err != nil {
-				klog.Error(err, " - Failed to while update chart: ", sr.Spec.ChartName)
-				return err
+		errGet := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
+		if errGet == nil {
+			if !containsErrorConditions(instance) {
+				errUpdate := setErrorStatus(r.GetClient(), instance, err)
+				if errUpdate != nil {
+					return reconcile.Result{}, errUpdate
+				}
 			}
 		} else {
-			klog.Info("Install chart: ", sr.Spec.ChartName)
+			klog.Error(errGet, "- Failed to get HelmRelease: ", request.NamespacedName)
+			return reconcile.Result{}, errGet
+		}
 
-			_, err = helmReleaseManager.InstallRelease(context.TODO())
-			if err != nil {
-				klog.Error(err, " - Failed to while install chart: ", sr.Spec.ChartName)
-				return err
-			}
-		}
-	} else {
-		klog.Info("Delete chart: ", sr.Spec.ChartName)
-		if helmReleaseManager.IsInstalled() {
-			_, err = helmReleaseManager.UninstallRelease(context.TODO())
-			if err != nil {
-				klog.Error(err, " - Failed to while un-install chart: ", sr.Spec.ChartName)
-			}
-		}
-		klog.Info("Remove finalizer from helmrelease : ", sr.Namespace, "/", sr.Name)
-		utils.RemoveFinalizer(sr)
+		klog.V(1).Info("Requeue after two minutes.")
+
+		return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
 	}
 
-	return nil
+	return result, nil
 }
 
-func (r *ReconcileHelmRelease) prepareHelmRelease(sr *appv1alpha1.HelmRelease) bool {
-	klog.V(3).Info("namespace: ", sr.Namespace, " name: ", sr.Name, " chart: ", sr.Spec.ChartName)
-
-	needUpdate := false
-
-	if !utils.HasFinalizer(sr) {
-		klog.Info("Add finalizer: ", sr.Name)
-		utils.AddFinalizer(sr)
-
-		needUpdate = true
+func containsErrorConditions(hr *appv1alpha1.HelmRelease) bool {
+	if hr.Status.Conditions == nil {
+		return false
 	}
 
-	if needUpdate {
-		err := r.GetClient().Update(context.TODO(), sr)
-		if err != nil {
-			klog.Error(err, " - Unable to prepare helmrelease:", sr.Namespace, "/", sr.Name)
+	for i := range hr.Status.Conditions {
+		if hr.Status.Conditions[i].Type == appv1alpha1.ConditionIrreconcilable ||
+			hr.Status.Conditions[i].Type == appv1alpha1.ConditionReleaseFailed {
+			return true
 		}
 	}
 
-	return needUpdate
+	return false
 }
 
-//SetStatus set the subscription release status
-func (r *ReconcileHelmRelease) SetStatus(instance *appv1alpha1.HelmRelease, issue error) (reconcile.Result, error) {
-	//Success
-	if issue == nil {
-		instance.Status.Message = ""
-		instance.Status.Status = appv1alpha1.HelmReleaseSuccess
-		instance.Status.Reason = ""
-		instance.Status.LastUpdateTime = metav1.Now()
+func setErrorStatus(client client.StatusClient, hr *appv1alpha1.HelmRelease, err error) error {
+	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s error status for error: %v", hr.GetNamespace(), hr.GetName(), err))
 
-		err := r.GetClient().Status().Update(context.TODO(), instance)
-		if err != nil {
-			klog.Error(err, " - unable to update status")
+	hr.Status.SetCondition(appv1alpha1.HelmAppCondition{
+		Type:    appv1alpha1.ConditionIrreconcilable,
+		Status:  appv1alpha1.StatusTrue,
+		Reason:  appv1alpha1.ReasonReconcileError,
+		Message: err.Error(),
+	})
 
-			return reconcile.Result{
-				RequeueAfter: time.Second,
-			}, nil
-		}
+	errUpdate := client.Status().Update(context.TODO(), hr)
 
-		return reconcile.Result{}, nil
+	if errUpdate == nil {
+		return nil
 	}
 
-	klog.Info(issue, " in helmrelease ", instance.Namespace, "/", instance.Name, " - retrying later")
+	klog.Error(errUpdate, "- Failed to update HelmRelease status: ", hr)
 
-	var retryInterval time.Duration
-
-	lastUpdate := instance.Status.LastUpdateTime.Time
-	lastStatus := instance.Status.Status
-	instance.Status.Message = "Error, retrying later"
-	instance.Status.Reason = issue.Error()
-	instance.Status.Status = appv1alpha1.HelmReleaseFailed
-	instance.Status.LastUpdateTime = metav1.Now()
-
-	err := r.GetClient().Status().Update(context.TODO(), instance)
-	if err != nil {
-		klog.Error(err, " - unable to update status")
-
-		return reconcile.Result{
-			RequeueAfter: time.Second,
-		}, nil
-	}
-
-	if lastUpdate.IsZero() || lastStatus != appv1alpha1.HelmReleaseFailed {
-		retryInterval = time.Second
-	} else {
-		retryInterval = time.Duration(math.Max(float64(time.Second.Nanoseconds()*2), float64(metav1.Now().Sub(lastUpdate).Round(time.Second).Nanoseconds())))
-	}
-
-	requeueAfter := time.Duration(math.Min(float64(retryInterval.Nanoseconds()*2), float64(time.Minute.Nanoseconds()*2)))
-	klog.V(5).Info("requeueAfter: ", requeueAfter)
-
-	return reconcile.Result{
-		RequeueAfter: requeueAfter,
-	}, nil
+	return errUpdate
 }

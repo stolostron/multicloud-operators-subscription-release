@@ -27,15 +27,8 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// HelmReleaseStatusEnum defines the status of a Subscription release
-type HelmReleaseStatusEnum string
-
-const (
-	// HelmReleaseFailed means this subscription is the "parent" sitting in hub
-	HelmReleaseFailed HelmReleaseStatusEnum = "Failed"
-	// HelmReleaseSuccess means this subscription is the "parent" sitting in hub
-	HelmReleaseSuccess HelmReleaseStatusEnum = "Success"
-)
+//ChartsDir env variable name which contains the directory where the charts are installed
+const ChartsDir = "CHARTS_DIR"
 
 //SourceTypeEnum types of sources
 type SourceTypeEnum string
@@ -46,14 +39,6 @@ const (
 	// GitHubSourceType github source type
 	GitHubSourceType SourceTypeEnum = "github"
 )
-
-//HelmReleaseStatus struct containing the status
-type HelmReleaseStatus struct {
-	Status         HelmReleaseStatusEnum `json:"phase,omitempty"`
-	Message        string                `json:"message,omitempty"`
-	Reason         string                `json:"reason,omitempty"`
-	LastUpdateTime metav1.Time           `json:"lastUpdate"`
-}
 
 //GitHub provides the parameters to access the helm-chart located in a github repo
 type GitHub struct {
@@ -85,9 +70,9 @@ func (s Source) String() string {
 	}
 }
 
-// HelmReleaseSpec defines the desired state of HelmRelease
+// HelmReleaseRepo defines the repository of HelmRelease
 // +k8s:openapi-gen=true
-type HelmReleaseSpec struct {
+type HelmReleaseRepo struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -97,8 +82,6 @@ type HelmReleaseSpec struct {
 	ChartName string `json:"chartName,omitempty"`
 	// Version is the chart version
 	Version string `json:"version,omitempty"`
-	// Values is a string containing (unparsed) YAML values
-	Values string `json:"values,omitempty"`
 	// Secret to use to access the helm-repo defined in the CatalogSource.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
@@ -115,8 +98,10 @@ type HelmRelease struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   HelmReleaseSpec   `json:"spec,omitempty"`
-	Status HelmReleaseStatus `json:"status,omitempty"`
+	Repo HelmReleaseRepo `json:"repo,omitempty"`
+
+	Spec   HelmAppSpec   `json:"spec,omitempty"`
+	Status HelmAppStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -130,4 +115,79 @@ type HelmReleaseList struct {
 
 func init() {
 	SchemeBuilder.Register(&HelmRelease{}, &HelmReleaseList{})
+}
+
+// Below are mostly copied from operator sdk's internal package
+// https://github.com/operator-framework/operator-sdk/blob/v0.12.x/pkg/helm/internal/types/types.go
+
+type HelmAppSpec interface{} // modified
+
+type HelmAppConditionType string
+type ConditionStatus string
+type HelmAppConditionReason string
+
+type HelmAppCondition struct {
+	Type    HelmAppConditionType   `json:"type"`
+	Status  ConditionStatus        `json:"status"`
+	Reason  HelmAppConditionReason `json:"reason,omitempty"`
+	Message string                 `json:"message,omitempty"`
+
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
+}
+
+type HelmAppRelease struct {
+	Name     string `json:"name,omitempty"`
+	Manifest string `json:"manifest,omitempty"`
+}
+
+const (
+	ConditionInitialized    HelmAppConditionType = "Initialized"
+	ConditionDeployed       HelmAppConditionType = "Deployed"
+	ConditionReleaseFailed  HelmAppConditionType = "ReleaseFailed"
+	ConditionIrreconcilable HelmAppConditionType = "Irreconcilable"
+
+	StatusTrue    ConditionStatus = "True"
+	StatusFalse   ConditionStatus = "False"
+	StatusUnknown ConditionStatus = "Unknown"
+
+	ReasonInstallSuccessful   HelmAppConditionReason = "InstallSuccessful"
+	ReasonUpdateSuccessful    HelmAppConditionReason = "UpdateSuccessful"
+	ReasonUninstallSuccessful HelmAppConditionReason = "UninstallSuccessful"
+	ReasonInstallError        HelmAppConditionReason = "InstallError"
+	ReasonUpdateError         HelmAppConditionReason = "UpdateError"
+	ReasonReconcileError      HelmAppConditionReason = "ReconcileError"
+	ReasonUninstallError      HelmAppConditionReason = "UninstallError"
+)
+
+type HelmAppStatus struct {
+	Conditions      []HelmAppCondition `json:"conditions"`
+	DeployedRelease *HelmAppRelease    `json:"deployedRelease,omitempty"`
+}
+
+// SetCondition sets a condition on the status object. If the condition already
+// exists, it will be replaced. SetCondition does not update the resource in
+// the cluster.
+func (s *HelmAppStatus) SetCondition(condition HelmAppCondition) *HelmAppStatus {
+	now := metav1.Now()
+
+	for i := range s.Conditions {
+		if s.Conditions[i].Type == condition.Type {
+			if s.Conditions[i].Status != condition.Status {
+				condition.LastTransitionTime = now
+			} else {
+				condition.LastTransitionTime = s.Conditions[i].LastTransitionTime
+			}
+
+			s.Conditions[i] = condition
+
+			return s
+		}
+	}
+
+	// If the condition does not exist,
+	// initialize the lastTransitionTime
+	condition.LastTransitionTime = now
+	s.Conditions = append(s.Conditions, condition)
+
+	return s
 }

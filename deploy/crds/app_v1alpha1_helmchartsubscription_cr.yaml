@@ -1,8 +1,0 @@
-apiVersion: app.ibm.com/v1alpha1
-kind: HelmChartSubscription
-metadata:
-  name: example-helmchartsubscription
-spec:
-  # Add fields here
-  size: 3
-  channel: dev-helmrepo

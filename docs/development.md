@@ -18,7 +18,7 @@ The environment variable `CHARTS_DIR` must be set when developing, it specifies 
 ## Launch Dev mode
 
 ```bash
-operator-sdk up local --verbose [--operator-flags "--helmchart-subscription-controller-disabled"]
+operator-sdk up local --verbose [--operator-flags "--v=1"]
 ```
 
 ## Build a local image

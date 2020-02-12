@@ -65,8 +65,6 @@ spec:
             - ALL
         command:
         - multicloud-operators-subscription-release
-        args:
-          - --helmchart-subscription-controller-disabled
         env:
         - name: CHARTS_DIR
           value: "/charts"
