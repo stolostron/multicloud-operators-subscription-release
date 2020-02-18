@@ -43,7 +43,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
 
@@ -106,7 +105,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	destRepo := filepath.Join(chartsDir, s.Name, s.Namespace, s.Spec.ChartName)
+	destRepo := filepath.Join(chartsDir, s.Name, s.Namespace, s.Repo.ChartName)
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
 		err := os.MkdirAll(destRepo, 0755)
 		if err != nil {
@@ -115,30 +114,30 @@ func DownloadChart(configMap *corev1.ConfigMap,
 		}
 	}
 
-	switch strings.ToLower(string(s.Spec.Source.SourceType)) {
+	switch strings.ToLower(string(s.Repo.Source.SourceType)) {
 	case string(appv1alpha1.HelmRepoSourceType):
 		return DownloadChartFromHelmRepo(configMap, secret, destRepo, s)
 	case string(appv1alpha1.GitHubSourceType):
 		return DownloadChartFromGitHub(configMap, secret, destRepo, s)
 	default:
-		return "", fmt.Errorf("sourceType '%s' unsupported", s.Spec.Source.SourceType)
+		return "", fmt.Errorf("sourceType '%s' unsupported", s.Repo.Source.SourceType)
 	}
 }
 
 //DownloadChartFromGitHub downloads a chart into the charsDir
 func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	if s.Spec.Source.GitHub == nil {
+	if s.Repo.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", err
 	}
 
-	_, err = DownloadGitHubRepo(configMap, secret, destRepo, s.Spec.Source.GitHub.Urls, s.Spec.Source.GitHub.Branch)
+	_, err = DownloadGitHubRepo(configMap, secret, destRepo, s.Repo.Source.GitHub.Urls, s.Repo.Source.GitHub.Branch)
 
 	if err != nil {
 		return "", err
 	}
 
-	chartDir = filepath.Join(destRepo, s.Spec.Source.GitHub.ChartPath)
+	chartDir = filepath.Join(destRepo, s.Repo.Source.GitHub.ChartPath)
 
 	return chartDir, err
 }
@@ -209,14 +208,14 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	destRepo string,
 	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	if s.Spec.Source.HelmRepo == nil {
+	if s.Repo.Source.HelmRepo == nil {
 		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
 		return "", err
 	}
 
 	var urlsError string
 
-	for _, url := range s.Spec.Source.HelmRepo.Urls {
+	for _, url := range s.Repo.Source.HelmRepo.Urls {
 		chartDir, err := downloadChartFromURL(configMap, secret, destRepo, s, url)
 		if err == nil {
 			return chartDir, nil
@@ -245,7 +244,7 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 		return "", downloadErr
 	}
 
-	chartDir = filepath.Join(destRepo, s.Spec.ChartName)
+	chartDir = filepath.Join(destRepo, s.Repo.ChartName)
 	//Clean before untar
 	os.RemoveAll(chartDir)
 
@@ -684,23 +683,4 @@ func HashKey(b []byte) (string, error) {
 	}
 
 	return string(h.Sum(nil)), nil
-}
-
-//CreateFakeChart Creates a fake Chart.yaml with the release name
-func CreateFakeChart(chartsDir string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
-	dirName := filepath.Join(chartsDir, s.Spec.ChartName)
-	if _, err := os.Stat(dirName); os.IsNotExist(err) {
-		err := os.MkdirAll(dirName, 0755)
-		if err != nil {
-			klog.Error(err, " - Unable to create chartDir: ", dirName)
-			return "", err
-		}
-	}
-
-	fileName := filepath.Join(dirName, "Chart.yaml")
-	chart := &chart.Metadata{
-		Name: s.Name,
-	}
-
-	return dirName, chartutil.SaveChartfile(fileName, chart)
 }

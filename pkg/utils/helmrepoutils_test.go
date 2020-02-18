@@ -28,7 +28,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/helm/pkg/chartutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
@@ -214,7 +213,7 @@ func TestDownloadChartGitHub(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -243,7 +242,7 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -271,7 +270,7 @@ func TestDownloadChartHelmRepoContainsInvalidURL(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -300,7 +299,7 @@ func TestDownloadChartHelmRepoContainsInvalidURL2(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -329,7 +328,7 @@ func TestDownloadChartHelmRepoAllInvalidURLs(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -354,7 +353,7 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -383,7 +382,7 @@ func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -411,7 +410,7 @@ func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -521,35 +520,4 @@ func TestGenerateHelmIndexYAML(t *testing.T) {
 	assert.NotEqual(t, "", hash)
 
 	assert.Equal(t, 2, len(indexFile.Entries))
-}
-
-func TestCreateFakeChart(t *testing.T) {
-	dir, err := ioutil.TempDir("/tmp", "charts")
-	assert.NoError(t, err)
-
-	defer os.RemoveAll(dir)
-
-	hr := &appv1alpha1.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "subscription-release-test-1-cr",
-			Namespace: "default",
-		},
-		Spec: appv1alpha1.HelmReleaseSpec{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
-				},
-			},
-			ChartName: "subscription-release-test-1-c",
-		},
-	}
-
-	chartDir, err := CreateFakeChart(dir, hr)
-	assert.NoError(t, err)
-
-	chart, err := chartutil.LoadDir(chartDir)
-	assert.NoError(t, err)
-
-	assert.Equal(t, "subscription-release-test-1-cr", chart.GetMetadata().GetName())
 }

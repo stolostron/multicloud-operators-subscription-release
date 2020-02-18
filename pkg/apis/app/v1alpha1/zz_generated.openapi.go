@@ -25,53 +25,8 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/app/v1alpha1.HelmChartSubscription": schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref),
-		"./pkg/apis/app/v1alpha1.HelmRelease":           schema_pkg_apis_app_v1alpha1_HelmRelease(ref),
-		"./pkg/apis/app/v1alpha1.HelmReleaseSpec":       schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref),
-	}
-}
-
-func schema_pkg_apis_app_v1alpha1_HelmChartSubscription(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "HelmChartSubscription is the Schema for the subscriptions API",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"apiVersion": {
-						SchemaProps: spec.SchemaProps{
-							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"metadata": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
-						},
-					},
-					"spec": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.HelmChartSubscriptionSpec"),
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.HelmChartSubscriptionStatus"),
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"./pkg/apis/app/v1alpha1.HelmChartSubscriptionSpec", "./pkg/apis/app/v1alpha1.HelmChartSubscriptionStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+		"./pkg/apis/app/v1alpha1.HelmRelease":     schema_pkg_apis_app_v1alpha1_HelmRelease(ref),
+		"./pkg/apis/app/v1alpha1.HelmReleaseRepo": schema_pkg_apis_app_v1alpha1_HelmReleaseRepo(ref),
 	}
 }
 
@@ -101,29 +56,34 @@ func schema_pkg_apis_app_v1alpha1_HelmRelease(ref common.ReferenceCallback) comm
 							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
+					"repo": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmReleaseRepo"),
+						},
+					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.HelmReleaseSpec"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmAppSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/app/v1alpha1.HelmReleaseStatus"),
+							Ref: ref("./pkg/apis/app/v1alpha1.HelmAppStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/app/v1alpha1.HelmReleaseSpec", "./pkg/apis/app/v1alpha1.HelmReleaseStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/app/v1alpha1.HelmAppSpec", "./pkg/apis/app/v1alpha1.HelmAppStatus", "./pkg/apis/app/v1alpha1.HelmReleaseRepo", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_app_v1alpha1_HelmReleaseRepo(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "HelmReleaseSpec defines the desired state of HelmRelease",
+				Description: "HelmReleaseRepo defines the repository of HelmRelease",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"source": {
@@ -142,13 +102,6 @@ func schema_pkg_apis_app_v1alpha1_HelmReleaseSpec(ref common.ReferenceCallback) 
 					"version": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Version is the chart version",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"values": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Values is a string containing (unparsed) YAML values",
 							Type:        []string{"string"},
 							Format:      "",
 						},

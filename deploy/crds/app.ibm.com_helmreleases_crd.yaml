@@ -28,8 +28,8 @@ spec:
           type: string
         metadata:
           type: object
-        spec:
-          description: HelmReleaseSpec defines the desired state of HelmRelease
+        repo:
+          description: HelmReleaseRepo defines the repository of HelmRelease
           properties:
             chartName:
               description: ChartName is the name of the chart within the repo
@@ -139,29 +139,41 @@ spec:
                   description: SourceTypeEnum types of sources
                   type: string
               type: object
-            values:
-              description: Values is a string containing (unparsed) YAML values
-              type: string
             version:
               description: Version is the chart version
               type: string
           type: object
+        spec: {}
         status:
-          description: HelmReleaseStatus struct containing the status
           properties:
-            lastUpdate:
-              format: date-time
-              type: string
-            message:
-              type: string
-            phase:
-              description: HelmReleaseStatusEnum defines the status of a Subscription
-                release
-              type: string
-            reason:
-              type: string
+            conditions:
+              items:
+                properties:
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  reason:
+                    type: string
+                  status:
+                    type: string
+                  type:
+                    type: string
+                required:
+                - status
+                - type
+                type: object
+              type: array
+            deployedRelease:
+              properties:
+                manifest:
+                  type: string
+                name:
+                  type: string
+              type: object
           required:
-          - lastUpdate
+          - conditions
           type: object
       type: object
   version: v1alpha1

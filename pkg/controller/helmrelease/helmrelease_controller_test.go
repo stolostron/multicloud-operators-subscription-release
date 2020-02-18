@@ -15,12 +15,10 @@
 package helmrelease
 
 import (
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/ghodss/yaml"
 	"github.com/onsi/gomega"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
@@ -87,7 +85,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -108,8 +106,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	t.Logf("Reason: %s", instanceResp.Status.Reason)
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//
 	//Github failed
@@ -130,7 +127,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -151,7 +148,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+	g.Expect(instanceResp.Status.DeployedRelease).To(gomega.BeNil())
 
 	//
 	//helmRepo succeeds
@@ -172,7 +169,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -191,7 +188,7 @@ func TestReconcile(t *testing.T) {
 	instanceResp = &appv1alpha1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//
 	//helmRepo failure
@@ -212,7 +209,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.HelmRepoSourceType,
 				HelmRepo: &appv1alpha1.HelmRepo{
@@ -232,7 +229,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	g.Expect(instanceResp.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseFailed))
+	g.Expect(instanceResp.Status.DeployedRelease).To(gomega.BeNil())
 
 	//
 	//Github succeed create-delete
@@ -253,7 +250,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -277,7 +274,7 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(4 * time.Second)
 
-	g.Expect(instanceRespCD.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+	g.Expect(instanceRespCD.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//Deletion
 	err = c.Delete(context.TODO(), instance)
@@ -310,7 +307,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -338,7 +335,7 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	g.Expect(instanceRespCU.Status.Status).To(gomega.Equal(appv1alpha1.HelmReleaseSuccess))
+	g.Expect(instanceRespCU.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//Update
 	t.Log("Github succeed create-update -> CR get")
@@ -346,7 +343,10 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	instance.Spec.Values = "l1:v1"
+	var spec interface{}
+
+	yaml.Unmarshal([]byte("l1:v1"), &spec)
+	instance.Spec = spec
 
 	t.Log("Github succeed create-update -> CR update")
 
@@ -369,7 +369,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -396,7 +396,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -423,7 +423,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -432,22 +432,17 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			ChartName: "subscription-release-test-1",
-			Values:    "l1:v1",
 		},
 	}
 
+	yaml.Unmarshal([]byte("l1:v1"), &spec)
+	instance.Spec = spec
+
+	//Values well formed
 	err = c.Create(context.TODO(), instance)
 	assert.NoError(t, err)
 
 	time.Sleep(6 * time.Second)
-
-	//Values well formed
-	_, err = rec.newHelmReleaseManager(instance)
-	assert.NoError(t, err)
-	//Values not a yaml
-	instance.Spec.Values = "l1:\nl2"
-	_, err = rec.newHelmReleaseManager(instance)
-	assert.Error(t, err)
 
 	// TestNewManagerErrors
 	helmReleaseName = "test-new-manager-errors"
@@ -457,7 +452,7 @@ func TestReconcile(t *testing.T) {
 			Name:      helmReleaseName,
 			Namespace: helmReleaseNS,
 		},
-		Spec: appv1alpha1.HelmReleaseSpec{
+		Repo: appv1alpha1.HelmReleaseRepo{
 			Source: &appv1alpha1.Source{
 				SourceType: appv1alpha1.GitHubSourceType,
 				GitHub: &appv1alpha1.GitHub{
@@ -473,53 +468,4 @@ func TestReconcile(t *testing.T) {
 	assert.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
-
-	//Download Chart should fail
-	instance.Spec.Source.GitHub.Urls[0] = "wrongurl"
-	instance.Spec.Values = "l1:\nl2"
-	_, err = rec.newHelmReleaseManager(instance)
-	assert.Error(t, err)
-
-	// TestNewManagerForDeletion
-	chartsDir, err := ioutil.TempDir("/tmp", "charts")
-	assert.NoError(t, err)
-
-	defer os.RemoveAll(chartsDir)
-
-	err = os.Setenv(appv1alpha1.ChartsDir, chartsDir)
-	assert.NoError(t, err)
-
-	helmReleaseName = "test-new-manager-delete"
-
-	instance = &appv1alpha1.HelmRelease{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      helmReleaseName,
-			Namespace: helmReleaseNS,
-		},
-		Spec: appv1alpha1.HelmReleaseSpec{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.GitHubSourceType,
-				GitHub: &appv1alpha1.GitHub{
-					Urls:      []string{"https://github.com/IBM/wrongurl"},
-					ChartPath: "test/github/subscription-release-test-1",
-				},
-			},
-			ChartName: "subscription-release-test-1",
-		},
-	}
-
-	err = c.Create(context.TODO(), instance)
-	assert.NoError(t, err)
-
-	time.Sleep(6 * time.Second)
-
-	instance.GetObjectMeta().SetDeletionTimestamp(&metav1.Time{Time: time.Now()})
-	mgrhr, err := rec.newHelmReleaseManager(instance)
-	assert.NoError(t, err)
-
-	assert.Equal(t, mgrhr.ReleaseName(), helmReleaseName)
-
-	if _, err := os.Stat(filepath.Join(chartsDir, instance.Spec.ChartName, "Chart.yaml")); err != nil {
-		assert.Fail(t, err.Error())
-	}
 }
