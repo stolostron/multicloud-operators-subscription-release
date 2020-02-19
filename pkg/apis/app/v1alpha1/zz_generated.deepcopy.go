@@ -19,6 +19,8 @@
 package v1alpha1
 
 import (
+	"github.com/ghodss/yaml"
+
 	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -112,7 +114,11 @@ func (in *HelmRelease) DeepCopyInto(out *HelmRelease) {
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 	in.Repo.DeepCopyInto(&out.Repo)
 	if in.Spec != nil {
-		out.Spec = in.Spec // Modified after auto gen
+		// Modified after auto gen
+		byt, err := yaml.Marshal(in.Spec)
+		if err == nil {
+			err = yaml.Unmarshal(byt, out.Spec)
+		}
 	}
 	in.Status.DeepCopyInto(&out.Status)
 	return
