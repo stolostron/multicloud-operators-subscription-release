@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
 )
 
 /**
@@ -56,14 +56,14 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
+	chartsDir := os.Getenv(appv1.ChartsDir)
 	if chartsDir == "" {
 		chartsDir, err := ioutil.TempDir("/tmp", "charts")
 		if err != nil {
 			return err
 		}
 
-		err = os.Setenv(appv1alpha1.ChartsDir, chartsDir)
+		err = os.Setenv(appv1.ChartsDir, chartsDir)
 		if err != nil {
 			return err
 		}
@@ -76,7 +76,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource HelmRelease
-	if err := c.Watch(&source.Kind{Type: &appv1alpha1.HelmRelease{}}, &handler.EnqueueRequestForObject{},
+	if err := c.Watch(&source.Kind{Type: &appv1.HelmRelease{}}, &handler.EnqueueRequestForObject{},
 		predicate.GenerationChangedPredicate{}); err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	klog.V(1).Info("Reconciling HelmRelease:", request)
 
 	// Fetch the HelmRelease instance
-	instance := &appv1alpha1.HelmRelease{}
+	instance := &appv1.HelmRelease{}
 
 	err := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
@@ -160,14 +160,14 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	return result, nil
 }
 
-func containsErrorConditions(hr *appv1alpha1.HelmRelease) bool {
+func containsErrorConditions(hr *appv1.HelmRelease) bool {
 	if hr.Status.Conditions == nil {
 		return false
 	}
 
 	for i := range hr.Status.Conditions {
-		if hr.Status.Conditions[i].Type == appv1alpha1.ConditionIrreconcilable ||
-			hr.Status.Conditions[i].Type == appv1alpha1.ConditionReleaseFailed {
+		if hr.Status.Conditions[i].Type == appv1.ConditionIrreconcilable ||
+			hr.Status.Conditions[i].Type == appv1.ConditionReleaseFailed {
 			return true
 		}
 	}
@@ -175,13 +175,13 @@ func containsErrorConditions(hr *appv1alpha1.HelmRelease) bool {
 	return false
 }
 
-func setErrorStatus(client client.StatusClient, hr *appv1alpha1.HelmRelease, err error) error {
+func setErrorStatus(client client.StatusClient, hr *appv1.HelmRelease, err error) error {
 	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s error status for error: %v", hr.GetNamespace(), hr.GetName(), err))
 
-	hr.Status.SetCondition(appv1alpha1.HelmAppCondition{
-		Type:    appv1alpha1.ConditionIrreconcilable,
-		Status:  appv1alpha1.StatusTrue,
-		Reason:  appv1alpha1.ReasonReconcileError,
+	hr.Status.SetCondition(appv1.HelmAppCondition{
+		Type:    appv1.ConditionIrreconcilable,
+		Status:  appv1.StatusTrue,
+		Reason:  appv1.ReasonReconcileError,
 		Message: err.Error(),
 	})
 

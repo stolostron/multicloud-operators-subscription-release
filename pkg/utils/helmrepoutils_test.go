@@ -30,7 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
 )
 
 const index = `apiVersion: v1
@@ -208,16 +208,16 @@ func TestSecret(t *testing.T) {
 }
 
 func TestDownloadChartGitHub(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.GitHubSourceType,
-				GitHub: &appv1alpha1.GitHub{
-					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitHubSourceType,
+				GitHub: &appv1.GitHub{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
@@ -237,16 +237,17 @@ func TestDownloadChartGitHub(t *testing.T) {
 }
 
 func TestDownloadChartHelmRepo(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -265,16 +266,17 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 }
 
 func TestDownloadChartHelmRepoContainsInvalidURL(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz",
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz",
 						"https://badURL1"},
 				},
 			},
@@ -294,17 +296,17 @@ func TestDownloadChartHelmRepoContainsInvalidURL(t *testing.T) {
 }
 
 func TestDownloadChartHelmRepoContainsInvalidURL2(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{"https://badURL1",
-						"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -323,15 +325,15 @@ func TestDownloadChartHelmRepoContainsInvalidURL2(t *testing.T) {
 }
 
 func TestDownloadChartHelmRepoAllInvalidURLs(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{"https://badURL1", "https://badURL2", "https://badURL3", "https://badURL4", "https://badURL5"},
 				},
 			},
@@ -348,16 +350,16 @@ func TestDownloadChartHelmRepoAllInvalidURLs(t *testing.T) {
 }
 
 func TestDownloadChartFromGitHub(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.GitHubSourceType,
-				GitHub: &appv1alpha1.GitHub{
-					Urls:      []string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitHubSourceType,
+				GitHub: &appv1.GitHub{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
@@ -377,16 +379,17 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 }
 
 func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
-					Urls: []string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -405,15 +408,15 @@ func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 }
 
 func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
-	hr := &appv1alpha1.HelmRelease{
+	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
 			Namespace: "default",
 		},
-		Repo: appv1alpha1.HelmReleaseRepo{
-			Source: &appv1alpha1.Source{
-				SourceType: appv1alpha1.HelmRepoSourceType,
-				HelmRepo: &appv1alpha1.HelmRepo{
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{"file:../../test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
 				},
 			},
@@ -440,7 +443,7 @@ func TestDownloadGitHubRepo(t *testing.T) {
 
 	destRepo := filepath.Join(dir, "test")
 	commitID, err := DownloadGitHubRepo(nil, nil, destRepo,
-		[]string{"https://github.com/IBM/multicloud-operators-subscription-release.git"}, "")
+		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "")
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destRepo, "OWNERS"))
@@ -496,7 +499,7 @@ func TestUnmarshalIndex(t *testing.T) {
 }
 func TestGetHelmIndex(t *testing.T) {
 	indexFile, hash, err := GetHelmRepoIndex(nil, nil, "",
-		[]string{"https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo"})
+		[]string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo"})
 	assert.NoError(t, err)
 
 	assert.NotEqual(t, "", hash)
@@ -513,7 +516,7 @@ func TestGenerateHelmIndexYAML(t *testing.T) {
 	destRepo := filepath.Join(dir, "test")
 	indexFile, hash, err := GenerateGitHubIndexFile(nil, nil,
 		destRepo,
-		[]string{"https://github.com/IBM/multicloud-operators-subscription-release.git"},
+		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 		"test/github", "")
 	assert.NoError(t, err)
 

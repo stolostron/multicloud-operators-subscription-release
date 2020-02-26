@@ -46,7 +46,7 @@ import (
 	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
 )
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
@@ -104,7 +104,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 func DownloadChart(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	chartsDir string,
-	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	s *appv1.HelmRelease) (chartDir string, err error) {
 	destRepo := filepath.Join(chartsDir, s.Name, s.Namespace, s.Repo.ChartName)
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
 		err := os.MkdirAll(destRepo, 0755)
@@ -115,9 +115,9 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	}
 
 	switch strings.ToLower(string(s.Repo.Source.SourceType)) {
-	case string(appv1alpha1.HelmRepoSourceType):
+	case string(appv1.HelmRepoSourceType):
 		return DownloadChartFromHelmRepo(configMap, secret, destRepo, s)
-	case string(appv1alpha1.GitHubSourceType):
+	case string(appv1.GitHubSourceType):
 		return DownloadChartFromGitHub(configMap, secret, destRepo, s)
 	default:
 		return "", fmt.Errorf("sourceType '%s' unsupported", s.Repo.Source.SourceType)
@@ -125,7 +125,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 }
 
 //DownloadChartFromGitHub downloads a chart into the charsDir
-func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1.HelmRelease) (chartDir string, err error) {
 	if s.Repo.Source.GitHub == nil {
 		err := fmt.Errorf("github type but Spec.GitHub is not defined")
 		return "", err
@@ -207,7 +207,7 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	destRepo string,
-	s *appv1alpha1.HelmRelease) (chartDir string, err error) {
+	s *appv1.HelmRelease) (chartDir string, err error) {
 	if s.Repo.Source.HelmRepo == nil {
 		err := fmt.Errorf("helmrepo type but Spec.HelmRepo is not defined")
 		return "", err
@@ -230,7 +230,7 @@ func DownloadChartFromHelmRepo(configMap *corev1.ConfigMap,
 func downloadChartFromURL(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	destRepo string,
-	s *appv1alpha1.HelmRelease,
+	s *appv1.HelmRelease,
 	url string) (chartDir string, err error) {
 	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo)
 	if downloadErr != nil {

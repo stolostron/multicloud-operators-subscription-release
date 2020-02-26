@@ -23,4 +23,4 @@ operator-sdk up local --verbose [--operator-flags "--v=1"]
 
 ## Build a local image
 
-`operator-sdk build ibm/multicloud-operators-subscription-release:latest`
+`operator-sdk build open-cluster-management/multicloud-operators-subscription-release:latest`

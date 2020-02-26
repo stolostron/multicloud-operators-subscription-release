@@ -1,7 +1,0 @@
-apiVersion: app.ibm.com/v1alpha1
-kind: HelmRelease
-metadata:
-  name: example-helmrelease
-spec:
-  # Add fields here
-  size: 3

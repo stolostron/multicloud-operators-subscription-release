@@ -54,7 +54,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - app.ibm.com
+  - multicloud-apps.io
   resources:
   - '*'
   - helmreleases

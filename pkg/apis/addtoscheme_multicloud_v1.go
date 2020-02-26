@@ -17,10 +17,10 @@ limitations under the License.
 package apis
 
 import (
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
-	AddToSchemes = append(AddToSchemes, v1alpha1.SchemeBuilder.AddToScheme)
+	AddToSchemes = append(AddToSchemes, appv1.SchemeBuilder.AddToScheme)
 }
