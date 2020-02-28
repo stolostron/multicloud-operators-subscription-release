@@ -1,11 +1,11 @@
-module github.com/IBM/multicloud-operators-subscription-release
+module github.com/open-cluster-management/multicloud-operators-subscription-release
 
 go 1.13
 
 require (
-	github.com/blang/semver v3.5.1+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20180820084758-c7ce16629ff4
 	github.com/go-openapi/spec v0.19.0
+	github.com/jstemmer/go-junit-report v0.9.1 // indirect
 	github.com/onsi/gomega v1.5.0
 	github.com/operator-framework/operator-sdk v0.12.0
 	github.com/spf13/pflag v1.0.3

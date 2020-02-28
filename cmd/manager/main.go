@@ -41,8 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/apis"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/controller"
+	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis"
+	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/controller"
 )
 
 // Change below variables to serve metrics on different host or port.

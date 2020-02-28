@@ -19,4 +19,4 @@ for f in "$1"/*
 do 
   helm package "$f" -d test/helmrepo 
 done
-helm repo index --url https://raw.github.com/IBM/multicloud-operators-subscription-release/master/test/helmrepo test/helmrepo
+helm repo index --url https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo test/helmrepo

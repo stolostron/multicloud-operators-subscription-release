@@ -23,13 +23,13 @@ import (
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"k8s.io/klog"
 
-	appv1alpha1 "github.com/IBM/multicloud-operators-subscription-release/pkg/apis/app/v1alpha1"
-	"github.com/IBM/multicloud-operators-subscription-release/pkg/utils"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
+	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/utils"
 )
 
 //newHelmReleaseManager create a new manager returns a helmManager
 func (r *ReconcileHelmRelease) newHelmReleaseManager(
-	s *appv1alpha1.HelmRelease) (helmrelease.ManagerFactory, error) {
+	s *appv1.HelmRelease) (helmrelease.ManagerFactory, error) {
 	configMap, err := utils.GetConfigMap(r.GetClient(), s.Namespace, s.Repo.ConfigMapRef)
 	if err != nil {
 		klog.Error(err)
@@ -42,7 +42,7 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 		return nil, err
 	}
 
-	chartsDir := os.Getenv(appv1alpha1.ChartsDir)
+	chartsDir := os.Getenv(appv1.ChartsDir)
 	if chartsDir == "" {
 		chartsDir, err = ioutil.TempDir("/tmp", "charts")
 		if err != nil {

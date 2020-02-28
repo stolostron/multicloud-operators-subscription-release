@@ -3,7 +3,6 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Contributing guidelines](#contributing-guidelines)
-    - [Sign the CLA](#sign-the-cla)
     - [Contributing A Patch](#contributing-a-patch)
     - [Issue and Pull Request Management](#issue-and-pull-request-management)
     - [Pre-check before submitting a PR](#pre-check-before-submitting-a-pr)
@@ -12,10 +11,6 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 # Contributing guidelines
-
-## Sign the CLA
-
-IBM cloud projects require that you sign a Contributor License Agreement (CLA) before we can accept your pull requests.  Please see xxx for more info
 
 ## Contributing A Patch
 
@@ -29,7 +24,7 @@ IBM cloud projects require that you sign a Contributor License Agreement (CLA) b
 
 Anyone may comment on issues and submit reviews for pull requests. However, in
 order to be assigned an issue or pull request, you must be a member of the
-[IBM](https://github.com/ibm) GitHub organization.
+[open-cluster-management](https://github.com/open-cluster-management) GitHub organization.
 
 Repo maintainers can assign you an issue or pull request by leaving a
 `/assign <your Github ID>` comment on the issue or pull request.

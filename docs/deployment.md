@@ -40,7 +40,7 @@ In order for another service account to be able to access the `helmrelease`, a r
 Helmrelease CR:
 
 ```yaml
-apiVersion: app.ibm.com/v1alpha1
+apiVersion: multicloud-apps.io/v1
 kind: HelmRelease
 metadata:
   name: myapp-ibm-myapp-api-ope
