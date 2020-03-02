@@ -43,22 +43,19 @@ Helmrelease CR:
 apiVersion: multicloud-apps.io/v1
 kind: HelmRelease
 metadata:
-  name: myapp-ibm-myapp-api-ope
+  name: nginx-ingress
   namespace: default
-spec:
+repo:
+  chartName: nginx-ingress
   source:
-    type: helmrepo
     helmRepo:
-      URLs:
-      - https://mycluster.icp:8443/helm-repo/requiredAssets/ibm-myapp-api-0.2.3-015-20190725140717.tgz
-  chartName: ibm-myapp-api
-  secretRef:
-    name: mysecret
-  configRef:
-    name: mycluster-config
-    value: |
-      attribute1: value1
-      attribute2: value2
+      urls:
+      - https://kubernetes-charts.storage.googleapis.com/nginx-ingress-1.26.0.tgz
+    type: helmrepo
+  version: 1.26.0
+spec:
+  defaultBackend:
+    replicaCount: 1
 ```
 
 `file:` sheme is also supported to define the location of a local file.

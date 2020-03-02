@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloud/v1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloudapps/v1"
 )
 
 var (
