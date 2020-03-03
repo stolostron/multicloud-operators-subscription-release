@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This repo is build locally for dev/test by default;
-# Override this variable in CI env.
-BUILD_LOCALLY ?= 1
+# This repo is build in Travis-ci by default;
+# Override this variable in local env.
+TRAVIS_BUILD ?= 1
 
 # Image URL to use all building/pushing image targets;
 # Use your own docker registry and image name for dev/test by overridding the IMG and REGISTRY environment variable.
-IMG ?= multicloud-operators-subscription-release
-REGISTRY ?= quay.io/multicloudlab
+IMG ?= $(shell cat COMPONENT_NAME 2> /dev/null)
+REGISTRY ?= quay.io/open-cluster-management
 
 # Github host to use for checking the source tree;
 # Override this variable ue with your own value if you're working on forked repo.
@@ -36,8 +36,9 @@ export GOBIN ?= $(GOBIN_DEFAULT)
 TESTARGS_DEFAULT := "-v"
 export TESTARGS ?= $(TESTARGS_DEFAULT)
 DEST := $(GOPATH)/src/$(GIT_HOST)/$(BASE_DIR)
-VERSION ?= $(shell git describe --exact-match 2> /dev/null || \
-                 git describe --match=$(git rev-parse --short=8 HEAD) --always --dirty --abbrev=8)
+VERSION ?= $(shell cat COMPONENT_VERSION 2> /dev/null)
+IMAGE_NAME_AND_VERSION ?= $(REGISTRY)/$(IMG):$(VERSION)
+
 
 LOCAL_OS := $(shell uname)
 ifeq ($(LOCAL_OS),Linux)
@@ -50,25 +51,24 @@ else
     $(error "This system's OS $(LOCAL_OS) isn't recognized/supported")
 endif
 
-############################################################
-# install git hooks
-############################################################
-INSTALL_HOOKS := $(shell find .git/hooks -type l -exec rm {} \; && \
-                         find common/scripts/.githooks -type f -exec ln -sf ../../{} .git/hooks/ \; )
+.PHONY: fmt lint test coverage build build-images
 
-.PHONY: init all work fmt check coverage lint test build images build-push-images
+ifneq ("$(realpath $(DEST))", "$(realpath $(PWD))")
+    $(error Please run 'make' from $(DEST). Current directory is $(PWD))
+endif
 
-all: fmt check test coverage build images
+# GITHUB_USER containing '@' char must be escaped with '%40'
+GITHUB_USER := $(shell echo $(GITHUB_USER) | sed 's/@/%40/g')
+GITHUB_TOKEN ?=
 
-# ifneq ("$(realpath $(DEST))", "$(realpath $(PWD))")
-#     $(error Please run 'make' from $(DEST). Current directory is $(PWD))
-# endif
+ifeq ($(TRAVIS_BUILD),1)
+  -include $(shell curl -H 'Authorization: token ${GITHUB_TOKEN}' -H 'Accept: application/vnd.github.v4.raw' -L https://api.github.com/repos/open-cluster-management/build-harness-extensions/contents/templates/Makefile.build-harness-bootstrap -o .build-harness-bootstrap; echo .build-harness-bootstrap)
+endif
 
-# The MARKDOWN_LINT_WHITELIST is used to white-list the urls
-MARKDOWN_LINT_WHITELIST := mycluster.icp
+default::
+	@echo "Build Harness Bootstrapped"
 
 include common/Makefile.common.mk
-# include Makefile.local
 
 ############################################################
 # work section
@@ -100,17 +100,6 @@ check: lint
 lint: lint-all
 
 ############################################################
-# generate helm repo for test
-############################################################
-
-generate-helmrepo:
-	@rm -rf test/helmrepo
-	@mkdir test/helmrepo
-	@helm init --client-only 
-	@helm package test/github/subscription-release-test-1 -d test/helmrepo --version "0.2.0"
-	@build/generate-helmrepo.sh test/github
-
-############################################################
 # test section
 ############################################################
 
@@ -122,49 +111,29 @@ test:
 ############################################################
 
 coverage:
-	@common/scripts/codecov.sh ${BUILD_LOCALLY}
-
-############################################################
-# generate code section
-############################################################
-
-generate:
-	operator-sdk generate k8s
-	operator-sdk generate openapi
+	@common/scripts/codecov.sh
 
 ############################################################
 # build section
 ############################################################
 
 build:
-	# @common/scripts/gobuild.sh go-repo-template ./cmd/manager
-	@$(GOBIN)/operator-sdk version ; \
-	if [ $$? -ne 0 ]; then \
-	   build/install-operator-sdk.sh; \
-	fi
-	@$(GOBIN)/operator-sdk version
+	@common/scripts/gobuild.sh build/_output/bin/$(IMG) ./cmd/manager
 
+local:
+	@GOOS=darwin common/scripts/gobuild.sh build/_output/bin/$(IMG) ./cmd/manager
 
 ############################################################
 # images section
 ############################################################
 
-images: build build-push-images
+build-images:
+	@operator-sdk build ${IMAGE_NAME_AND_VERSION}
+	@docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):latest
 
-ifeq ($(BUILD_LOCALLY),0)
-    export CONFIG_DOCKER_TARGET = config-docker
-endif
-
-build-push-images: $(CONFIG_DOCKER_TARGET)
-	@$(GOBIN)/operator-sdk build $(REGISTRY)/$(IMG):$(VERSION)
-	@docker tag $(REGISTRY)/$(IMG):$(VERSION) $(REGISTRY)/$(IMG):latest
-ifeq ($(BUILD_LOCALLY),0)
-	@docker push $(REGISTRY)/$(IMG):$(VERSION)
-	@docker push $(REGISTRY)/$(IMG):latest
-endif
 
 ############################################################
 # clean section
 ############################################################
-clean:
-	rm -f go-repo-template
+clean::
+	rm -f build/_output/bin/$(IMG)

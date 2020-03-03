@@ -25,8 +25,8 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/multicloud/v1.HelmRelease":     schema_pkg_apis_app_v1_HelmRelease(ref),
-		"./pkg/apis/multicloud/v1.HelmReleaseRepo": schema_pkg_apis_app_v1_HelmReleaseRepo(ref),
+		"./pkg/apis/multicloudapps/v1.HelmRelease":     schema_pkg_apis_app_v1_HelmRelease(ref),
+		"./pkg/apis/multicloudapps/v1.HelmReleaseRepo": schema_pkg_apis_app_v1_HelmReleaseRepo(ref),
 	}
 }
 
@@ -58,24 +58,24 @@ func schema_pkg_apis_app_v1_HelmRelease(ref common.ReferenceCallback) common.Ope
 					},
 					"repo": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/multicloud/v1.HelmReleaseRepo"),
+							Ref: ref("./pkg/apis/multicloudapps/v1.HelmReleaseRepo"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/multicloud/v1.HelmAppSpec"),
+							Ref: ref("./pkg/apis/multicloudapps/v1.HelmAppSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/multicloud/v1.HelmAppStatus"),
+							Ref: ref("./pkg/apis/multicloudapps/v1.HelmAppStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/multicloud/v1.HelmAppSpec", "./pkg/apis/multicloud/v1.HelmAppStatus", "./pkg/apis/multicloud/v1.HelmReleaseRepo", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/multicloudapps/v1.HelmAppSpec", "./pkg/apis/multicloudapps/v1.HelmAppStatus", "./pkg/apis/multicloudapps/v1.HelmReleaseRepo", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -89,7 +89,7 @@ func schema_pkg_apis_app_v1_HelmReleaseRepo(ref common.ReferenceCallback) common
 					"source": {
 						SchemaProps: spec.SchemaProps{
 							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html Source holds the url toward the helm-chart",
-							Ref:         ref("./pkg/apis/multicloud/v1.Source"),
+							Ref:         ref("./pkg/apis/multicloudapps/v1.Source"),
 						},
 					},
 					"chartName": {
@@ -122,6 +122,6 @@ func schema_pkg_apis_app_v1_HelmReleaseRepo(ref common.ReferenceCallback) common
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/multicloud/v1.Source", "k8s.io/api/core/v1.ObjectReference"},
+			"./pkg/apis/multicloudapps/v1.Source", "k8s.io/api/core/v1.ObjectReference"},
 	}
 }

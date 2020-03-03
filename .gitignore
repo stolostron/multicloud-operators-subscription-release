@@ -75,7 +75,6 @@ tags
 .vscode/*
 .history
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
-/vendor
-/vendor_scan-results
-.DS_Store
-wicked_cli.log
+.build-harness-bootstrap
+build-harness-extensions
+build-harness

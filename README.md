@@ -1,6 +1,5 @@
 # multicloud-operators-subscription-release
 
-[![Build](http://35.227.205.240/badge.svg?jobs=build_multicloud-operators-subscription-release)](http://35.227.205.240/?job=images_multicloud-operators-subscription-release_postsubmit)
 [![GoDoc](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release)
 [![Go Report Card](https://goreportcard.com/badge/github.com/open-cluster-management/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/open-cluster-management/multicloud-operators-subscription-release)
 [![Code Coverage](https://codecov.io/gh/open-cluster-management/multicloud-operators-subscription-release/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/gh/open-cluster-management/multicloud-operators-subscription-release?branch=master)
