@@ -61,7 +61,7 @@ spec:
       containers:
       - name: multicloud-operators-subscription-release
         # Replace this with the built image name
-        image: quay.io/multicloudlab/multicloud-operators-subscription-release
+        image: quay.io/open-cluster-management/multicloud-operators-subscription-release
         command:
         - multicloud-operators-subscription-release
         imagePullPolicy: Always
