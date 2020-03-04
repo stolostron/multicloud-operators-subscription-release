@@ -27,7 +27,7 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloudapps/v1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
 var (
@@ -79,7 +79,7 @@ func TestReconcile(t *testing.T) {
 	instance := &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -121,7 +121,7 @@ func TestReconcile(t *testing.T) {
 	instance = &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -163,7 +163,7 @@ func TestReconcile(t *testing.T) {
 	instance = &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -204,7 +204,7 @@ func TestReconcile(t *testing.T) {
 	instance = &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -245,7 +245,7 @@ func TestReconcile(t *testing.T) {
 	instance = &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -302,7 +302,7 @@ func TestReconcile(t *testing.T) {
 	instance = &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
-			APIVersion: "multicloud-apps.io/v1",
+			APIVersion: "apps.open-cluster-management.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,

@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/multicloudapps/v1"
+	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
 /**

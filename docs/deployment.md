@@ -40,7 +40,7 @@ In order for another service account to be able to access the `helmrelease`, a r
 Helmrelease CR:
 
 ```yaml
-apiVersion: multicloud-apps.io/v1
+apiVersion: apps.open-cluster-management.io/v1
 kind: HelmRelease
 metadata:
   name: nginx-ingress
