@@ -54,7 +54,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - multicloud-apps.io
+  - apps.open-cluster-management.io
   resources:
   - '*'
   - helmreleases

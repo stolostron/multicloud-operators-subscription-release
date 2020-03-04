@@ -5,7 +5,7 @@ metadata:
   name: multicloud-operators-subscription-release
 rules:
 - apiGroups:
-  - multicloud-apps.io
+  - apps.open-cluster-management.io
   resources:
   - helmreleases
   verbs:
