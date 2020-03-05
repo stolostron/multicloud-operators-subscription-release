@@ -117,8 +117,7 @@ func init() {
 	SchemeBuilder.Register(&HelmRelease{}, &HelmReleaseList{})
 }
 
-// Below are mostly copied from operator sdk's internal package
-// https://github.com/operator-framework/operator-sdk/blob/v0.12.x/pkg/helm/internal/types/types.go
+// Below are mostly copied from operator sdk's internal package. See: github.com/operator-framework/operator-sdk
 
 type HelmAppSpec interface{} // modified
 

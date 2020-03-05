@@ -90,7 +90,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-1",
+					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -174,7 +174,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -256,7 +256,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-1",
+					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -313,7 +313,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-1",
+					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -375,7 +375,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-1",
+					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -402,7 +402,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-1",
+					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
 			ChartName: "subscription-release-test-1",

@@ -24,6 +24,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ghodss/yaml"
 	helmController "github.com/operator-framework/operator-sdk/pkg/helm/controller"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
@@ -115,6 +116,22 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+
+	if instance.Spec == nil {
+		spec := make(map[string]interface{})
+
+		err := yaml.Unmarshal([]byte(""), &spec)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		instance.Spec = spec
+
+		err = r.GetClient().Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	helmReleaseManager, err := r.newHelmReleaseManager(instance)
