@@ -14,7 +14,6 @@ metadata:
     component: "application-manager-subscription-release"
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
-    connectionManager: {{ .Values.connectionManager }}
 spec:
   replicas: 1
   revisionHistoryLimit: 2

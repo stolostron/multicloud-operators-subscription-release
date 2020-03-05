@@ -9,8 +9,6 @@
 
 enabled: true
 
-connectionManager: null
-
 subscriptionrelease:
   enabled: true
   image:
