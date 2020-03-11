@@ -1,8 +1,8 @@
 # multicloud-operators-subscription-release
 
-[![GoDoc](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release)
+[![Build](https://travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)](https://travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/open-cluster-management/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/open-cluster-management/multicloud-operators-subscription-release)
-[![Code Coverage](https://codecov.io/gh/open-cluster-management/multicloud-operators-subscription-release/branch/master/graphs/badge.svg?branch=master)](https://codecov.io/gh/open-cluster-management/multicloud-operators-subscription-release?branch=master)
+[![GoDoc](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)
 [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
