@@ -1,9 +1,17 @@
-#!/bin/bash
-echo "BUILD GOES HERE!"
+#!/bin/bash -e
 
-echo "<repo>/<component>:<tag> : $1"
+# PARAMETERS
+# $1 - Final image name and tag to be produced
 
-# Run our build target and set IMAGE_NAME_AND_VERSION
-export IMAGE_NAME_AND_VERSION=${1}
-make build
-make build-images
+echo Building operator
+echo GOOS: $GOOS
+echo GOARCH: $GOARCH
+echo "--IMAGE: $DOCKER_IMAGE"
+echo "--TAG: $DOCKER_BUILD_TAG"
+echo "--DOCKER_BUILD_OPTS: $DOCKER_BUILD_OPTS"
+go build ./cmd/manager
+
+# if [ ! -z "$TRAVIS" ]; then
+#     echo "Retagging image as $1"
+#     docker tag $DOCKER_IMAGE:$DOCKER_BUILD_TAG $1
+# fi
