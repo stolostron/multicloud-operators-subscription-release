@@ -71,7 +71,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Create a new controller
-	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 10})
 	if err != nil {
 		return err
 	}
@@ -93,6 +93,12 @@ type ReconcileHelmRelease struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	manager.Manager
+}
+
+// HelmOperatorReconcileResult holds the result of the HelmOperatorReconcile
+type HelmOperatorReconcileResult struct {
+	Result reconcile.Result
+	Error  error
 }
 
 // Reconcile reads that state of the cluster for a HelmRelease object and makes changes based on the state read
@@ -136,7 +142,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 
 	helmReleaseManager, err := r.newHelmReleaseManager(instance)
 	if err != nil {
-		errUpdate := setErrorStatus(r.GetClient(), instance, err)
+		errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable)
 		if errUpdate != nil {
 			return reconcile.Result{}, errUpdate
 		}
@@ -152,29 +158,65 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		ManagerFactory: helmReleaseManager,
 	}
 
-	result, err := hor.Reconcile(request)
-	if err != nil {
-		klog.Error(err, "- Failed during HelmOperator Reconcile.")
+	c := make(chan HelmOperatorReconcileResult)
 
-		errGet := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
-		if errGet == nil {
-			if !containsErrorConditions(instance) {
-				errUpdate := setErrorStatus(r.GetClient(), instance, err)
-				if errUpdate != nil {
-					return reconcile.Result{}, errUpdate
+	go func() {
+		res := horReconcile(request, *hor)
+		c <- res
+	}()
+
+	// Either process the HelmOperatorReconciler's return or timeout.
+	select {
+	case res := <-c:
+		result := res.Result
+		err := res.Error
+
+		close(c)
+
+		if err != nil {
+			klog.Error(err, "- Failed during HelmOperator Reconcile.")
+
+			errGet := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
+			if errGet == nil {
+				if !containsErrorConditions(instance) {
+					errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable)
+					if errUpdate != nil {
+						return reconcile.Result{}, errUpdate
+					}
 				}
+			} else {
+				klog.Error(errGet, "- Failed to get HelmRelease: ", request.NamespacedName)
+				return reconcile.Result{}, errGet
 			}
-		} else {
-			klog.Error(errGet, "- Failed to get HelmRelease: ", request.NamespacedName)
-			return reconcile.Result{}, errGet
+
+			klog.V(1).Info("Requeue after two minutes.")
+
+			return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
 		}
 
-		klog.V(1).Info("Requeue after two minutes.")
+		return result, nil
+	case <-time.After(30 * time.Minute):
+		err = fmt.Errorf("timeout after 30 minutes while reconciling %v, check if there are any hung jobs or pods that are blocking the reconciliation", request)
+		klog.Error(err)
 
-		return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
+		close(c)
+
+		errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionTimedout)
+		if errUpdate != nil {
+			return reconcile.Result{}, errUpdate
+		}
+
+		return reconcile.Result{}, err
 	}
+}
 
-	return result, nil
+func horReconcile(request reconcile.Request, hor helmController.HelmOperatorReconciler) HelmOperatorReconcileResult {
+	horResult := new(HelmOperatorReconcileResult)
+	result, err := hor.Reconcile(request)
+	horResult.Result = result
+	horResult.Error = err
+
+	return *horResult
 }
 
 func containsErrorConditions(hr *appv1.HelmRelease) bool {
@@ -192,11 +234,11 @@ func containsErrorConditions(hr *appv1.HelmRelease) bool {
 	return false
 }
 
-func setErrorStatus(client client.StatusClient, hr *appv1.HelmRelease, err error) error {
+func setErrorStatus(client client.StatusClient, hr *appv1.HelmRelease, err error, conditionType appv1.HelmAppConditionType) error {
 	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s error status for error: %v", hr.GetNamespace(), hr.GetName(), err))
 
 	hr.Status.SetCondition(appv1.HelmAppCondition{
-		Type:    appv1.ConditionIrreconcilable,
+		Type:    conditionType,
 		Status:  appv1.StatusTrue,
 		Reason:  appv1.ReasonReconcileError,
 		Message: err.Error(),
