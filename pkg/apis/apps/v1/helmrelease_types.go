@@ -144,6 +144,7 @@ const (
 	ConditionDeployed       HelmAppConditionType = "Deployed"
 	ConditionReleaseFailed  HelmAppConditionType = "ReleaseFailed"
 	ConditionIrreconcilable HelmAppConditionType = "Irreconcilable"
+	ConditionTimedout       HelmAppConditionType = "Timedout"
 
 	StatusTrue    ConditionStatus = "True"
 	StatusFalse   ConditionStatus = "False"
