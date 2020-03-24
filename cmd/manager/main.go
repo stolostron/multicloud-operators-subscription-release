@@ -42,6 +42,7 @@ import (
 
 	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis"
 	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/controller"
+	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/controller/helmrelease"
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -67,6 +68,12 @@ func main() {
 	// Add flags registered by imported packages (e.g. glog and
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+
+	// Add subscription operator flag set to the CLI.
+	pflag.CommandLine.IntVar(&helmrelease.Options.MaxConcurrent,
+		"hr-max-concurrent-reconciles",
+		helmrelease.DefaultMaxConcurrent,
+		"Set the max concurrent reconciles value for the helmrelease controller")
 
 	pflag.Parse()
 

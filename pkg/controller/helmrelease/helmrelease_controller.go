@@ -39,6 +39,17 @@ import (
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
+//DefaultMaxConcurrent is the default value for the MaxConcurrentReconciles
+const DefaultMaxConcurrent = 10
+
+//ControllerCMDOptions possible command line options
+type ControllerCMDOptions struct {
+	MaxConcurrent int
+}
+
+//Options the command line options
+var Options = ControllerCMDOptions{}
+
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
@@ -70,8 +81,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		}
 	}
 
+	maxConcurrentReconciles := Options.MaxConcurrent
+	if maxConcurrentReconciles < 1 {
+		maxConcurrentReconciles = DefaultMaxConcurrent
+	}
+
+	klog.Info("The MaxConcurrentReconciles is set to: ", maxConcurrentReconciles)
+
 	// Create a new controller
-	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: 10})
+	c, err := controller.New("helmrelease-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: maxConcurrentReconciles})
 	if err != nil {
 		return err
 	}
