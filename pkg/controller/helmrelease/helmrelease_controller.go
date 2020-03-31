@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ghodss/yaml"
@@ -39,8 +40,14 @@ import (
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
-//DefaultMaxConcurrent is the default value for the MaxConcurrentReconciles
-const DefaultMaxConcurrent = 10
+const (
+	//DefaultMaxConcurrent is the default value for the MaxConcurrentReconciles
+	DefaultMaxConcurrent = 10
+
+	// MaxConcurrentEnvVar is the constant for env variable HR_MAX_CONCURRENT
+	// which is the maximum concurrent reconcile number
+	MaxConcurrentEnvVar = "HR_MAX_CONCURRENT"
+)
 
 //ControllerCMDOptions possible command line options
 type ControllerCMDOptions struct {
@@ -49,11 +56,6 @@ type ControllerCMDOptions struct {
 
 //Options the command line options
 var Options = ControllerCMDOptions{}
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new HelmRelease Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -86,6 +88,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		maxConcurrentReconciles = DefaultMaxConcurrent
 	}
 
+	envMaxConcurrent := getEnvMaxConcurrent()
+	if envMaxConcurrent != 0 && envMaxConcurrent > 0 {
+		maxConcurrentReconciles = envMaxConcurrent
+	}
+
 	klog.Info("The MaxConcurrentReconciles is set to: ", maxConcurrentReconciles)
 
 	// Create a new controller
@@ -101,6 +108,22 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	return nil
+}
+
+// getEnvMaxConcurrent returns the maximum number of concurrent reconciles
+func getEnvMaxConcurrent() int {
+	maxStr, found := os.LookupEnv(MaxConcurrentEnvVar)
+	if !found {
+		return 0
+	}
+
+	max, err := strconv.Atoi(maxStr)
+	if err != nil {
+		klog.Error(err)
+		return 0
+	}
+
+	return max
 }
 
 // blank assignment to verify that ReconcileHelmRelease implements reconcile.Reconciler
