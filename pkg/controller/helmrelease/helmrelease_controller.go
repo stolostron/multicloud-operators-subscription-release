@@ -168,7 +168,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	if instance.Spec == nil {
 		spec := make(map[string]interface{})
 
-		err := yaml.Unmarshal([]byte(""), &spec)
+		err := yaml.Unmarshal([]byte("{\"\":\"\"}"), &spec)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
