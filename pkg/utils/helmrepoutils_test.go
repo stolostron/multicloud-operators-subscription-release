@@ -497,15 +497,6 @@ func TestUnmarshalIndex(t *testing.T) {
 	name := chartVersions[1].GetName()
 	assert.Equal(t, "ibm-cfee-installer", name)
 }
-func TestGetHelmIndex(t *testing.T) {
-	indexFile, hash, err := GetHelmRepoIndex(nil, nil, "",
-		[]string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo"})
-	assert.NoError(t, err)
-
-	assert.NotEqual(t, "", hash)
-
-	assert.Equal(t, 2, len(indexFile.Entries))
-}
 
 func TestGenerateHelmIndexYAML(t *testing.T) {
 	dir, err := ioutil.TempDir("/tmp", "charts")
