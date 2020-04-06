@@ -241,9 +241,7 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 		return "", downloadErr
 	}
 
-	chartZip = filepath.Clean(chartZip)
-
-	r, downloadErr := os.Open(chartZip)
+	r, downloadErr := os.Open(filepath.Clean(chartZip))
 	if downloadErr != nil {
 		klog.Error(downloadErr, " - Failed to open: ", chartZip, " using url: ", url)
 		return "", downloadErr
