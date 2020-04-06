@@ -17,8 +17,6 @@ limitations under the License.
 package utils
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -27,21 +25,17 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/ghodss/yaml"
 	"gopkg.in/src-d/go-git.v4"
 	"gopkg.in/src-d/go-git.v4/plumbing"
 	githttp "gopkg.in/src-d/go-git.v4/plumbing/transport/http"
+	"helm.sh/helm/v3/pkg/chartutil"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/repo"
 	"k8s.io/klog"
 
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
@@ -247,6 +241,8 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 		return "", downloadErr
 	}
 
+	chartZip = filepath.Clean(chartZip)
+
 	r, downloadErr := os.Open(chartZip)
 	if downloadErr != nil {
 		klog.Error(downloadErr, " - Failed to open: ", chartZip, " using url: ", url)
@@ -261,7 +257,8 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 		klog.Error(err, "- Failed to remove all: ", chartDir, " for ", chartZip, " using url: ", url)
 	}
 
-	err = Untar(destRepo, r)
+	//Untar
+	err = chartutil.Expand(destRepo, r)
 	if err != nil {
 		//Remove zip because failed to untar and so probably corrupted
 		rErr := os.RemoveAll(chartZip)
@@ -412,215 +409,4 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	}
 
 	return nil
-}
-
-//Untar untars the reader into the dst directory
-func Untar(dst string, r io.Reader) error {
-	gzr, err := gzip.NewReader(r)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	defer gzr.Close()
-
-	tr := tar.NewReader(gzr)
-
-	for {
-		header, err := tr.Next()
-
-		switch {
-		case err == io.EOF: // if no more files are found return
-			return nil
-		case err != nil: // return any other error
-			klog.Error(err)
-			return err
-		case header == nil: // if the header is nil, just skip it (not sure how this happens)
-			continue
-		}
-
-		// the target location where the dir/file should be created
-		target := filepath.Join(dst, header.Name)
-
-		// the following switch could also be done using fi.Mode(), not sure if there
-		// a benefit of using one vs. the other.
-		// fi := header.FileInfo()
-
-		// check the file type
-		switch header.Typeflag {
-		case tar.TypeDir: // if its a dir and it doesn't exist create it
-			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0750); err != nil {
-					klog.Error(err)
-					return err
-				}
-			}
-		case tar.TypeReg: // if it's a file create it
-			err = untarFileHelper(target)
-			if err != nil {
-				return err
-			}
-
-			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
-			if err != nil {
-				klog.Error(err)
-				return err
-			}
-
-			// copy over contents
-			if _, err := io.Copy(f, tr); err != nil {
-				klog.Error(err)
-				return err
-			}
-
-			// manually close here after each file operation; defering would cause each file close
-			// to wait until all operations have completed.
-			err = f.Close()
-			if err != nil {
-				klog.Error(err)
-			}
-		}
-	}
-}
-
-func untarFileHelper(target string) error {
-	klog.V(3).Info("Untar to target :", target)
-
-	dir := filepath.Dir(target)
-	if _, err := os.Stat(dir); err != nil {
-		if err := os.MkdirAll(dir, 0750); err != nil {
-			klog.Error(err)
-			return err
-		}
-	}
-
-	if _, err := os.Stat(target); err == nil {
-		klog.Info(fmt.Sprintf("A previous version exist of %s then delete", target))
-		err = os.Remove(target)
-
-		if err != nil {
-			klog.Error(err, "- Failed to remove: ", target)
-		}
-	}
-
-	return nil
-}
-
-func KeywordsChecker(labelSelector *metav1.LabelSelector, ks []string) bool {
-	ls := make(map[string]string)
-	for _, k := range ks {
-		ls[k] = "true"
-	}
-
-	return LabelsChecker(labelSelector, ls)
-}
-
-//UnmarshalIndex loads data into a repo.IndexFile
-func UnmarshalIndex(data []byte) (*repo.IndexFile, error) {
-	i := &repo.IndexFile{}
-	if err := yaml.Unmarshal(data, i); err != nil {
-		return i, err
-	}
-
-	i.SortEntries()
-
-	if i.APIVersion == "" {
-		return i, repo.ErrNoAPIVersion
-	}
-
-	return i, nil
-}
-
-func GenerateGitHubIndexFile(configMap *corev1.ConfigMap,
-	secret *corev1.Secret,
-	destDir string,
-	urls []string,
-	chartsPath string,
-	branch string) (indexFile *repo.IndexFile, hash string, err error) {
-	hash, err = DownloadGitHubRepo(configMap, secret, destDir, urls, branch)
-	if err != nil {
-		klog.Error(err, " - Failed to download the repo")
-		return nil, "", err
-	}
-
-	chartsPath = filepath.Join(destDir, chartsPath)
-	klog.V(3).Info("chartsPath: ", chartsPath)
-
-	indexFile, err = generateIndexFile(chartsPath)
-	if err != nil {
-		klog.Error(err, " - Can not generate index file")
-		return nil, "", err
-	}
-
-	b, _ := yaml.Marshal(indexFile)
-	klog.V(5).Info("New index file content ", string(b), " with hash:", hash)
-
-	return indexFile, hash, nil
-}
-
-func generateIndexFile(chartsPath string) (*repo.IndexFile, error) {
-	///////////////////////////////////////////////
-	// Get chart directories first
-	///////////////////////////////////////////////
-	chartDirs := make(map[string]string)
-
-	currentChartDir := "NONE"
-
-	err := filepath.Walk(chartsPath,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				klog.V(5).Info("Ignoring subfolders ", currentChartDir)
-				if _, err := os.Stat(path + "/Chart.yaml"); err == nil {
-					klog.Info("Found Chart.yaml in directory ", path)
-					if !strings.HasPrefix(path, currentChartDir) {
-						klog.V(5).Info("This is a helm chart folder.")
-						chartDirs[path+"/"] = path + "/"
-						currentChartDir = path + "/"
-					}
-				}
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-
-	//////
-	// Generate index.yaml
-	/////
-
-	keys := make([]string, 0)
-	for k := range chartDirs {
-		keys = append(keys, k)
-	}
-
-	sort.Strings(keys)
-
-	indexFile := repo.NewIndexFile()
-
-	for _, k := range keys {
-		chartDir := chartDirs[k]
-		//	for chartDir := range chartDirs {
-		chartFolderName := filepath.Base(chartDir)
-		chartParentDir := strings.Split(chartDir, chartFolderName)[0]
-		// Get the relative parent directory from the git repo root
-		chartBaseDir := strings.SplitAfter(chartParentDir, chartsPath+"/")[1]
-
-		chartMetadata, err := chartutil.LoadChartfile(chartDir + "Chart.yaml")
-		if err != nil {
-			klog.Error(err, " - There was a problem in generating helm charts index file: ")
-			return nil, err
-		}
-
-		if !indexFile.Has(chartMetadata.Name, chartMetadata.Version) {
-			indexFile.Add(chartMetadata, chartFolderName, chartBaseDir, "generated-by-multicloud-operators-subscription")
-		}
-	}
-
-	indexFile.SortEntries()
-
-	return indexFile, nil
 }
