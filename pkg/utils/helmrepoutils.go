@@ -19,11 +19,9 @@ package utils
 import (
 	"archive/tar"
 	"compress/gzip"
-	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -107,7 +105,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	s *appv1.HelmRelease) (chartDir string, err error) {
 	destRepo := filepath.Join(chartsDir, s.Name, s.Namespace, s.Repo.ChartName)
 	if _, err := os.Stat(destRepo); os.IsNotExist(err) {
-		err := os.MkdirAll(destRepo, 0755)
+		err := os.MkdirAll(destRepo, 0750)
 		if err != nil {
 			klog.Error(err, " - Unable to create chartDir: ", destRepo)
 			return "", err
@@ -170,12 +168,19 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 			options.ReferenceName = plumbing.ReferenceName("refs/heads/" + branch)
 		}
 
-		os.RemoveAll(destRepo)
+		rErr := os.RemoveAll(destRepo)
+		if rErr != nil {
+			klog.Error(err, "- Failed to remove all: ", destRepo)
+		}
 
 		r, errClone := git.PlainClone(destRepo, false, options)
 
 		if errClone != nil {
-			os.RemoveAll(destRepo)
+			rErr = os.RemoveAll(destRepo)
+			if rErr != nil {
+				klog.Error(err, "- Failed to remove all: ", destRepo)
+			}
+
 			klog.Error(errClone, " - Clone failed: ", url)
 			err = errClone
 
@@ -185,7 +190,11 @@ func DownloadGitHubRepo(configMap *corev1.ConfigMap,
 		h, errHead := r.Head()
 
 		if errHead != nil {
-			os.RemoveAll(destRepo)
+			rErr := os.RemoveAll(destRepo)
+			if rErr != nil {
+				klog.Error(err, "- Failed to remove all: ", destRepo)
+			}
+
 			klog.Error(errHead, " - Get Head failed: ", url)
 			err = errHead
 
@@ -245,16 +254,24 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 	}
 
 	chartDir = filepath.Join(destRepo, s.Repo.ChartName)
+	chartDir = filepath.Clean(chartDir)
 	//Clean before untar
-	os.RemoveAll(chartDir)
+	err = os.RemoveAll(chartDir)
+	if err != nil {
+		klog.Error(err, "- Failed to remove all: ", chartDir, " for ", chartZip, " using url: ", url)
+	}
 
-	downloadErr = Untar(destRepo, r)
-	if downloadErr != nil {
+	err = Untar(destRepo, r)
+	if err != nil {
 		//Remove zip because failed to untar and so probably corrupted
-		os.RemoveAll(chartZip)
-		klog.Error(downloadErr, "- Failed to unzip: ", chartZip, " using url: ", url)
+		rErr := os.RemoveAll(chartZip)
+		if rErr != nil {
+			klog.Error(rErr, "- Failed to remove all: ", chartZip)
+		}
 
-		return "", downloadErr
+		klog.Error(err, "- Failed to unzip: ", chartZip, " using url: ", url)
+
+		return "", err
 	}
 
 	return chartDir, nil
@@ -433,25 +450,15 @@ func Untar(dst string, r io.Reader) error {
 		switch header.Typeflag {
 		case tar.TypeDir: // if its a dir and it doesn't exist create it
 			if _, err := os.Stat(target); err != nil {
-				if err := os.MkdirAll(target, 0755); err != nil {
+				if err := os.MkdirAll(target, 0750); err != nil {
 					klog.Error(err)
 					return err
 				}
 			}
 		case tar.TypeReg: // if it's a file create it
-			klog.V(3).Info("Untar to target :", target)
-
-			dir := filepath.Dir(target)
-			if _, err := os.Stat(dir); err != nil {
-				if err := os.MkdirAll(dir, 0755); err != nil {
-					klog.Error(err)
-					return err
-				}
-			}
-
-			if _, err := os.Stat(target); err == nil {
-				klog.Info(fmt.Sprintf("A previous version exist of %s then delete", target))
-				os.Remove(target)
+			err = untarFileHelper(target)
+			if err != nil {
+				return err
 			}
 
 			f, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, os.FileMode(header.Mode))
@@ -468,9 +475,35 @@ func Untar(dst string, r io.Reader) error {
 
 			// manually close here after each file operation; defering would cause each file close
 			// to wait until all operations have completed.
-			f.Close()
+			err = f.Close()
+			if err != nil {
+				klog.Error(err)
+			}
 		}
 	}
+}
+
+func untarFileHelper(target string) error {
+	klog.V(3).Info("Untar to target :", target)
+
+	dir := filepath.Dir(target)
+	if _, err := os.Stat(dir); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
+			klog.Error(err)
+			return err
+		}
+	}
+
+	if _, err := os.Stat(target); err == nil {
+		klog.Info(fmt.Sprintf("A previous version exist of %s then delete", target))
+		err = os.Remove(target)
+
+		if err != nil {
+			klog.Error(err, "- Failed to remove: ", target)
+		}
+	}
+
+	return nil
 }
 
 func KeywordsChecker(labelSelector *metav1.LabelSelector, ks []string) bool {
@@ -590,97 +623,4 @@ func generateIndexFile(chartsPath string) (*repo.IndexFile, error) {
 	indexFile.SortEntries()
 
 	return indexFile, nil
-}
-
-//GetHelmRepoIndex retrieves the index.yaml, loads it into a repo.IndexFile and filters it
-func GetHelmRepoIndex(configMap *corev1.ConfigMap,
-	secret *corev1.Secret,
-	parentNamespace string,
-	urls []string) (indexFile *repo.IndexFile, hash string, err error) {
-	httpClient, err := GetHelmRepoClient(parentNamespace, configMap)
-	if err != nil {
-		klog.Error(err, " - Unable to create client for helm repo",
-			"urls", urls)
-	}
-
-	for _, url := range urls {
-		cleanRepoURL := strings.TrimSuffix(url, "/")
-
-		var req *http.Request
-
-		req, err = http.NewRequest(http.MethodGet, cleanRepoURL+"/index.yaml", nil)
-		if err != nil {
-			klog.Error(err, " - Can not build request: ", cleanRepoURL)
-			continue
-		}
-
-		if secret != nil && secret.Data != nil {
-			if authHeader, ok := secret.Data["authHeader"]; ok {
-				req.Header.Set("Authorization", string(authHeader))
-			} else if user, ok := secret.Data["user"]; ok {
-				if password := GetPassword(secret); password != "" {
-					req.SetBasicAuth(string(user), password)
-				} else {
-					err = fmt.Errorf("password found in secret for basic authentication")
-					continue
-				}
-			}
-		}
-
-		var resp *http.Response
-
-		resp, err = httpClient.Do(req)
-		if err != nil {
-			klog.Error(err, " - Http request failed: ", "cleanRepoURL", cleanRepoURL)
-			continue
-		}
-
-		if resp.StatusCode != 200 {
-			err = fmt.Errorf("%s %s", resp.Status, cleanRepoURL+"/index.yaml")
-			continue
-		}
-
-		klog.V(5).Info("Get index.yaml succeeded from ", cleanRepoURL)
-
-		defer resp.Body.Close()
-
-		var body []byte
-
-		body, err = ioutil.ReadAll(resp.Body)
-		if err != nil {
-			klog.Error(err, " - Unable to read body of ", cleanRepoURL)
-			continue
-		}
-
-		hash, err = HashKey(body)
-		if err != nil {
-			klog.Error(err, " - Unable to generate hashkey")
-			continue
-		}
-
-		indexFile, err = UnmarshalIndex(body)
-		if err != nil {
-			klog.Error(err, " - Unable to parse the indexfile of ", cleanRepoURL)
-			continue
-		}
-	}
-
-	if err != nil {
-		klog.Error(err, " - All repo URL tested and all failed")
-		return nil, "", err
-	}
-
-	return indexFile, hash, err
-}
-
-//HashKey Calculate a hash key
-func HashKey(b []byte) (string, error) {
-	h := sha1.New()
-
-	_, err := h.Write(b)
-	if err != nil {
-		return "", err
-	}
-
-	return string(h.Sum(nil)), nil
 }
