@@ -66,8 +66,8 @@ Source can have the following format for github:
   source:
     github:
       urls:
-      - https://github.ibm.com/IBMPrivateCloud/icp-cert-manager-chart
-      chartPath: stable/ibm-cert-manager
+      - https://github.com/helm/charts
+      chartPath: stable/nginx-ingress
       branch: master
     type: github
 ```
