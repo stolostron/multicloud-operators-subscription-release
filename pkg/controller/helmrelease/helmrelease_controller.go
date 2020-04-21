@@ -27,6 +27,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	helmController "github.com/operator-framework/operator-sdk/pkg/helm/controller"
+	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -181,10 +182,11 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		}
 	}
 
-	helmReleaseManager, err := r.newHelmReleaseManager(instance)
+	helmReleaseManagerFactory, err := r.newHelmReleaseManagerFactory(instance)
 	if err != nil {
-		errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable)
-		if errUpdate != nil {
+		klog.Error(err, "- Failed to create new HelmReleaseManagerFactory: ", instance)
+
+		if errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable); errUpdate != nil {
 			return reconcile.Result{}, errUpdate
 		}
 
@@ -193,10 +195,52 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
 	}
 
+	helmReleaseManager, err := r.newHelmReleaseManager(instance, request, helmReleaseManagerFactory)
+	if err != nil {
+		klog.Error(err, "- Failed to create new HelmReleaseManager: ", instance)
+
+		if errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable); errUpdate != nil {
+			return reconcile.Result{}, errUpdate
+		}
+
+		return reconcile.Result{}, nil
+	}
+
+	if err := helmReleaseManager.Sync(context.TODO()); err != nil {
+		klog.Error(err, "- Failed to sync HelmRelease: ", instance)
+
+		if errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable); errUpdate != nil {
+			return reconcile.Result{}, errUpdate
+		}
+
+		return reconcile.Result{}, nil
+	}
+
+	instance.Status.RemoveCondition(appv1.ConditionIrreconcilable)
+
+	deleted := instance.GetDeletionTimestamp() != nil
+
+	if !deleted &&
+		!containsErrorConditions(instance) &&
+		!helmReleaseManager.IsUpdateRequired() &&
+		helmReleaseManager.IsInstalled() {
+		klog.Info("Update is not required. Skipping Reconciling HelmRelease:", request)
+
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	return processReconcile(r.GetClient(), request, instance, helmReleaseManagerFactory)
+}
+
+func processReconcile(
+	client client.Client, request reconcile.Request, instance *appv1.HelmRelease, factory helmrelease.ManagerFactory) (
+	reconcile.Result, error) {
+	klog.V(2).Info("Processing reconciliation: ", request)
+
 	hor := &helmController.HelmOperatorReconciler{
-		Client:         r.GetClient(),
+		Client:         client,
 		GVK:            instance.GroupVersionKind(),
-		ManagerFactory: helmReleaseManager,
+		ManagerFactory: factory,
 	}
 
 	c := make(chan HelmOperatorReconcileResult)
@@ -217,10 +261,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		if err != nil {
 			klog.Error(err, "- Failed during HelmOperator Reconcile.")
 
-			errGet := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
+			errGet := client.Get(context.TODO(), request.NamespacedName, instance)
 			if errGet == nil {
 				if !containsErrorConditions(instance) {
-					errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionIrreconcilable)
+					errUpdate := setErrorStatus(client, instance, err, appv1.ConditionIrreconcilable)
 					if errUpdate != nil {
 						return reconcile.Result{}, errUpdate
 					}
@@ -237,12 +281,12 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 
 		return result, nil
 	case <-time.After(30 * time.Minute):
-		err = fmt.Errorf("timeout after 30 minutes while reconciling %v, check if there are any hung jobs or pods that are blocking the reconciliation", request)
+		err := fmt.Errorf("timeout after 30 minutes while reconciling %v, check if there are any hung jobs or pods that are blocking the reconciliation", request)
 		klog.Error(err)
 
 		close(c)
 
-		errUpdate := setErrorStatus(r.GetClient(), instance, err, appv1.ConditionTimedout)
+		errUpdate := setErrorStatus(client, instance, err, appv1.ConditionTimedout)
 		if errUpdate != nil {
 			return reconcile.Result{}, errUpdate
 		}

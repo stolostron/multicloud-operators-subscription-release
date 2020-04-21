@@ -17,18 +17,21 @@ limitations under the License.
 package helmrelease
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/utils"
 )
 
-//newHelmReleaseManager create a new manager returns a helmManager
-func (r *ReconcileHelmRelease) newHelmReleaseManager(
+//newHelmReleaseManagerFactory create a new manager returns a helmManagerFactory
+func (r *ReconcileHelmRelease) newHelmReleaseManagerFactory(
 	s *appv1.HelmRelease) (helmrelease.ManagerFactory, error) {
 	configMap, err := utils.GetConfigMap(r.GetClient(), s.Namespace, s.Repo.ConfigMapRef)
 	if err != nil {
@@ -62,4 +65,27 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 	f := helmrelease.NewManagerFactory(r.Manager, chartDir)
 
 	return f, nil
+}
+
+//newHelmReleaseManager create a new manager returns a helmManager
+func (r *ReconcileHelmRelease) newHelmReleaseManager(
+	s *appv1.HelmRelease, request reconcile.Request, factory helmrelease.ManagerFactory) (helmrelease.Manager, error) {
+	o := &unstructured.Unstructured{}
+	o.SetGroupVersionKind(s.GroupVersionKind())
+	o.SetNamespace(request.Namespace)
+	o.SetName(request.Name)
+
+	err := r.GetClient().Get(context.TODO(), request.NamespacedName, o)
+	if err != nil {
+		klog.Error(err, " - Failed to lookup resource")
+		return nil, err
+	}
+
+	manager, err := factory.NewManager(o, nil)
+	if err != nil {
+		klog.Error(err, " - Failed to get release manager")
+		return nil, err
+	}
+
+	return manager, nil
 }
