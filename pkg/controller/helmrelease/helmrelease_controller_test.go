@@ -387,7 +387,7 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, err = rec.newHelmReleaseManager(instance)
+	_, err = rec.newHelmReleaseManagerFactory(instance)
 	assert.NoError(t, err)
 
 	// TestNewManagerShortReleaseName
@@ -414,7 +414,7 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, err = rec.newHelmReleaseManager(instance)
+	_, err = rec.newHelmReleaseManagerFactory(instance)
 	assert.NoError(t, err)
 
 	// TestNewManagerValues

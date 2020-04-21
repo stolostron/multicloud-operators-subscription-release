@@ -191,3 +191,19 @@ func (s *HelmAppStatus) SetCondition(condition HelmAppCondition) *HelmAppStatus 
 
 	return s
 }
+
+// RemoveCondition removes the condition with the passed condition type from
+// the status object. If the condition is not already present, the returned
+// status object is returned unchanged. RemoveCondition does not update the
+// resource in the cluster.
+func (s *HelmAppStatus) RemoveCondition(conditionType HelmAppConditionType) *HelmAppStatus {
+	for i := range s.Conditions {
+		if s.Conditions[i].Type == conditionType {
+			s.Conditions = append(s.Conditions[:i], s.Conditions[i+1:]...)
+
+			return s
+		}
+	}
+
+	return s
+}
