@@ -21,67 +21,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 )
-
-func TestLabelsChecker(t *testing.T) {
-	req0 := metav1.LabelSelectorRequirement{
-		Key:      "l1",
-		Operator: metav1.LabelSelectorOpIn,
-		Values:   []string{"v1"},
-	}
-	labelSelector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"l1": "v1",
-			"l2": "v2",
-		},
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			req0,
-		},
-	}
-	ls := map[string]string{
-		"l1": "v1",
-		"l2": "v2",
-	}
-
-	b := LabelsChecker(labelSelector, ls)
-	assert.Equal(t, true, b)
-
-	labelSelector.MatchExpressions[0].Operator = "BadOperator"
-	b = LabelsChecker(labelSelector, ls)
-	assert.Equal(t, false, b)
-}
-
-func TestConvertLabels(t *testing.T) {
-	req0 := metav1.LabelSelectorRequirement{
-		Key:      "l1",
-		Operator: metav1.LabelSelectorOpIn,
-		Values:   []string{"v1"},
-	}
-	labelSelector := &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"l1": "v1",
-			"l2": "v2",
-		},
-		MatchExpressions: []metav1.LabelSelectorRequirement{
-			req0,
-		},
-	}
-	s, err := ConvertLabels(labelSelector)
-	assert.NoError(t, err)
-	assert.Equal(t, "l1=v1,l1 in (v1),l2=v2", s.String())
-
-	labelSelector.MatchExpressions[0].Operator = "BadOperator"
-	s, err = ConvertLabels(labelSelector)
-	assert.Error(t, err)
-	assert.Equal(t, labels.Nothing(), s)
-
-	labelSelector = nil
-	s, err = ConvertLabels(labelSelector)
-	assert.NoError(t, err)
-	assert.Equal(t, labels.Everything(), s)
-}
 
 func TestGetAccessToken(t *testing.T) {
 	secret := &corev1.Secret{
