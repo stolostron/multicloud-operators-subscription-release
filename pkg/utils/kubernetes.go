@@ -21,37 +21,10 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// LabelsChecker checks labels against a labelSelector
-func LabelsChecker(labelSelector *metav1.LabelSelector, ls map[string]string) bool {
-	clSelector, err := ConvertLabels(labelSelector)
-	if err != nil {
-		klog.Error(" - Failed to set label selector: ", labelSelector, " err:", err)
-	}
-
-	return clSelector.Matches(labels.Set(ls))
-}
-
-// ConvertLabels converts label selector to lables.Selector
-func ConvertLabels(labelSelector *metav1.LabelSelector) (labels.Selector, error) {
-	if labelSelector != nil {
-		selector, err := metav1.LabelSelectorAsSelector(labelSelector)
-
-		if err != nil {
-			return labels.Nothing(), err
-		}
-
-		return selector, nil
-	}
-
-	return labels.Everything(), nil
-}
 
 //GetAccessToken retrieve the accessToken
 func GetAccessToken(secret *corev1.Secret) string {
@@ -125,14 +98,4 @@ func GetSecret(client client.Client, parentNamespace string, secretRef *corev1.O
 	}
 
 	return secret, err
-}
-
-func IsOwned(owner metav1.ObjectMeta, ownee metav1.ObjectMeta) bool {
-	for _, ownerRef := range ownee.GetOwnerReferences() {
-		if ownerRef.UID == owner.UID {
-			return true
-		}
-	}
-
-	return false
 }

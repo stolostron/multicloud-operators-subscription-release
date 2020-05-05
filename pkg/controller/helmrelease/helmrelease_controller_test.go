@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
@@ -364,6 +365,10 @@ func TestReconcile(t *testing.T) {
 
 	// TestNewManager
 	helmReleaseName = "test-new-manager"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
 
 	instance = &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -387,11 +392,31 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, err = rec.newHelmReleaseManagerFactory(instance)
+	instance = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	factory, err := rec.newHelmReleaseManagerFactory(instance)
+	assert.NoError(t, err)
+
+	nsn := types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+
+	request := reconcile.Request{
+		NamespacedName: nsn,
+	}
+	_, err = rec.newHelmReleaseManager(instance, request, factory)
 	assert.NoError(t, err)
 
 	// TestNewManagerShortReleaseName
 	helmReleaseName = "test-new-manager-short-release-name"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+
 	instance = &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      helmReleaseName,
@@ -414,7 +439,22 @@ func TestReconcile(t *testing.T) {
 
 	time.Sleep(6 * time.Second)
 
-	_, err = rec.newHelmReleaseManagerFactory(instance)
+	instance = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	factory, err = rec.newHelmReleaseManagerFactory(instance)
+	assert.NoError(t, err)
+
+	nsn = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+
+	request = reconcile.Request{
+		NamespacedName: nsn,
+	}
+	_, err = rec.newHelmReleaseManager(instance, request, factory)
 	assert.NoError(t, err)
 
 	// TestNewManagerValues
