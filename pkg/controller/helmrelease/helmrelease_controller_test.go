@@ -20,7 +20,6 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/onsi/gomega"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -388,7 +387,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	err = c.Create(context.TODO(), instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(6 * time.Second)
 
@@ -397,7 +396,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	factory, err := rec.newHelmReleaseManagerFactory(instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	nsn := types.NamespacedName{
 		Name:      helmReleaseName,
@@ -408,7 +407,7 @@ func TestReconcile(t *testing.T) {
 		NamespacedName: nsn,
 	}
 	_, err = rec.newHelmReleaseManager(instance, request, factory)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	// TestNewManagerShortReleaseName
 	helmReleaseName = "test-new-manager-short-release-name"
@@ -435,7 +434,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	err = c.Create(context.TODO(), instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(6 * time.Second)
 
@@ -444,7 +443,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	factory, err = rec.newHelmReleaseManagerFactory(instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	nsn = types.NamespacedName{
 		Name:      helmReleaseName,
@@ -455,7 +454,7 @@ func TestReconcile(t *testing.T) {
 		NamespacedName: nsn,
 	}
 	_, err = rec.newHelmReleaseManager(instance, request, factory)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	// TestNewManagerValues
 	helmReleaseName = "test-new-manager-values"
@@ -481,7 +480,7 @@ func TestReconcile(t *testing.T) {
 
 	//Values well formed
 	err = c.Create(context.TODO(), instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(6 * time.Second)
 
@@ -506,7 +505,7 @@ func TestReconcile(t *testing.T) {
 	}
 
 	err = c.Create(context.TODO(), instance)
-	assert.NoError(t, err)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(2 * time.Second)
 }
