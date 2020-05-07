@@ -110,32 +110,42 @@ func DownloadChart(configMap *corev1.ConfigMap,
 	case string(appv1.HelmRepoSourceType):
 		return DownloadChartFromHelmRepo(configMap, secret, destRepo, s)
 	case string(appv1.GitHubSourceType):
-		return DownloadChartFromGitHub(configMap, secret, destRepo, s)
+		return DownloadChartFromGit(configMap, secret, destRepo, s)
+	case string(appv1.GitSourceType):
+		return DownloadChartFromGit(configMap, secret, destRepo, s)
 	default:
 		return "", fmt.Errorf("sourceType '%s' unsupported", s.Repo.Source.SourceType)
 	}
 }
 
-//DownloadChartFromGitHub downloads a chart into the charsDir
-func DownloadChartFromGitHub(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1.HelmRelease) (chartDir string, err error) {
-	if s.Repo.Source.GitHub == nil {
-		err := fmt.Errorf("github type but Spec.GitHub is not defined")
+//DownloadChartFromGit downloads a chart into the charsDir
+func DownloadChartFromGit(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1.HelmRelease) (chartDir string, err error) {
+	if s.Repo.Source.GitHub == nil && s.Repo.Source.Git == nil {
+		err := fmt.Errorf("git type but Repo.GitHub and Repo.Git is not defined")
 		return "", err
 	}
 
-	_, err = DownloadGitHubRepo(configMap, secret, destRepo, s.Repo.Source.GitHub.Urls, s.Repo.Source.GitHub.Branch)
+	if s.Repo.Source.GitHub != nil {
+		_, err = DownloadGitRepo(configMap, secret, destRepo, s.Repo.Source.GitHub.Urls, s.Repo.Source.GitHub.Branch)
+	} else if s.Repo.Source.Git != nil {
+		_, err = DownloadGitRepo(configMap, secret, destRepo, s.Repo.Source.Git.Urls, s.Repo.Source.Git.Branch)
+	}
 
 	if err != nil {
 		return "", err
 	}
 
-	chartDir = filepath.Join(destRepo, s.Repo.Source.GitHub.ChartPath)
+	if s.Repo.Source.GitHub != nil {
+		chartDir = filepath.Join(destRepo, s.Repo.Source.GitHub.ChartPath)
+	} else if s.Repo.Source.Git != nil {
+		chartDir = filepath.Join(destRepo, s.Repo.Source.Git.ChartPath)
+	}
 
-	return chartDir, err
+	return chartDir, nil
 }
 
-//DownloadGitHubRepo downloads a github repo into the charsDir
-func DownloadGitHubRepo(configMap *corev1.ConfigMap,
+//DownloadGitRepo downloads a git repo into the charsDir
+func DownloadGitRepo(configMap *corev1.ConfigMap,
 	secret *corev1.Secret,
 	destRepo string,
 	urls []string, branch string) (commitID string, err error) {

@@ -38,10 +38,19 @@ const (
 	HelmRepoSourceType SourceTypeEnum = "helmrepo"
 	// GitHubSourceType github source type
 	GitHubSourceType SourceTypeEnum = "github"
+	// GitSourceType git source type
+	GitSourceType SourceTypeEnum = "git"
 )
 
 //GitHub provides the parameters to access the helm-chart located in a github repo
 type GitHub struct {
+	Urls      []string `json:"urls,omitempty"`
+	ChartPath string   `json:"chartPath,omitempty"`
+	Branch    string   `json:"branch,omitempty"`
+}
+
+//Git provides the parameters to access the helm-chart located in a git repo
+type Git struct {
 	Urls      []string `json:"urls,omitempty"`
 	ChartPath string   `json:"chartPath,omitempty"`
 	Branch    string   `json:"branch,omitempty"`
@@ -56,6 +65,7 @@ type HelmRepo struct {
 type Source struct {
 	SourceType SourceTypeEnum `json:"type,omitempty"`
 	GitHub     *GitHub        `json:"github,omitempty"`
+	Git        *Git           `json:"git,omitempty"`
 	HelmRepo   *HelmRepo      `json:"helmRepo,omitempty"`
 }
 
@@ -65,6 +75,8 @@ func (s Source) String() string {
 		return fmt.Sprintf("%v", s.HelmRepo.Urls)
 	case string(GitHubSourceType):
 		return fmt.Sprintf("%v|%s|%s", s.GitHub.Urls, s.GitHub.Branch, s.GitHub.ChartPath)
+	case string(GitSourceType):
+		return fmt.Sprintf("%v|%s|%s", s.Git.Urls, s.Git.Branch, s.Git.ChartPath)
 	default:
 		return fmt.Sprintf("SourceType %s not supported", s.SourceType)
 	}
