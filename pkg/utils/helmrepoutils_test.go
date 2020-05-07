@@ -169,6 +169,35 @@ func TestDownloadChartGitHub(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestDownloadChartGit(t *testing.T) {
+	hr := &appv1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	destDir, err := DownloadChart(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
+	assert.NoError(t, err)
+}
+
 func TestDownloadChartHelmRepo(t *testing.T) {
 	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
@@ -304,7 +333,36 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 
 	defer os.RemoveAll(dir)
 
-	destDir, err := DownloadChartFromGitHub(nil, nil, dir, hr)
+	destDir, err := DownloadChartFromGit(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartFromGit(t *testing.T) {
+	hr := &appv1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-1",
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	destDir, err := DownloadChartFromGit(nil, nil, dir, hr)
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
@@ -368,14 +426,14 @@ func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDownloadGitHubRepo(t *testing.T) {
+func TestDownloadGitRepo(t *testing.T) {
 	dir, err := ioutil.TempDir("/tmp", "charts")
 	assert.NoError(t, err)
 
 	defer os.RemoveAll(dir)
 
 	destRepo := filepath.Join(dir, "test")
-	commitID, err := DownloadGitHubRepo(nil, nil, destRepo,
+	commitID, err := DownloadGitRepo(nil, nil, destRepo,
 		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "")
 	assert.NoError(t, err)
 

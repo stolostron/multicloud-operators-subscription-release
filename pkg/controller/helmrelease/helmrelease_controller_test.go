@@ -109,6 +109,48 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//
+	//Git succeed
+	//
+	t.Log("Git succeed test")
+
+	helmReleaseName = "example-git-succeed"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-3",
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
+
+	//
 	//Github failed
 	//
 	t.Log("Github failed test")
@@ -131,6 +173,48 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "wrong path",
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(2 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(instanceResp.Status.DeployedRelease).To(gomega.BeNil())
+
+	//
+	//Git failed
+	//
+	t.Log("Git failed test")
+
+	helmReleaseName = "example-git-failed"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
 				},
