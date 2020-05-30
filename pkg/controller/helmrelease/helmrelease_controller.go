@@ -182,6 +182,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		}
 	}
 
+	manifest, err := GenerateManfiest(r.GetClient(), r.Manager, instance)
+	klog.Info(manifest)
+	klog.Error(err)
+
 	helmReleaseManagerFactory, err := r.newHelmReleaseManagerFactory(instance)
 	if err != nil {
 		klog.Error(err, "- Failed to create new HelmReleaseManagerFactory: ", instance)
