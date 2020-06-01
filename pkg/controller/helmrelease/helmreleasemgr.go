@@ -49,7 +49,6 @@ import (
 //newHelmReleaseManagerFactory create a new manager returns a helmManagerFactory
 func (r *ReconcileHelmRelease) newHelmReleaseManagerFactory(
 	s *appv1.HelmRelease) (helmrelease.ManagerFactory, error) {
-
 	chartDir, err := downloadChart(r.GetClient(), s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
@@ -120,8 +119,8 @@ func downloadChart(client client.Client, s *appv1.HelmRelease) (string, error) {
 	return chartDir, nil
 }
 
-//GenerateManfiest generates the manifest for given HelmRelease
-func GenerateManfiest(client client.Client, mgr crmanager.Manager, s *appv1.HelmRelease) (string, error) {
+//GenerateManfiestString generates the manifest string for given HelmRelease
+func GenerateManfiestString(client client.Client, mgr crmanager.Manager, s *appv1.HelmRelease) (string, error) {
 	chartDir, err := downloadChart(client, s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
@@ -131,12 +130,13 @@ func GenerateManfiest(client client.Client, mgr crmanager.Manager, s *appv1.Helm
 	var values map[string]interface{}
 
 	reqBodyBytes := new(bytes.Buffer)
+
 	err = json.NewEncoder(reqBodyBytes).Encode(s.Spec)
 	if err != nil {
 		return "", err
 	}
 
-	err = yaml.Unmarshal([]byte(reqBodyBytes.Bytes()), &values)
+	err = yaml.Unmarshal(reqBodyBytes.Bytes(), &values)
 	if err != nil {
 		klog.Error(err, " - Failed to Unmarshal the spec ", s.Spec)
 		return "", err
@@ -176,6 +176,8 @@ func GenerateManfiest(client client.Client, mgr crmanager.Manager, s *appv1.Helm
 	install.ReleaseName = s.Name
 	install.Namespace = s.Namespace
 	install.DryRun = true
+	install.ClientOnly = true
+	install.Replace = true
 
 	release, err := install.Run(chart, values)
 	if err != nil {
