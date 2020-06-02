@@ -37,9 +37,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	crmanager "sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
@@ -119,12 +120,12 @@ func downloadChart(client client.Client, s *appv1.HelmRelease) (string, error) {
 	return chartDir, nil
 }
 
-//GenerateManfiestString generates the manifest string for given HelmRelease
-func GenerateManfiestString(client client.Client, mgr crmanager.Manager, s *appv1.HelmRelease) (string, error) {
+//generateResourceList generates the resource list for given HelmRelease
+func generateResourceList(client client.Client, mgr manager.Manager, s *appv1.HelmRelease) (kube.ResourceList, error) {
 	chartDir, err := downloadChart(client, s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
-		return "", err
+		return nil, err
 	}
 
 	var values map[string]interface{}
@@ -133,32 +134,32 @@ func GenerateManfiestString(client client.Client, mgr crmanager.Manager, s *appv
 
 	err = json.NewEncoder(reqBodyBytes).Encode(s.Spec)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	err = yaml.Unmarshal(reqBodyBytes.Bytes(), &values)
 	if err != nil {
 		klog.Error(err, " - Failed to Unmarshal the spec ", s.Spec)
-		return "", err
+		return nil, err
 	}
 
 	klog.V(3).Info("ChartDir: ", chartDir)
 
 	chart, err := loader.LoadDir(chartDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to load chart dir: %w", err)
+		return nil, fmt.Errorf("failed to load chart dir: %w", err)
 	}
 
 	clientv1, err := v1.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return "", fmt.Errorf("failed to get core/v1 client: %w", err)
+		return nil, fmt.Errorf("failed to get core/v1 client: %w", err)
 	}
 
 	storageBackendV3 := storagev3.Init(driverv3.NewSecrets(clientv1.Secrets(s.Namespace)))
 
 	rcg, err := helmclient.NewRESTClientGetter(mgr, s.Namespace)
 	if err != nil {
-		return "", fmt.Errorf("failed to get REST client getter from manager: %w", err)
+		return nil, fmt.Errorf("failed to get REST client getter from manager: %w", err)
 	}
 
 	kubeClient := kube.New(rcg)
@@ -181,8 +182,43 @@ func GenerateManfiestString(client client.Client, mgr crmanager.Manager, s *appv
 
 	release, err := install.Run(chart, values)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return release.Manifest, nil
+	resources, err := kubeClient.Build(bytes.NewBufferString(release.Manifest), false)
+	if err != nil {
+		return nil, fmt.Errorf("unable to build kubernetes objects from release manifest: %w", err)
+	}
+
+	return resources, nil
+}
+
+//GenerateResourceListByConfig generates the resource list for given HelmRelease
+func GenerateResourceListByConfig(client client.Client, cfg *rest.Config, s *appv1.HelmRelease) (kube.ResourceList, error) {
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	stop := make(chan struct{})
+
+	go func() {
+		if err := mgr.Start(stop); err != nil {
+			klog.Error(err)
+		}
+	}()
+
+	defer func() {
+		close(stop)
+	}()
+
+	if mgr.GetCache().WaitForCacheSync(stop) {
+		return generateResourceList(client, mgr, s)
+	}
+
+	return nil, fmt.Errorf("fail to start a manager to generate the resource list")
 }

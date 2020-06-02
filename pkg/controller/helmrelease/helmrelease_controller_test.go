@@ -594,7 +594,7 @@ func TestReconcile(t *testing.T) {
 	time.Sleep(2 * time.Second)
 }
 
-func TestGenerateManfiestStringForGit(t *testing.T) {
+func Test_generateResourceListForGit(t *testing.T) {
 	defer klog.Flush()
 
 	g := gomega.NewGomegaWithT(t)
@@ -606,9 +606,6 @@ func TestGenerateManfiestStringForGit(t *testing.T) {
 		LeaderElection:     false,
 	})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	c := mgr.GetClient()
-
 	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -618,7 +615,7 @@ func TestGenerateManfiestStringForGit(t *testing.T) {
 		mgrStopped.Wait()
 	}()
 
-	t.Log("Testing GenerateManfiestString For Git Source")
+	t.Log("Testing generateResourceList For Git Source")
 
 	helmReleaseName := "example-git-succeed"
 	instance := &appv1.HelmRelease{
@@ -642,14 +639,12 @@ func TestGenerateManfiestStringForGit(t *testing.T) {
 		},
 	}
 
-	manifest, err := GenerateManfiestString(c, mgr, instance)
+	resourceList, err := generateResourceList(mgr.GetClient(), mgr, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(manifest).NotTo(gomega.Equal(""))
-	g.Expect(manifest).To(gomega.ContainSubstring("# Source"))
-	g.Expect(manifest).To(gomega.ContainSubstring(helmReleaseName))
+	g.Expect(resourceList).NotTo(gomega.BeNil())
 }
 
-func TestGenerateManfiestStringForHelm(t *testing.T) {
+func Test_generateResourceListForHelm(t *testing.T) {
 	defer klog.Flush()
 
 	g := gomega.NewGomegaWithT(t)
@@ -661,9 +656,6 @@ func TestGenerateManfiestStringForHelm(t *testing.T) {
 		LeaderElection:     false,
 	})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	c := mgr.GetClient()
-
 	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
 
 	stopMgr, mgrStopped := StartTestManager(mgr, g)
@@ -673,7 +665,7 @@ func TestGenerateManfiestStringForHelm(t *testing.T) {
 		mgrStopped.Wait()
 	}()
 
-	t.Log("Testing GenerateManfiestString For Helm Source")
+	t.Log("Testing generateResourceList For Helm Source")
 
 	helmReleaseName := "example-helmrepo-succeed"
 	instance := &appv1.HelmRelease{
@@ -697,9 +689,107 @@ func TestGenerateManfiestStringForHelm(t *testing.T) {
 		},
 	}
 
-	manifest, err := GenerateManfiestString(c, mgr, instance)
+	resourceList, err := generateResourceList(mgr.GetClient(), mgr, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(manifest).NotTo(gomega.Equal(""))
-	g.Expect(manifest).To(gomega.ContainSubstring("# Source"))
-	g.Expect(manifest).To(gomega.ContainSubstring(helmReleaseName))
+	g.Expect(resourceList).NotTo(gomega.BeNil())
+}
+
+func Test_GenerateResourceListByConfigForGit(t *testing.T) {
+	defer klog.Flush()
+
+	g := gomega.NewGomegaWithT(t)
+
+	t.Log("Create manager")
+
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	t.Log("Testing generateResourceList For Git Source")
+
+	helmReleaseName := "example-git-succeed"
+	instance := &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/subscription-release-test-3",
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+
+	resourceList, err := GenerateResourceListByConfig(mgr.GetClient(), mgr.GetConfig(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(resourceList).NotTo(gomega.BeNil())
+}
+
+func Test_GenerateResourceListByConfigForHelm(t *testing.T) {
+	defer klog.Flush()
+
+	g := gomega.NewGomegaWithT(t)
+
+	t.Log("Create manager")
+
+	mgr, err := manager.New(cfg, manager.Options{
+		MetricsBindAddress: "0",
+		LeaderElection:     false,
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
+
+	stopMgr, mgrStopped := StartTestManager(mgr, g)
+
+	defer func() {
+		close(stopMgr)
+		mgrStopped.Wait()
+	}()
+
+	t.Log("Testing generateResourceList For Helm Source")
+
+	helmReleaseName := "example-helmrepo-succeed"
+	instance := &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+
+	resourceList, err := GenerateResourceListByConfig(mgr.GetClient(), mgr.GetConfig(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(resourceList).NotTo(gomega.BeNil())
 }
