@@ -617,7 +617,7 @@ func Test_generateResourceListForGit(t *testing.T) {
 
 	t.Log("Testing generateResourceList For Git Source")
 
-	helmReleaseName := "example-git-succeed"
+	helmReleaseName := "example-git-succeed1"
 	instance := &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
@@ -667,7 +667,7 @@ func Test_generateResourceListForHelm(t *testing.T) {
 
 	t.Log("Testing generateResourceList For Helm Source")
 
-	helmReleaseName := "example-helmrepo-succeed"
+	helmReleaseName := "example-helmrepo-succeed1"
 	instance := &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
@@ -717,7 +717,7 @@ func Test_GenerateResourceListByConfigForGit(t *testing.T) {
 
 	t.Log("Testing generateResourceList For Git Source")
 
-	helmReleaseName := "example-git-succeed"
+	helmReleaseName := "example-git-succeed2"
 	instance := &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
@@ -767,7 +767,7 @@ func Test_GenerateResourceListByConfigForHelm(t *testing.T) {
 
 	t.Log("Testing generateResourceList For Helm Source")
 
-	helmReleaseName := "example-helmrepo-succeed"
+	helmReleaseName := "example-helmrepo-succeed2"
 	instance := &appv1.HelmRelease{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "HelmRelease",
