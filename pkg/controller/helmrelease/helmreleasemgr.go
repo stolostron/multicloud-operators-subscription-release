@@ -27,14 +27,13 @@ import (
 	"github.com/ghodss/yaml"
 
 	"helm.sh/helm/v3/pkg/chart/loader"
-	storagev3 "helm.sh/helm/v3/pkg/storage"
+	"helm.sh/helm/v3/pkg/storage"
 
 	helmclient "github.com/operator-framework/operator-sdk/pkg/helm/client"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
-	driverv3 "helm.sh/helm/v3/pkg/storage/driver"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -155,7 +154,7 @@ func generateResourceList(client client.Client, mgr manager.Manager, s *appv1.He
 		return nil, fmt.Errorf("failed to get core/v1 client: %w", err)
 	}
 
-	storageBackendV3 := storagev3.Init(driverv3.NewSecrets(clientv1.Secrets(s.Namespace)))
+	storageBackend := storage.Init(driver.NewSecrets(clientv1.Secrets(s.GetNamespace())))
 
 	rcg, err := helmclient.NewRESTClientGetter(mgr, s.Namespace)
 	if err != nil {
@@ -163,13 +162,11 @@ func generateResourceList(client client.Client, mgr manager.Manager, s *appv1.He
 	}
 
 	kubeClient := kube.New(rcg)
-	ownerRef := metav1.NewControllerRef(s, s.GroupVersionKind())
-	ownerRefClient := helmclient.NewOwnerRefInjectingClient(*kubeClient, *ownerRef)
 
 	actionConfig := &action.Configuration{
 		RESTClientGetter: rcg,
-		Releases:         storageBackendV3,
-		KubeClient:       ownerRefClient,
+		Releases:         storageBackend,
+		KubeClient:       kubeClient,
 		Log:              func(_ string, _ ...interface{}) {},
 	}
 
