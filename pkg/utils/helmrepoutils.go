@@ -326,7 +326,7 @@ func downloadFileLocal(urlP *url.URL,
 		return downloadErr
 	}
 
-	defer sourceFile.Close()
+	defer closeHelper(sourceFile)
 
 	// Create new file
 	newFile, downloadErr := os.Create(chartZip)
@@ -335,7 +335,7 @@ func downloadFileLocal(urlP *url.URL,
 		return downloadErr
 	}
 
-	defer newFile.Close()
+	defer closeHelper(newFile)
 
 	_, downloadErr = io.Copy(newFile, sourceFile)
 	if downloadErr != nil {
@@ -404,7 +404,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 			return downloadErr
 		}
 
-		defer out.Close()
+		defer closeHelper(out)
 
 		// Write the body to file
 		_, downloadErr = io.Copy(out, resp.Body)
@@ -417,4 +417,10 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	}
 
 	return nil
+}
+
+func closeHelper(file io.Closer) {
+	if err := file.Close(); err != nil {
+		klog.Error(err, " - Failed to close file: ", file)
+	}
 }
