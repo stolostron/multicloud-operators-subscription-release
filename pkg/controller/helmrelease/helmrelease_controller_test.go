@@ -275,6 +275,26 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
+	annotations := make(map[string]string)
+	annotations[OperatorSDKUpgradeForceAnnotation] = "true"
+	annotations[HelmReleaseUpgradeForceAnnotation] = "true"
+
+	instanceResp.SetAnnotations(annotations)
+	instanceResp.Repo.Version = "3-0.1.0"
+
+	time.Sleep(4 * time.Second)
+
+	err = c.Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
+	g.Expect(instanceResp.Repo.Version).Should(gomega.Equal("3-0.1.0"))
+
 	//
 	//helmRepo failure
 	//
