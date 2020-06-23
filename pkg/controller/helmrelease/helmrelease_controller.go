@@ -27,8 +27,10 @@ import (
 
 	"github.com/ghodss/yaml"
 	helmController "github.com/operator-framework/operator-sdk/pkg/helm/controller"
+	"github.com/operator-framework/operator-sdk/pkg/helm/release"
 	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -48,6 +50,12 @@ const (
 	// MaxConcurrentEnvVar is the constant for env variable HR_MAX_CONCURRENT
 	// which is the maximum concurrent reconcile number
 	MaxConcurrentEnvVar = "HR_MAX_CONCURRENT"
+
+	// OperatorSDKUpgradeForceAnnotation to perform the equalivent of `helm upgrade --force`
+	OperatorSDKUpgradeForceAnnotation = "helm.operator-sdk/upgrade-force"
+
+	// HelmReleaseUpgradeForceAnnotation to force a Helm chart upgrade even if the old and new manifests are the same
+	HelmReleaseUpgradeForceAnnotation = "apps.open-cluster-management.io/hr-upgrade-force"
 )
 
 //ControllerCMDOptions possible command line options
@@ -224,6 +232,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		!containsErrorConditions(instance) &&
 		!helmReleaseManager.IsUpdateRequired() &&
 		helmReleaseManager.IsInstalled() {
+		if hasAnnotation(instance, HelmReleaseUpgradeForceAnnotation) {
+			return processUpdateRelease(r.GetClient(), instance, helmReleaseManager)
+		}
+
 		klog.Info("Update is not required. Skipping Reconciling HelmRelease:", request)
 
 		return reconcile.Result{Requeue: false}, nil
@@ -329,13 +341,74 @@ func setErrorStatus(client client.StatusClient, hr *appv1.HelmRelease, err error
 		Message: err.Error(),
 	})
 
-	errUpdate := client.Status().Update(context.TODO(), hr)
+	return updateResourceStatus(client, hr)
+}
 
-	if errUpdate == nil {
-		return nil
+func updateResourceStatus(client client.StatusClient, hr *appv1.HelmRelease) error {
+	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		return client.Status().Update(context.TODO(), hr)
+	})
+}
+
+func hasAnnotation(hr *appv1.HelmRelease, annotation string) bool {
+	force := hr.GetAnnotations()[annotation]
+	if force == "" {
+		return false
 	}
 
-	klog.Error(errUpdate, "- Failed to update HelmRelease status: ", hr)
+	value := false
 
-	return errUpdate
+	if i, err := strconv.ParseBool(force); err != nil {
+		klog.Info("Could not parse annotation as a boolean",
+			"annotation", annotation, "value informed", force)
+	} else {
+		value = i
+	}
+
+	return value
+}
+
+func processUpdateRelease(client client.StatusClient, hr *appv1.HelmRelease, manager helmrelease.Manager) (reconcile.Result, error) {
+	force := hasAnnotation(hr, "helm.operator-sdk/upgrade-force")
+	_, updatedRelease, err := manager.UpdateRelease(context.TODO(), release.ForceUpdate(force))
+	if err != nil {
+		klog.Error(err, "Release failed")
+		hr.Status.SetCondition(appv1.HelmAppCondition{
+			Type:    appv1.ConditionReleaseFailed,
+			Status:  appv1.StatusTrue,
+			Reason:  appv1.ReasonUpdateError,
+			Message: err.Error(),
+		})
+
+		_ = updateResourceStatus(client, hr)
+
+		return reconcile.Result{}, err
+	}
+
+	hr.Status.RemoveCondition(appv1.ConditionReleaseFailed)
+
+	klog.Info("Updated release", "force", force)
+
+	klog.V(1).Info("Config values", "values", updatedRelease.Config)
+	message := ""
+
+	if updatedRelease.Info != nil {
+		message = updatedRelease.Info.Notes
+	}
+
+	hr.Status.SetCondition(appv1.HelmAppCondition{
+		Type:    appv1.ConditionDeployed,
+		Status:  appv1.StatusTrue,
+		Reason:  appv1.ReasonUpdateSuccessful,
+		Message: message,
+	})
+
+	hr.Status.DeployedRelease = &appv1.HelmAppRelease{
+		Name:     updatedRelease.Name,
+		Manifest: updatedRelease.Manifest,
+	}
+
+	err = updateResourceStatus(client, hr)
+
+	return reconcile.Result{}, err
 }
