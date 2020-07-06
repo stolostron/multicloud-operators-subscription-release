@@ -6,7 +6,7 @@ require (
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-openapi/spec v0.19.4
 	github.com/onsi/gomega v1.9.0
-	github.com/operator-framework/operator-sdk v0.18.0
+	github.com/operator-framework/operator-sdk v0.18.0 // version upgrade should check for helmrelease_types.go changes
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.0
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a
