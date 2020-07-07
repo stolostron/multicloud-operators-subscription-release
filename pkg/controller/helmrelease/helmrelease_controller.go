@@ -224,16 +224,15 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, nil
 	}
 
-	instance.Status.RemoveCondition(appv1.ConditionIrreconcilable)
-
 	deleted := instance.GetDeletionTimestamp() != nil
 
 	if !deleted &&
 		!containsErrorConditions(instance) &&
 		!helmReleaseManager.IsUpdateRequired() &&
-		helmReleaseManager.IsInstalled() {
+		helmReleaseManager.IsInstalled() &&
+		instance.Status.DeployedRelease != nil {
 		if hasBooleanAnnotation(instance, HelmReleaseUpgradeForceAnnotation) {
-			return processUpdateRelease(r.GetClient(), instance, helmReleaseManager)
+			return processUpgradeRelease(r.GetClient(), instance, helmReleaseManager)
 		}
 
 		klog.Info("Update is not required. Skipping Reconciling HelmRelease:", request)
@@ -241,10 +240,11 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	return processReconcile(r.GetClient(), request, instance, helmReleaseManagerFactory)
+	return processHorReconcile(r.GetClient(), request, instance, helmReleaseManagerFactory)
 }
 
-func processReconcile(
+// processHorReconcile ensures the horReconcile() returns or it will time it out.
+func processHorReconcile(
 	client client.Client, request reconcile.Request, instance *appv1.HelmRelease, factory helmrelease.ManagerFactory) (
 	reconcile.Result, error) {
 	klog.V(2).Info("Processing reconciliation: ", request)
@@ -262,56 +262,14 @@ func processReconcile(
 		c <- res
 	}()
 
-	// Either process the HelmOperatorReconciler's return or timeout.
-	select {
-	case res := <-c:
-		result := res.Result
-		err := res.Error
-
-		close(c)
-
-		if err != nil {
-			klog.Error(err, "- Failed during HelmOperator Reconcile.")
-
-			errGet := client.Get(context.TODO(), request.NamespacedName, instance)
-			if errGet == nil {
-				if !containsErrorConditions(instance) {
-					errUpdate := setErrorStatus(client, instance, err, appv1.ConditionIrreconcilable)
-					if errUpdate != nil {
-						return reconcile.Result{}, errUpdate
-					}
-				}
-			} else {
-				klog.Error(errGet, "- Failed to get HelmRelease: ", request.NamespacedName)
-				return reconcile.Result{}, errGet
-			}
-
-			klog.V(1).Info("Requeue after two minutes.")
-
-			return reconcile.Result{RequeueAfter: time.Minute * 2}, nil
-		}
-
-		return result, nil
-	case <-time.After(30 * time.Minute):
-		err := fmt.Errorf("timeout after 30 minutes while reconciling %v, check if there are any hung jobs or pods that are blocking the reconciliation", request)
-		klog.Error(err)
-
-		close(c)
-
-		errUpdate := setErrorStatus(client, instance, err, appv1.ConditionTimedout)
-		if errUpdate != nil {
-			return reconcile.Result{}, errUpdate
-		}
-
-		return reconcile.Result{}, err
-	}
+	// process the horReconcile() return or timeout.
+	return processHelmOperatorReconcileResult(client, instance, c)
 }
 
+// horReconcile calls the Helm Operator reconcile and returns the result
 func horReconcile(request reconcile.Request, hor helmController.HelmOperatorReconciler) HelmOperatorReconcileResult {
-	horResult := new(HelmOperatorReconcileResult)
 	result, err := hor.Reconcile(request)
-	horResult.Result = result
-	horResult.Error = err
+	horResult := &HelmOperatorReconcileResult{result, err}
 
 	return *horResult
 }
@@ -368,10 +326,29 @@ func hasBooleanAnnotation(hr *appv1.HelmRelease, annotation string) bool {
 	return value
 }
 
-func processUpdateRelease(client client.StatusClient, hr *appv1.HelmRelease,
+// processUpgradeRelease ensures the upgradeRelease() returns or it will time it out.
+func processUpgradeRelease(client client.StatusClient, hr *appv1.HelmRelease,
 	manager helmrelease.Manager) (reconcile.Result, error) {
+	klog.V(2).Info("Processing upgrade: ", hr)
+
+	c := make(chan HelmOperatorReconcileResult)
+
+	go func() {
+		res := upgradeRelease(client, hr, manager)
+		c <- res
+	}()
+
+	// process the upgradeRelease() return or timeout.
+	return processHelmOperatorReconcileResult(client, hr, c)
+}
+
+// upgradeRelease upgrades the helm release. It should only be call when there is a HelmReleaseUpgradeForceAnnotation
+func upgradeRelease(client client.StatusClient, hr *appv1.HelmRelease,
+	manager helmrelease.Manager) HelmOperatorReconcileResult {
+	hr.Status.RemoveCondition(appv1.ConditionIrreconcilable)
+
 	force := hasBooleanAnnotation(hr, OperatorSDKUpgradeForceAnnotation)
-	_, updatedRelease, err := manager.UpdateRelease(context.TODO(), release.ForceUpdate(force))
+	_, upgradedRelease, err := manager.UpdateRelease(context.TODO(), release.ForceUpdate(force))
 
 	if err != nil {
 		klog.Error(err, "Release failed")
@@ -384,18 +361,20 @@ func processUpdateRelease(client client.StatusClient, hr *appv1.HelmRelease,
 
 		_ = updateResourceStatus(client, hr)
 
-		return reconcile.Result{}, err
+		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+
+		return *horResult
 	}
 
 	hr.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-	klog.Info("Updated release", "force", force)
-	klog.V(1).Info("Config values", "values", updatedRelease.Config)
+	klog.Info("Upgraded release", "force", force)
+	klog.V(1).Info("Config values", "values", upgradedRelease.Config)
 
 	message := ""
 
-	if updatedRelease.Info != nil {
-		message = updatedRelease.Info.Notes
+	if upgradedRelease.Info != nil {
+		message = upgradedRelease.Info.Notes
 	}
 
 	hr.Status.SetCondition(appv1.HelmAppCondition{
@@ -406,11 +385,31 @@ func processUpdateRelease(client client.StatusClient, hr *appv1.HelmRelease,
 	})
 
 	hr.Status.DeployedRelease = &appv1.HelmAppRelease{
-		Name:     updatedRelease.Name,
-		Manifest: updatedRelease.Manifest,
+		Name:     upgradedRelease.Name,
+		Manifest: upgradedRelease.Manifest,
 	}
 
 	err = updateResourceStatus(client, hr)
+	horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
 
-	return reconcile.Result{}, err
+	return *horResult
+}
+
+// processHelmOperatorReconcileResult determines if timeout is necessary
+func processHelmOperatorReconcileResult(client client.StatusClient, hr *appv1.HelmRelease,
+	c chan HelmOperatorReconcileResult) (reconcile.Result, error) {
+	select {
+	case res := <-c:
+		return res.Result, res.Error
+	case <-time.After(30 * time.Minute):
+		err := fmt.Errorf("timeout after 30 minutes while processing %v, check if there are any hung jobs or pods that are blocking the processing", hr)
+		klog.Error(err)
+
+		errUpdate := setErrorStatus(client, hr, err, appv1.ConditionTimedout)
+		if errUpdate != nil {
+			return reconcile.Result{}, errUpdate
+		}
+
+		return reconcile.Result{}, err
+	}
 }
