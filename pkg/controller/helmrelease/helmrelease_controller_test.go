@@ -499,7 +499,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	factory, err := rec.newHelmReleaseManagerFactory(instance)
+	factory, err := rec.newHelmOperatorManagerFactory(instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	nsn := types.NamespacedName{
@@ -510,7 +510,7 @@ func TestReconcile(t *testing.T) {
 	request := reconcile.Request{
 		NamespacedName: nsn,
 	}
-	_, err = rec.newHelmReleaseManager(instance, request, factory)
+	_, err = rec.newHelmOperatorManager(instance, request, factory)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	// TestNewManagerShortReleaseName
@@ -546,7 +546,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	factory, err = rec.newHelmReleaseManagerFactory(instance)
+	factory, err = rec.newHelmOperatorManagerFactory(instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	nsn = types.NamespacedName{
@@ -557,7 +557,7 @@ func TestReconcile(t *testing.T) {
 	request = reconcile.Request{
 		NamespacedName: nsn,
 	}
-	_, err = rec.newHelmReleaseManager(instance, request, factory)
+	_, err = rec.newHelmOperatorManager(instance, request, factory)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	// TestNewManagerValues
@@ -659,7 +659,7 @@ func Test_generateResourceListForGit(t *testing.T) {
 		},
 	}
 
-	resourceList, err := generateResourceList(mgr.GetClient(), mgr, instance)
+	resourceList, err := generateResourceList(mgr, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(resourceList).NotTo(gomega.BeNil())
 }
@@ -709,107 +709,7 @@ func Test_generateResourceListForHelm(t *testing.T) {
 		},
 	}
 
-	resourceList, err := generateResourceList(mgr.GetClient(), mgr, instance)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(resourceList).NotTo(gomega.BeNil())
-}
-
-func Test_GenerateResourceListByConfigForGit(t *testing.T) {
-	defer klog.Flush()
-
-	g := gomega.NewGomegaWithT(t)
-
-	t.Log("Create manager")
-
-	mgr, err := manager.New(cfg, manager.Options{
-		MetricsBindAddress: "0",
-		LeaderElection:     false,
-	})
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
-
-	stopMgr, mgrStopped := StartTestManager(mgr, g)
-
-	defer func() {
-		close(stopMgr)
-		mgrStopped.Wait()
-	}()
-
-	t.Log("Testing generateResourceList For Git Source")
-
-	helmReleaseName := "example-git-succeed2"
-	instance := &appv1.HelmRelease{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmRelease",
-			APIVersion: "apps.open-cluster-management.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      helmReleaseName,
-			Namespace: helmReleaseNS,
-		},
-		Repo: appv1.HelmReleaseRepo{
-			Source: &appv1.Source{
-				SourceType: appv1.GitSourceType,
-				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-3",
-				},
-			},
-			ChartName: "subscription-release-test-1",
-		},
-	}
-
-	resourceList, err := GenerateResourceListByConfig(mgr.GetClient(), mgr.GetConfig(), instance)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(resourceList).NotTo(gomega.BeNil())
-}
-
-func Test_GenerateResourceListByConfigForHelm(t *testing.T) {
-	defer klog.Flush()
-
-	g := gomega.NewGomegaWithT(t)
-
-	t.Log("Create manager")
-
-	mgr, err := manager.New(cfg, manager.Options{
-		MetricsBindAddress: "0",
-		LeaderElection:     false,
-	})
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
-
-	stopMgr, mgrStopped := StartTestManager(mgr, g)
-
-	defer func() {
-		close(stopMgr)
-		mgrStopped.Wait()
-	}()
-
-	t.Log("Testing generateResourceList For Helm Source")
-
-	helmReleaseName := "example-helmrepo-succeed2"
-	instance := &appv1.HelmRelease{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmRelease",
-			APIVersion: "apps.open-cluster-management.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      helmReleaseName,
-			Namespace: helmReleaseNS,
-		},
-		Repo: appv1.HelmReleaseRepo{
-			Source: &appv1.Source{
-				SourceType: appv1.HelmRepoSourceType,
-				HelmRepo: &appv1.HelmRepo{
-					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
-				},
-			},
-			ChartName: "subscription-release-test-1",
-		},
-	}
-
-	resourceList, err := GenerateResourceListByConfig(mgr.GetClient(), mgr.GetConfig(), instance)
+	resourceList, err := generateResourceList(mgr, instance)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(resourceList).NotTo(gomega.BeNil())
 }
