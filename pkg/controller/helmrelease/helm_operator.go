@@ -119,6 +119,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	// find all the deployed resources and check to see if they still exists
 	foundResource := false
 	resources := releaseutil.SplitManifests(hr.Status.DeployedRelease.Manifest)
+
 	for _, resource := range resources {
 		var u unstructured.Unstructured
 		if err := yaml.Unmarshal([]byte(resource), &u); err != nil {
@@ -193,6 +194,7 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
 
 	// resource is not in the namespace. find the resource in the cluster.
 	resource.SetNamespace("")
+
 	found, _ = r.isResourceExists(resource, hr)
 	if found {
 		if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
@@ -225,6 +227,7 @@ func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructu
 		klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
 			" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
 			" GVK: ", resource.GroupVersionKind())
+
 		return true, nil
 	}
 
