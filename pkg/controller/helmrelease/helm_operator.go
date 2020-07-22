@@ -61,10 +61,10 @@ const (
 */
 func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	manager helmrelease.Manager) HelmOperatorReconcileResult {
-
 	// sanity check
 	if hr.GetDeletionTimestamp() == nil {
-		klog.Error("uninstallRelease() should only be called when the DeletionTimestamp is populated ", hr.GetNamespace, "/", hr.GetName)
+		klog.Error("uninstallRelease() should only be called when the DeletionTimestamp is populated ",
+			hr.GetNamespace(), "/", hr.GetName())
 
 		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, nil}
 
@@ -72,7 +72,8 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	}
 
 	if !contains(hr.GetFinalizers(), finalizer) {
-		klog.Info("HelmRelease is terminated, skipping reconciliation ", hr.GetNamespace, "/", hr.GetName)
+		klog.Info("HelmRelease is terminated, skipping reconciliation ", hr.GetNamespace(), "/", hr.GetName())
+
 		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, nil}
 
 		return *horResult
@@ -83,13 +84,14 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	_, err := manager.UninstallRelease(context.TODO())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-		klog.Error(err, "Failed to uninstall HelmRelease ", hr.GetNamespace, "/", hr.GetName)
+		klog.Error(err, "Failed to uninstall HelmRelease ", hr.GetNamespace(), "/", hr.GetName())
 		hr.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionReleaseFailed,
 			Status:  appv1.StatusTrue,
 			Reason:  appv1.ReasonUninstallError,
 			Message: err.Error(),
 		})
+
 		_ = r.updateResourceStatus(hr)
 		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
 
@@ -108,6 +110,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	if err := r.updateResourceStatus(hr); err != nil {
 		klog.Info("Failed to update HelmRelease status ", hr.GetNamespace(), "/", hr.GetName())
+
 		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
@@ -133,6 +136,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 		o := &unstructured.Unstructured{}
 		o.SetName(u.GetName())
 		o.SetGroupVersionKind(u.GroupVersionKind())
+
 		if u.GetNamespace() == "" {
 			o.SetNamespace(hr.GetNamespace())
 		}
@@ -154,8 +158,10 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	klog.Info("HelmRelease ", hr.GetNamespace(), "/", hr.GetName(), " all DeployedRelease resources are deleted")
 	controllerutil.RemoveFinalizer(hr, finalizer)
+
 	if err := r.updateResource(hr); err != nil {
 		klog.Error(err, " - Failed to strip HelmRelease uninstall finalizer ", hr.GetNamespace(), "/", hr.GetName())
+
 		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
@@ -210,6 +216,7 @@ func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructu
 	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	if resource.GetNamespace() == "" {
 		nsn = types.NamespacedName{Name: resource.GetName()}
+
 		resource.SetName("")
 	}
 
@@ -240,7 +247,6 @@ func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructu
 */
 func (r *ReconcileHelmRelease) forceUpgradeRelease(hr *appv1.HelmRelease,
 	manager helmrelease.Manager) HelmOperatorReconcileResult {
-
 	hrforce := hasBooleanAnnotation(hr, HelmReleaseUpgradeForceAnnotation)
 	if !hrforce {
 		klog.Error("forceUpgradeRelease() should only be called when the annotation is set to true ",
@@ -308,5 +314,6 @@ func contains(l []string, s string) bool {
 			return true
 		}
 	}
+
 	return false
 }

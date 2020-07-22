@@ -231,7 +231,6 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		!helmOperatorManager.IsUpdateRequired() &&
 		helmOperatorManager.IsInstalled() &&
 		instance.Status.DeployedRelease != nil {
-
 		// force the upgrade if HelmReleaseUpgradeForceAnnotation is set to true
 		if hasBooleanAnnotation(instance, HelmReleaseUpgradeForceAnnotation) {
 			return r.processForceUpgradeRelease(instance, helmOperatorManager)
