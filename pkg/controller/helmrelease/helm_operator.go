@@ -173,7 +173,8 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	return *horResult
 }
 
-//isResourceDeleted finds the given resource, if it exists then delete it. return true if the resource is already deleted.
+//isResourceDeleted finds the given resource, if it exists then delete it.
+// return true if the resource is already deleted.
 func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstructured, hr *appv1.HelmRelease) bool {
 	// find the resource in the namespace
 	found, err := r.isResourceExists(resource, hr)
@@ -186,7 +187,7 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
 	if found {
 		if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
 			klog.Error(err, " - Failed to delete resource: ", resource.GetNamespace(), "/", resource.GetName(),
-				" GVK: ", resource.GroupVersionKind())
+				" ", resource.GroupVersionKind())
 		}
 
 		return false
@@ -199,7 +200,7 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
 	if found {
 		if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
 			klog.Error(err, " - Failed to delete resource: ", resource.GetName(),
-				" GVK: ", resource.GroupVersionKind())
+				" ", resource.GroupVersionKind())
 		}
 
 		return false
@@ -213,7 +214,7 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
 func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructured,
 	hr *appv1.HelmRelease) (bool, error) {
 	klog.V(2).Info("Getting resource: ", resource.GetNamespace(), "/", resource.GetName(),
-		" GVK: ", resource.GroupVersionKind())
+		" ", resource.GroupVersionKind())
 
 	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
 	if resource.GetNamespace() == "" {
@@ -226,7 +227,7 @@ func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructu
 	if err == nil {
 		klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
 			" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
-			" GVK: ", resource.GroupVersionKind())
+			" ", resource.GroupVersionKind())
 
 		return true, nil
 	}

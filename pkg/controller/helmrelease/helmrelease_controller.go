@@ -245,7 +245,8 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 }
 
 // processHelmOperatorReconcile ensures the helmOperatorReconcile() returns or it will timeout.
-func (r *ReconcileHelmRelease) processHelmOperatorReconcile(request reconcile.Request, instance *appv1.HelmRelease, factory helmoperator.ManagerFactory) (
+func (r *ReconcileHelmRelease) processHelmOperatorReconcile(request reconcile.Request,
+	instance *appv1.HelmRelease, factory helmoperator.ManagerFactory) (
 	reconcile.Result, error) {
 	klog.V(2).Info("Processing reconciliation: ", request)
 
@@ -269,7 +270,8 @@ func (r *ReconcileHelmRelease) processHelmOperatorReconcile(request reconcile.Re
 }
 
 // helmOperatorReconcile calls the Helm Operator reconcile and returns the result
-func helmOperatorReconcile(request reconcile.Request, hor helmOperatorController.HelmOperatorReconciler) HelmOperatorReconcileResult {
+func helmOperatorReconcile(request reconcile.Request,
+	hor helmOperatorController.HelmOperatorReconciler) HelmOperatorReconcileResult {
 	result, err := hor.Reconcile(request)
 	horResult := &HelmOperatorReconcileResult{result, err}
 
@@ -291,7 +293,8 @@ func containsErrorConditions(hr *appv1.HelmRelease) bool {
 	return false
 }
 
-func (r *ReconcileHelmRelease) setErrorStatus(hr *appv1.HelmRelease, err error, conditionType appv1.HelmAppConditionType) error {
+func (r *ReconcileHelmRelease) setErrorStatus(hr *appv1.HelmRelease, err error,
+	conditionType appv1.HelmAppConditionType) error {
 	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s error status for error: %v", hr.GetNamespace(), hr.GetName(), err))
 
 	hr.Status.SetCondition(appv1.HelmAppCondition{
