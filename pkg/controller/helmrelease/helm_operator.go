@@ -31,7 +31,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/operator-framework/operator-sdk/pkg/helm/release"
-	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
+	helmoperator "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,13 +61,13 @@ const (
  Justification: The operator-sdk helm operator strips the finalizer even in cases where resources still exist.
 */
 func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
-	manager helmrelease.Manager) HelmOperatorReconcileResult {
+	manager helmoperator.Manager) helmOperatorReconcileResult {
 	// sanity check
 	if hr.GetDeletionTimestamp() == nil {
 		klog.Error("uninstallRelease() should only be called when the DeletionTimestamp is populated ",
 			hr.GetNamespace(), "/", hr.GetName())
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, nil}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, nil}
 
 		return *horResult
 	}
@@ -75,7 +75,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	if !contains(hr.GetFinalizers(), finalizer) {
 		klog.Info("HelmRelease is terminated, skipping reconciliation ", hr.GetNamespace(), "/", hr.GetName())
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, nil}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, nil}
 
 		return *horResult
 	}
@@ -94,7 +94,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 		})
 
 		_ = r.updateResourceStatus(hr)
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
 	}
@@ -112,7 +112,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	if err := r.updateResourceStatus(hr); err != nil {
 		klog.Info("Failed to update HelmRelease status ", hr.GetNamespace(), "/", hr.GetName())
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
 	}
@@ -125,7 +125,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 		var u unstructured.Unstructured
 		if err := yaml.Unmarshal([]byte(resource), &u); err != nil {
 			klog.Error(err, " - Failed to unmarshal resource ", resource)
-			horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+			horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 			return *horResult
 		}
@@ -153,7 +153,7 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	if foundResource {
 		// at least one resource still exists, check again after 10 seconds
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{RequeueAfter: time.Second * 10}, nil}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{RequeueAfter: time.Second * 10}, nil}
 
 		return *horResult
 	}
@@ -165,12 +165,12 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 	if err := r.updateResource(hr); err != nil {
 		klog.Error(err, " - Failed to strip HelmRelease uninstall finalizer ", hr.GetNamespace(), "/", hr.GetName())
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
 	}
 
-	horResult := &HelmOperatorReconcileResult{reconcile.Result{RequeueAfter: time.Minute * 2}, nil}
+	horResult := &helmOperatorReconcileResult{reconcile.Result{RequeueAfter: time.Minute * 1}, nil}
 
 	return *horResult
 }
@@ -233,13 +233,13 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
  force the release upgrade. For example, to increment the helm revision number.
 */
 func (r *ReconcileHelmRelease) forceUpgradeRelease(hr *appv1.HelmRelease,
-	manager helmrelease.Manager) HelmOperatorReconcileResult {
+	manager helmoperator.Manager) helmOperatorReconcileResult {
 	hrforce := hasBooleanAnnotation(hr, HelmReleaseUpgradeForceAnnotation)
 	if !hrforce {
 		klog.Error("forceUpgradeRelease() should only be called when the annotation is set to true ",
 			HelmReleaseUpgradeForceAnnotation)
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, nil}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, nil}
 
 		return *horResult
 	}
@@ -261,7 +261,7 @@ func (r *ReconcileHelmRelease) forceUpgradeRelease(hr *appv1.HelmRelease,
 
 		_ = r.updateResourceStatus(hr)
 
-		horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+		horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 		return *horResult
 	}
@@ -290,7 +290,7 @@ func (r *ReconcileHelmRelease) forceUpgradeRelease(hr *appv1.HelmRelease,
 	}
 
 	err = r.updateResourceStatus(hr)
-	horResult := &HelmOperatorReconcileResult{reconcile.Result{}, err}
+	horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
 
 	return *horResult
 }

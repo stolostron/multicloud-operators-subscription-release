@@ -140,8 +140,8 @@ type ReconcileHelmRelease struct {
 	manager.Manager
 }
 
-// HelmOperatorReconcileResult holds the result of the HelmOperatorReconcile
-type HelmOperatorReconcileResult struct {
+// helmOperatorReconcileResult holds the result of the HelmOperatorReconcile
+type helmOperatorReconcileResult struct {
 	Result reconcile.Result
 	Error  error
 }
@@ -258,7 +258,7 @@ func (r *ReconcileHelmRelease) processHelmOperatorReconcile(request reconcile.Re
 		ManagerFactory: factory,
 	}
 
-	c := make(chan HelmOperatorReconcileResult)
+	c := make(chan helmOperatorReconcileResult)
 
 	go func() {
 		res := helmOperatorReconcile(request, *hor)
@@ -271,9 +271,9 @@ func (r *ReconcileHelmRelease) processHelmOperatorReconcile(request reconcile.Re
 
 // helmOperatorReconcile calls the Helm Operator reconcile and returns the result
 func helmOperatorReconcile(request reconcile.Request,
-	hor helmOperatorController.HelmOperatorReconciler) HelmOperatorReconcileResult {
+	hor helmOperatorController.HelmOperatorReconciler) helmOperatorReconcileResult {
 	result, err := hor.Reconcile(request)
-	horResult := &HelmOperatorReconcileResult{result, err}
+	horResult := &helmOperatorReconcileResult{result, err}
 
 	return *horResult
 }
@@ -342,7 +342,7 @@ func (r *ReconcileHelmRelease) processUninstallRelease(hr *appv1.HelmRelease,
 	manager helmoperator.Manager) (reconcile.Result, error) {
 	klog.V(2).Info("Processing uninstall release: ", hr.GetNamespace(), "/", hr.GetName())
 
-	c := make(chan HelmOperatorReconcileResult)
+	c := make(chan helmOperatorReconcileResult)
 
 	go func() {
 		res := r.uninstallRelease(hr, manager)
@@ -358,7 +358,7 @@ func (r *ReconcileHelmRelease) processForceUpgradeRelease(hr *appv1.HelmRelease,
 	manager helmoperator.Manager) (reconcile.Result, error) {
 	klog.V(2).Info("Processing force upgrade: ", hr.GetNamespace(), "/", hr.GetName())
 
-	c := make(chan HelmOperatorReconcileResult)
+	c := make(chan helmOperatorReconcileResult)
 
 	go func() {
 		res := r.forceUpgradeRelease(hr, manager)
@@ -371,7 +371,7 @@ func (r *ReconcileHelmRelease) processForceUpgradeRelease(hr *appv1.HelmRelease,
 
 // processHelmOperatorReconcileResult determines if timeout is necessary
 func (r *ReconcileHelmRelease) processHelmOperatorReconcileResult(hr *appv1.HelmRelease,
-	c chan HelmOperatorReconcileResult) (reconcile.Result, error) {
+	c chan helmOperatorReconcileResult) (reconcile.Result, error) {
 	select {
 	case res := <-c:
 		return res.Result, res.Error
