@@ -35,6 +35,7 @@ import (
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
@@ -118,8 +119,8 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	// find all the deployed resources and check to see if they still exists
 	foundResource := false
-	resources := releaseutil.SplitManifests(hr.Status.DeployedRelease.Manifest)
 
+	resources := releaseutil.SplitManifests(hr.Status.DeployedRelease.Manifest)
 	for _, resource := range resources {
 		var u unstructured.Unstructured
 		if err := yaml.Unmarshal([]byte(resource), &u); err != nil {
@@ -157,7 +158,8 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 		return *horResult
 	}
 
-	klog.Info("HelmRelease ", hr.GetNamespace(), "/", hr.GetName(), " all DeployedRelease resources are deleted")
+	klog.Info("HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
+		" all DeployedRelease resources are deleted/terminating")
 	controllerutil.RemoveFinalizer(hr, finalizer)
 
 	if err := r.updateResource(hr); err != nil {
@@ -176,67 +178,48 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 //isResourceDeleted finds the given resource, if it exists then delete it.
 // return true if the resource is already deleted.
 func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstructured, hr *appv1.HelmRelease) bool {
-	// find the resource in the namespace
-	found, err := r.isResourceExists(resource, hr)
+	gvk := resource.GroupVersionKind()
+
+	mapping, err := r.GetRESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		klog.Error(err, " - Failed to lookup resource ", resource)
+		klog.Error(err, " - Failed to get resource REST mapping ", resource)
 
 		return false
 	}
 
-	if found {
-		if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
-			klog.Error(err, " - Failed to delete resource: ", resource.GetNamespace(), "/", resource.GetName(),
-				" ", resource.GroupVersionKind())
-		}
+	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
+	// clusterscope
+	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
+		resource.SetNamespace("")
 
-		return false
+		nsn = types.NamespacedName{Name: resource.GetName()}
 	}
 
-	// resource is not in the namespace. find the resource in the cluster.
-	resource.SetNamespace("")
-
-	found, _ = r.isResourceExists(resource, hr)
-	if found {
-		if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
-			klog.Error(err, " - Failed to delete resource: ", resource.GetName(),
-				" ", resource.GroupVersionKind())
-		}
-
-		return false
-	}
-
-	// resource is not in the cluster either. return true to confirm that the resource is already delete.
-
-	return true
-}
-
-func (r *ReconcileHelmRelease) isResourceExists(resource *unstructured.Unstructured,
-	hr *appv1.HelmRelease) (bool, error) {
 	klog.V(2).Info("Getting resource: ", resource.GetNamespace(), "/", resource.GetName(),
 		" ", resource.GroupVersionKind())
 
-	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
-	if resource.GetNamespace() == "" {
-		nsn = types.NamespacedName{Name: resource.GetName()}
+	err = r.GetClient().Get(context.TODO(), nsn, resource)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// resource is already deleted
+			return true
+		}
 
-		resource.SetName("")
+		klog.Error(err, " - Failed to get resource ", resource)
+
+		return false
 	}
 
-	err := r.GetClient().Get(context.TODO(), nsn, resource)
-	if err == nil {
-		klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
-			" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
+	klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
+		" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
+		" ", resource.GroupVersionKind())
+
+	if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
+		klog.Error(err, " - Failed to delete resource: ", resource.GetNamespace(), "/", resource.GetName(),
 			" ", resource.GroupVersionKind())
-
-		return true, nil
 	}
 
-	if apierrors.IsNotFound(err) {
-		return false, nil // resource is deleted
-	}
-
-	return false, err
+	return false
 }
 
 /*
