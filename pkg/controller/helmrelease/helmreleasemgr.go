@@ -30,13 +30,12 @@ import (
 	"helm.sh/helm/v3/pkg/storage"
 
 	helmclient "github.com/operator-framework/operator-sdk/pkg/helm/client"
-	helmrelease "github.com/operator-framework/operator-sdk/pkg/helm/release"
+	helmoperator "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -46,9 +45,9 @@ import (
 	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/utils"
 )
 
-//newHelmReleaseManagerFactory create a new manager returns a helmManagerFactory
-func (r *ReconcileHelmRelease) newHelmReleaseManagerFactory(
-	s *appv1.HelmRelease) (helmrelease.ManagerFactory, error) {
+//newHelmOperatorManagerFactory create a new manager returns a helmManagerFactory
+func (r *ReconcileHelmRelease) newHelmOperatorManagerFactory(
+	s *appv1.HelmRelease) (helmoperator.ManagerFactory, error) {
 	chartDir, err := downloadChart(r.GetClient(), s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
@@ -57,14 +56,14 @@ func (r *ReconcileHelmRelease) newHelmReleaseManagerFactory(
 
 	klog.V(3).Info("ChartDir: ", chartDir)
 
-	f := helmrelease.NewManagerFactory(r.Manager, chartDir)
+	f := helmoperator.NewManagerFactory(r.Manager, chartDir)
 
 	return f, nil
 }
 
-//newHelmReleaseManager create a new manager returns a helmManager
-func (r *ReconcileHelmRelease) newHelmReleaseManager(
-	s *appv1.HelmRelease, request reconcile.Request, factory helmrelease.ManagerFactory) (helmrelease.Manager, error) {
+//newHelmOperatorManager returns a newly created helm operator manager
+func (r *ReconcileHelmRelease) newHelmOperatorManager(
+	s *appv1.HelmRelease, request reconcile.Request, factory helmoperator.ManagerFactory) (helmoperator.Manager, error) {
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
 	o.SetNamespace(request.Namespace)
@@ -78,7 +77,7 @@ func (r *ReconcileHelmRelease) newHelmReleaseManager(
 
 	manager, err := factory.NewManager(o, nil)
 	if err != nil {
-		klog.Error(err, " - Failed to get release manager")
+		klog.Error(err, " - Failed to get helm operator manager")
 		return nil, err
 	}
 
@@ -120,8 +119,8 @@ func downloadChart(client client.Client, s *appv1.HelmRelease) (string, error) {
 }
 
 //generateResourceList generates the resource list for given HelmRelease
-func generateResourceList(client client.Client, mgr manager.Manager, s *appv1.HelmRelease) (kube.ResourceList, error) {
-	chartDir, err := downloadChart(client, s)
+func generateResourceList(mgr manager.Manager, s *appv1.HelmRelease) (kube.ResourceList, error) {
+	chartDir, err := downloadChart(mgr.GetClient(), s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
 		return nil, err
@@ -188,34 +187,4 @@ func generateResourceList(client client.Client, mgr manager.Manager, s *appv1.He
 	}
 
 	return resources, nil
-}
-
-//GenerateResourceListByConfig generates the resource list for given HelmRelease
-func GenerateResourceListByConfig(client client.Client, cfg *rest.Config, s *appv1.HelmRelease) (kube.ResourceList, error) {
-	mgr, err := manager.New(cfg, manager.Options{
-		MetricsBindAddress: "0",
-		LeaderElection:     false,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	stop := make(chan struct{})
-
-	go func() {
-		if err := mgr.Start(stop); err != nil {
-			klog.Error(err)
-		}
-	}()
-
-	defer func() {
-		close(stop)
-	}()
-
-	if mgr.GetCache().WaitForCacheSync(stop) {
-		return generateResourceList(client, mgr, s)
-	}
-
-	return nil, fmt.Errorf("fail to start a manager to generate the resource list")
 }
