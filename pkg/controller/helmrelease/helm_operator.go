@@ -35,7 +35,6 @@ import (
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
@@ -178,37 +177,36 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 //isResourceDeleted finds the given resource, if it exists then delete it.
 // return true if the resource is already deleted.
 func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstructured, hr *appv1.HelmRelease) bool {
-	gvk := resource.GroupVersionKind()
-
-	mapping, err := r.GetRESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		klog.Error(err, " - Failed to get resource REST mapping ", resource)
-
-		return false
-	}
-
-	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
-	// clusterscope
-	if mapping.Scope.Name() != meta.RESTScopeNameNamespace {
-		resource.SetNamespace("")
-
-		nsn = types.NamespacedName{Name: resource.GetName()}
-	}
-
 	klog.V(2).Info("Getting resource: ", resource.GetNamespace(), "/", resource.GetName(),
 		" ", resource.GroupVersionKind())
 
-	err = r.GetClient().Get(context.TODO(), nsn, resource)
+	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
+
+	// try to get the resource in the namespace
+	err := r.GetClient().Get(context.TODO(), nsn, resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			// resource is already deleted
-			return true
+			return true // resource is already deleted
 		}
 
-		klog.Error(err, " - Failed to get resource ", resource)
+		klog.V(2).Info("Ignorable error while attempting to fetch resource from namespace: ",
+			resource.GetNamespace(), "/", resource.GetName(), " ", resource.GroupVersionKind(), " - ", err)
 
-		return false
+		// it's not in the namespace try looking for the resource in cluster scope
+		resource.SetNamespace("")
+
+		nsn = types.NamespacedName{Name: resource.GetName()}
+
+		err := r.GetClient().Get(context.TODO(), nsn, resource)
+		if err != nil {
+			klog.V(2).Info("Ignorable error while attempting to fetch resource from cluster: ",
+				resource.GetName(), " ", resource.GroupVersionKind(), " - ", err)
+
+			return true // resource is already deleted
+		}
 	}
+
+	// found the resource so it's not deleted yet
 
 	klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
 		" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
