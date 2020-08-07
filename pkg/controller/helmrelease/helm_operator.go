@@ -100,6 +100,22 @@ func (r *ReconcileHelmRelease) uninstallRelease(hr *appv1.HelmRelease,
 
 	klog.Info("Uninstalled HelmRelease ", hr.GetNamespace(), ",", hr.GetName())
 
+	if hr.Status.DeployedRelease == nil || hr.Status.DeployedRelease.Manifest == "" {
+		controllerutil.RemoveFinalizer(hr, finalizer)
+
+		if err := r.updateResource(hr); err != nil {
+			klog.Error(err, " - Failed to strip HelmRelease uninstall finalizer ", hr.GetNamespace(), "/", hr.GetName())
+
+			horResult := &helmOperatorReconcileResult{reconcile.Result{}, err}
+
+			return *horResult
+		}
+
+		horResult := &helmOperatorReconcileResult{reconcile.Result{RequeueAfter: time.Minute * 1}, nil}
+
+		return *horResult
+	}
+
 	hr.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 	hr.Status.SetCondition(appv1.HelmAppCondition{
 		Type:   appv1.ConditionDeployed,
