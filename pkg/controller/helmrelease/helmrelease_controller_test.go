@@ -108,38 +108,14 @@ func TestReconcile(t *testing.T) {
 
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
-	//
-	//Git succeed
-	//
-	t.Log("Git succeed test")
+	// check if there exists an InstallSuccessful reason
+	instanceResp.Status.RemoveCondition(appv1.ConditionInitialized)
+	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonInstallSuccessful))
 
-	helmReleaseName = "example-git-succeed"
-	helmReleaseKey = types.NamespacedName{
-		Name:      helmReleaseName,
-		Namespace: helmReleaseNS,
-	}
-	instance = &appv1.HelmRelease{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "HelmRelease",
-			APIVersion: "apps.open-cluster-management.io/v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      helmReleaseName,
-			Namespace: helmReleaseNS,
-		},
-		Repo: appv1.HelmReleaseRepo{
-			Source: &appv1.Source{
-				SourceType: appv1.GitSourceType,
-				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
-					ChartPath: "test/github/subscription-release-test-3",
-				},
-			},
-			ChartName: "subscription-release-test-1",
-		},
-	}
+	// remove the deployed condition (InstallSuccessful)
+	instanceResp.Status.RemoveCondition(appv1.ConditionDeployed)
 
-	err = c.Create(context.TODO(), instance)
+	err = c.Status().Update(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	time.Sleep(4 * time.Second)
@@ -148,7 +124,69 @@ func TestReconcile(t *testing.T) {
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
+	// check to see if the deployed condition (InstallSuccessful) is actually removed
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(0))
+
+	// trigger a reconciliation
+	instanceResp.Repo.Version = "1.0"
+	err = c.Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	// check if there exists an InstallSuccessful reason again
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(1))
+	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonInstallSuccessful))
+
+	// trigger a update
+	var updateSpec interface{}
+	yaml.Unmarshal([]byte("{\"subscriptionrelease\":{\"enabled\":false}}"), &updateSpec)
+	instanceResp.Spec = updateSpec
+	err = c.Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// check if there exists an UpdateSuccessful reason
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
+	instanceResp.Status.RemoveCondition(appv1.ConditionInitialized)
+	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonUpdateSuccessful))
+
+	// remove the deployed condition (UpdateSuccessful)
+	instanceResp.Status.RemoveCondition(appv1.ConditionDeployed)
+
+	err = c.Status().Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	// check to see if the deployed condition (UpdateSuccessful) is actually removed
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(0))
+
+	// trigger a reconciliation
+	instanceResp.Repo.Version = "2.0"
+	err = c.Update(context.TODO(), instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(4 * time.Second)
+
+	// check if there exists an UpdateSuccessful reason again
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(1))
+	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonUpdateSuccessful))
 
 	//
 	//Github failed
