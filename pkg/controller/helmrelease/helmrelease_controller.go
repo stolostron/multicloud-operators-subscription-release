@@ -28,6 +28,7 @@ import (
 	"github.com/ghodss/yaml"
 	helmOperatorController "github.com/operator-framework/operator-sdk/pkg/helm/controller"
 	helmoperator "github.com/operator-framework/operator-sdk/pkg/helm/release"
+	"helm.sh/helm/v3/pkg/release"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
@@ -227,6 +228,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// check to see if it's necessary to upgrade
+	// and make sure install/upgrade successful reasons are stamped into the status
 	if !containsErrorConditions(instance) &&
 		!helmOperatorManager.IsUpdateRequired() &&
 		helmOperatorManager.IsInstalled() &&
@@ -234,6 +236,19 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		// force the upgrade if HelmReleaseUpgradeForceAnnotation is set to true
 		if hasBooleanAnnotation(instance, HelmReleaseUpgradeForceAnnotation) {
 			return r.processForceUpgradeRelease(instance, helmOperatorManager)
+		}
+
+		if !containsDeployedCondition(instance) {
+			// the release is deployed but there is no deployed condition
+			deployedRelease, err := r.fetchDeployedRelease(instance)
+			if err == nil {
+				// populate the install/upgrade successful reason into the status
+				return r.populateDeployedStatus(deployedRelease, instance)
+			}
+
+			// not reconciling again here to avoid getting stuck in a reconcile loop
+			// where the deploy release doesn't actually exist but helmrelease thinks it does
+			klog.Error(instance, " - Failed to get deployed release -", err)
 		}
 
 		klog.Info("Upgrade is not required. Skipping Reconciling HelmRelease:", request)
@@ -293,6 +308,20 @@ func containsErrorConditions(hr *appv1.HelmRelease) bool {
 	return false
 }
 
+func containsDeployedCondition(hr *appv1.HelmRelease) bool {
+	if hr.Status.Conditions == nil {
+		return false
+	}
+
+	for i := range hr.Status.Conditions {
+		if hr.Status.Conditions[i].Type == appv1.ConditionDeployed {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (r *ReconcileHelmRelease) setErrorStatus(hr *appv1.HelmRelease, err error,
 	conditionType appv1.HelmAppConditionType) error {
 	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s error status for error: %v", hr.GetNamespace(), hr.GetName(), err))
@@ -302,6 +331,20 @@ func (r *ReconcileHelmRelease) setErrorStatus(hr *appv1.HelmRelease, err error,
 		Status:  appv1.StatusTrue,
 		Reason:  appv1.ReasonReconcileError,
 		Message: err.Error(),
+	})
+
+	return r.updateResourceStatus(hr)
+}
+
+func (r *ReconcileHelmRelease) setDeployedStatus(hr *appv1.HelmRelease,
+	reason appv1.HelmAppConditionReason, message string) error {
+	klog.V(1).Info(fmt.Sprintf("Attempting to set %s/%s status: %v", hr.GetNamespace(), hr.GetName(), reason))
+
+	hr.Status.SetCondition(appv1.HelmAppCondition{
+		Type:    appv1.ConditionDeployed,
+		Status:  appv1.StatusTrue,
+		Reason:  reason,
+		Message: message,
 	})
 
 	return r.updateResourceStatus(hr)
@@ -386,4 +429,26 @@ func (r *ReconcileHelmRelease) processHelmOperatorReconcileResult(hr *appv1.Helm
 
 		return reconcile.Result{}, err
 	}
+}
+
+// populateDeployedStatus with either UpdateSuccessful or InstallSuccessful reason
+// reconcile again after successfully populating the status
+func (r *ReconcileHelmRelease) populateDeployedStatus(deployedRelease *release.Release,
+	hr *appv1.HelmRelease) (reconcile.Result, error) {
+
+	reason := appv1.ReasonUpdateSuccessful
+	if deployedRelease.Version == 1 {
+		reason = appv1.ReasonInstallSuccessful
+	}
+
+	message := ""
+	if deployedRelease.Info != nil {
+		message = deployedRelease.Info.Notes
+	}
+
+	if err := r.setDeployedStatus(hr, reason, message); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{Requeue: true}, nil
 }

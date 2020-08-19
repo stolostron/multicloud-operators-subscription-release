@@ -33,6 +33,7 @@ import (
 	helmoperator "github.com/operator-framework/operator-sdk/pkg/helm/release"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
+	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -187,4 +188,21 @@ func generateResourceList(mgr manager.Manager, s *appv1.HelmRelease) (kube.Resou
 	}
 
 	return resources, nil
+}
+
+//fetchDeployedRelease returns the deployed release
+func (r *ReconcileHelmRelease) fetchDeployedRelease(hr *appv1.HelmRelease) (*release.Release, error) {
+	clientv1, err := v1.NewForConfig(r.GetConfig())
+	if err != nil {
+		return nil, err
+	}
+
+	storageBackend := storage.Init(driver.NewSecrets(clientv1.Secrets(hr.GetNamespace())))
+
+	deployedRelease, err := storageBackend.Deployed(hr.GetName())
+	if err != nil {
+		return nil, err
+	}
+
+	return deployedRelease, nil
 }
