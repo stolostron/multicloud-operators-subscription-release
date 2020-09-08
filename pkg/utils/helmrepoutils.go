@@ -56,6 +56,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: false,
+			MinVersion:         tls.VersionTLS12,
 		},
 	}
 
