@@ -1,8 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  creationTimestamp: null
-  name: multicloud-operators-subscription-release
+  name: multicluster-operators-subscription-release
 rules:
 - apiGroups:
   - ""
@@ -36,7 +35,7 @@ rules:
 - apiGroups:
   - apps
   resourceNames:
-  - multicloud-operators-subscription-release
+  - multicluster-operators-subscription-release
   resources:
   - deployments/finalizers
   verbs:
