@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: multicloud-operators-subscription-release
+  name: multicluster-operators-subscription-release
 rules:
 - apiGroups:
   - apps.open-cluster-management.io
@@ -17,24 +17,24 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: multicloud-operators-subscription-release-admin
+  name: multicluster-operators-subscription-release-admin
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: multicloud-operators-subscription-release
+  name: multicluster-operators-subscription-release
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: multicloud-operators-subscription-release-cluster-role-binding
+  name: multicluster-operators-subscription-release-cluster-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: multicloud-operators-subscription-release
+  name: multicluster-operators-subscription-release
 subjects:
 - kind: ServiceAccount
   name: default
@@ -43,27 +43,27 @@ subjects:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: multicloud-operators-subscription-release
+  name: multicluster-operators-subscription-release
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: multicloud-operators-subscription-release
+      name: multicluster-operators-subscription-release
   template:
     metadata:
       labels:
-        name: multicloud-operators-subscription-release
+        name: multicluster-operators-subscription-release
     spec:
-      serviceAccountName: multicloud-operators-subscription-release
+      serviceAccountName: multicluster-operators-subscription-release
       volumes:
       - name: charts
         emptyDir: {}
       containers:
-      - name: multicloud-operators-subscription-release
+      - name: multicluster-operators-subscription-release
         # Replace this with the built image name
-        image: quay.io/open-cluster-management/multicloud-operators-subscription-release
+        image: quay.io/open-cluster-management/multicluster-operators-subscription-release:community-latest
         command:
-        - multicloud-operators-subscription-release
+        - multicluster-operators-subscription-release
         imagePullPolicy: Always
         env:
         - name: CHARTS_DIR
@@ -77,7 +77,7 @@ spec:
             fieldRef:
               fieldPath: metadata.name
         - name: OPERATOR_NAME
-          value: "multicloud-operators-subscription-release"
+          value: "multicluster-operators-subscription-release"
         volumeMounts:
         - name: charts
           mountPath: "/charts"
