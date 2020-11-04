@@ -29,11 +29,10 @@ import (
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/storage"
 
-	helmclient "github.com/operator-framework/operator-sdk/pkg/helm/client"
-	helmoperator "github.com/operator-framework/operator-sdk/pkg/helm/release"
+	helmclient "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/client"
+	helmoperator "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/release"
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/kube"
-	"helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -47,7 +46,7 @@ import (
 )
 
 //newHelmOperatorManagerFactory create a new manager returns a helmManagerFactory
-func (r *ReconcileHelmRelease) newHelmOperatorManagerFactory(
+func (r ReconcileHelmRelease) newHelmOperatorManagerFactory(
 	s *appv1.HelmRelease) (helmoperator.ManagerFactory, error) {
 	chartDir, err := downloadChart(r.GetClient(), s)
 	if err != nil {
@@ -63,7 +62,7 @@ func (r *ReconcileHelmRelease) newHelmOperatorManagerFactory(
 }
 
 //newHelmOperatorManager returns a newly created helm operator manager
-func (r *ReconcileHelmRelease) newHelmOperatorManager(
+func (r ReconcileHelmRelease) newHelmOperatorManager(
 	s *appv1.HelmRelease, request reconcile.Request, factory helmoperator.ManagerFactory) (helmoperator.Manager, error) {
 	o := &unstructured.Unstructured{}
 	o.SetGroupVersionKind(s.GroupVersionKind())
@@ -188,21 +187,4 @@ func generateResourceList(mgr manager.Manager, s *appv1.HelmRelease) (kube.Resou
 	}
 
 	return resources, nil
-}
-
-//fetchDeployedRelease returns the deployed release
-func (r *ReconcileHelmRelease) fetchDeployedRelease(hr *appv1.HelmRelease) (*release.Release, error) {
-	clientv1, err := v1.NewForConfig(r.GetConfig())
-	if err != nil {
-		return nil, err
-	}
-
-	storageBackend := storage.Init(driver.NewSecrets(clientv1.Secrets(hr.GetNamespace())))
-
-	deployedRelease, err := storageBackend.Deployed(hr.GetName())
-	if err != nil {
-		return nil, err
-	}
-
-	return deployedRelease, nil
 }
