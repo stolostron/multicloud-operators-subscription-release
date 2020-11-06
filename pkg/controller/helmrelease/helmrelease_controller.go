@@ -335,10 +335,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 
 		instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-		klog.V(1).Info("Adding finalizer", "finalizer", finalizer)
+		klog.V(1).Info("Adding finalizer (", finalizer, ") to ", instance.GetNamespace(), "/", instance.GetName())
 		controllerutil.AddFinalizer(instance, finalizer)
 		if err := r.updateResource(instance); err != nil {
-			klog.Error("Failed to add helmrelease uninstall finalizer")
+			klog.Error("Failed to add uninstall finalizer to ", instance.GetNamespace(), "/", instance.GetName())
 			return reconcile.Result{}, err
 		}
 
