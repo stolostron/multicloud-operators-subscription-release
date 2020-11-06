@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // copied and modified from github.com/operator-framework/operator-sdk/internal/helm/release
+// merged changes from https://github.com/operator-framework/operator-sdk/pull/3431
 
 package release
 
@@ -355,15 +356,8 @@ func createJSONMergePatch(existingJSON, expectedJSON []byte) ([]byte, error) {
 // UninstallRelease performs a Helm release uninstall.
 func (m manager) UninstallRelease(ctx context.Context, opts ...UninstallOption) (*rpb.Release, error) {
 	// Get history of this release
-	h, err := m.storageBackend.History(m.releaseName)
-	if err != nil {
+	if _, err := m.storageBackend.History(m.releaseName); err != nil {
 		return nil, fmt.Errorf("failed to get release history: %w", err)
-	}
-
-	// If there is no history, the release has already been uninstalled,
-	// so return ErrReleaseNotFound.
-	if len(h) == 0 {
-		return nil, driver.ErrReleaseNotFound
 	}
 
 	uninstall := action.NewUninstall(m.actionConfig)
