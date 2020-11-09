@@ -43,6 +43,7 @@ import (
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
 func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap, skipCertVerify bool) (rest.HTTPClient, error) {
+	/* #nosec G402 */
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -55,7 +56,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap, skip
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: skipCertVerify,
+			InsecureSkipVerify: skipCertVerify, // #nosec G402 InsecureSkipVerify conditionally
 			MinVersion:         tls.VersionTLS12,
 		},
 	}
