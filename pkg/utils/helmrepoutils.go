@@ -42,7 +42,8 @@ import (
 )
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
-func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (rest.HTTPClient, error) {
+func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap, skipCertVerify bool) (rest.HTTPClient, error) {
+	/* #nosec G402 */
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -55,9 +56,13 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: false,
+			InsecureSkipVerify: skipCertVerify, // #nosec G402 InsecureSkipVerify conditionally
 			MinVersion:         tls.VersionTLS12,
 		},
+	}
+
+	if skipCertVerify {
+		klog.Info("repo.insecureSkipVerify=true. Skipping repo server's certificate verification.")
 	}
 
 	if configMap != nil {
@@ -77,7 +82,7 @@ func GetHelmRepoClient(parentNamespace string, configMap *corev1.ConfigMap) (res
 				return nil, err
 			}
 
-			klog.V(5).Info("Set InsecureSkipVerify: ", b)
+			klog.Info("From config map, seting InsecureSkipVerify: ", b)
 			transport.TLSClientConfig.InsecureSkipVerify = b
 		} else {
 			klog.V(5).Info("insecureSkipVerify is not specified")
@@ -246,7 +251,7 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 	destRepo string,
 	s *appv1.HelmRelease,
 	url string) (chartDir string, err error) {
-	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo)
+	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo, s.Repo.InsecureSkipVerify)
 	if downloadErr != nil {
 		klog.Error(downloadErr, " - url: ", url)
 		return "", downloadErr
@@ -287,7 +292,8 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	fileURL string,
 	secret *corev1.Secret,
-	chartsDir string) (string, error) {
+	chartsDir string,
+	insecureSkipVerify bool) (string, error) {
 	klog.V(4).Info("fileURL: ", fileURL)
 
 	URLP, downloadErr := url.Parse(fileURL)
@@ -311,7 +317,7 @@ func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	case "file":
 		downloadErr = downloadFileLocal(URLP, chartZip)
 	case "http", "https":
-		downloadErr = downloadFileHTTP(parentNamespace, configMap, fileURL, secret, chartZip)
+		downloadErr = downloadFileHTTP(parentNamespace, configMap, fileURL, secret, chartZip, insecureSkipVerify)
 	default:
 		downloadErr = fmt.Errorf("unsupported scheme %s", URLP.Scheme)
 	}
@@ -350,7 +356,8 @@ func downloadFileLocal(urlP *url.URL,
 func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	fileURL string,
 	secret *corev1.Secret,
-	chartZip string) error {
+	chartZip string,
+	insecureSkipVerify bool) error {
 	fileInfo, err := os.Stat(chartZip)
 	if fileInfo != nil && fileInfo.IsDir() {
 		downloadErr := fmt.Errorf("expecting chartZip to be a file but it's a directory: %s", chartZip)
@@ -360,7 +367,7 @@ func downloadFileHTTP(parentNamespace string, configMap *corev1.ConfigMap,
 	}
 
 	if os.IsNotExist(err) {
-		httpClient, downloadErr := GetHelmRepoClient(parentNamespace, configMap)
+		httpClient, downloadErr := GetHelmRepoClient(parentNamespace, configMap, insecureSkipVerify)
 		if downloadErr != nil {
 			klog.Error(downloadErr, " - Failed to create httpClient")
 			return downloadErr
