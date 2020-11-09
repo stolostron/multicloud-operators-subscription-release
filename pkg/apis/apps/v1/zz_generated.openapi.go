@@ -118,6 +118,13 @@ func schema_pkg_apis_apps_v1_HelmReleaseRepo(ref common.ReferenceCallback) commo
 							Ref:         ref("k8s.io/api/core/v1.ObjectReference"),
 						},
 					},
+					"insecureSkipVerify": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InsecureSkipVerify is used to skip repo server's TLS certificate verification",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
