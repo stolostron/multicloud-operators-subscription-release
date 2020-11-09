@@ -101,6 +101,8 @@ type HelmReleaseRepo struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configMapRef,omitempty"`
+	// InsecureSkipVerify is used to skip repo server's TLS certificate verification
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

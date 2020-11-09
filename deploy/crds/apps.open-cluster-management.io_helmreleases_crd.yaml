@@ -142,6 +142,9 @@ spec:
             version:
               description: Version is the chart version
               type: string
+            insecureSkipVerify:
+              description: Used to skip repo server's TLS certificate verification
+              type: boolean
           type: object
         spec: {}
         status:
