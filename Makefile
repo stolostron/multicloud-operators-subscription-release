@@ -110,7 +110,8 @@ lint: lint-all
 ############################################################
 
 test:
-	@go test ${TESTARGS} ./...
+	@go test ${TESTARGS} ./cmd/... ./pkg/...
+
 
 ############################################################
 # coverage section
@@ -128,6 +129,11 @@ build:
 
 local:
 	@GOOS=darwin common/scripts/gobuild.sh build/_output/bin/$(IMG) ./cmd/manager
+
+export CONTAINER_NAME=e2e
+local-e2e: build build-images
+	build/run-e2e-tests.sh
+
 
 ############################################################
 # images section

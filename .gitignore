@@ -1,6 +1,10 @@
 # Temporary Build Files
 build/_output
 build/_test
+applifecycle-backend-e2e
+cluster_config
+*.yaml-e
+
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-
