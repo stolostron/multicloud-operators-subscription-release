@@ -54,7 +54,7 @@ else
     docker kill e2e
 fi
 
-echo -e "\nPath for container in YAML $(grep 'image: .*' deploy/standalone/operator.yaml)\n"
+echo -e "\nPath for container in YAML $(grep 'image: .*' deploy/operator.yaml)\n"
 
 echo -e "\nLoad build image ($BUILD_IMAGE)to kind cluster\n"
 kind load docker-image $BUILD_IMAGE
