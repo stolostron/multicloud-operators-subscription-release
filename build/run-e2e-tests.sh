@@ -16,6 +16,7 @@
 
 
 ###!!!!!!!! On travis this script is run on the .git level
+set -e
 echo -e "E2E TESTS GO HERE!"
 
 # need to find a way to use the Makefile to set these
