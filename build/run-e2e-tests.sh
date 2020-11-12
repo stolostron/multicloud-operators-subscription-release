@@ -52,7 +52,7 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
 
 else
     echo -e "\nBuild is on Local ENV, will delete the API container first\n"
-    docker kill e2e
+    docker kill e2e || true
 fi
 
 echo -e "\nPath for container in YAML $(grep 'image: .*' deploy/operator.yaml)\n"

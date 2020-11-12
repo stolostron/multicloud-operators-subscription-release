@@ -64,7 +64,7 @@ spec:
         image: quay.io/open-cluster-management/multicluster-operators-subscription-release:latest
         command:
         - multicluster-operators-subscription-release
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         env:
         - name: CHARTS_DIR
           value: "/charts"
