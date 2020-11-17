@@ -16,7 +16,9 @@
     - [Getting Started](#getting-started)
         - [Prerequisites](#prerequisites)
         - [Deployment](#deployment)
-        - [Trouble shooting](#trouble-shooting)
+    - [Security Response](#security-response)
+    - [References](#references)
+        - [multicloud-operators repositories](#multicloud-operators-repositories)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -38,8 +40,19 @@ Check the [Development Doc](docs/development.md) for how to contribute to the re
 
 ### Deployment
 
-Check the [Deployment Doc](docs/deployment.md) for how to deploy the multicloud-operators-subscription-release in standalone mode.
+Check the [Deployment Doc](docs/deployment.md) for how to deploy the operator.
 
-### Trouble shooting
+## Security Response
 
-Please refer to [Trouble shooting documentation](docs/trouble_shooting.md) for further info.
+Check the [Security Doc](SECURITY.md) if you've found a security issue.
+
+## References
+
+### multicloud-operators repositories
+
+- [multicloud-operators-application](https://github.com/open-cluster-management/multicloud-operators-application)
+- [multicloud-operators-channel](https://github.com/open-cluster-management/multicloud-operators-channel)
+- [multicloud-operators-deployable](https://github.com/open-cluster-management/multicloud-operators-deployable)
+- [multicloud-operators-placementrule](https://github.com/open-cluster-management/multicloud-operators-placementrule)
+- [multicloud-operators-subscription](https://github.com/open-cluster-management/multicloud-operators-subscription)
+- [multicloud-operators-subscription-release](https://github.com/open-cluster-management/multicloud-operators-subscription-release)

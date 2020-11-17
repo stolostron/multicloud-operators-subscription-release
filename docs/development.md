@@ -17,10 +17,24 @@ The environment variable `CHARTS_DIR` must be set when developing, it specifies 
 
 ## Launch Dev mode
 
-```bash
-operator-sdk up local --verbose [--operator-flags "--v=1"]
+```shell
+git clone git@github.com:open-cluster-management/multicloud-operators-subscription-release.git
+cd multicloud-operators-subscription-release
+export GITHUB_USER=<github_user>
+export GITHUB_TOKEN=<github_token>
+make
+make build
+kubectl apply -f deploy/crds
+./build/_output/bin/multicluster-operators-subscription-release
 ```
 
 ## Build a local image
 
-`operator-sdk build open-cluster-management/multicloud-operators-subscription-release:latest`
+```shell
+git clone git@github.com:open-cluster-management/multicloud-operators-subscription-release.git
+cd multicloud-operators-subscription-release
+export GITHUB_USER=<github_user>
+export GITHUB_TOKEN=<github_token>
+make
+make build-images
+```

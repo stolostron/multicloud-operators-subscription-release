@@ -17,23 +17,23 @@ The environment variable `CHARTS_DIR` must be set when developing, it specifies 
 
 ## RBAC
 
-The service account is `multicloud-operators-subscription-release`.
+The service account is `multicluster-operators-subscription-release`.
 
 The cluster-role `cluster-admin` is binded to the service account as the helmrelease operator must be able to deploy helm chart in any namespace.
 
-The role `multicloud-operators-subscription-release` is binded to that service account.
+The role `multicluster-operators-subscription-release` is binded to that service account.
 
-A cluster role `multicloud-operators-subscription-release` is created for the `helmrelease` resource.
+A cluster role `multicluster-operators-subscription-release` is created for the `helmrelease` resource.
 
 In order for another service account to be able to access the `helmrelease`, a role binding must be create.
 
 ### Deployment
 
-1) Do `kubectl apply -f` on all files in deploy/crds.*-crd.yaml
-2) `kubectl apply -f service_account.yaml`
-3) `kubectl apply -f role.yaml`
-4) `kubectl apply -f role_binding.yaml`
-5) `kubectl apply -f operator.yaml`
+```shell
+cd multicloud-operators-subscription-release
+kubectl apply -f deploy/crds
+kubectl apply -f deploy
+```
 
 ## General process
 
