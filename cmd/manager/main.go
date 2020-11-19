@@ -21,9 +21,6 @@ import (
 
 	"github.com/spf13/pflag"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/klog"
 
 	"github.com/open-cluster-management/multicloud-operators-subscription-release/cmd/manager/exec"
