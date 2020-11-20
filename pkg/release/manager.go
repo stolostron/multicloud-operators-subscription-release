@@ -18,7 +18,6 @@
 package release
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -35,8 +34,6 @@ import (
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apitypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
@@ -54,7 +51,6 @@ type Manager interface {
 	Sync(context.Context) error
 	InstallRelease(context.Context, ...InstallOption) (*rpb.Release, error)
 	UpgradeRelease(context.Context, ...UpgradeOption) (*rpb.Release, *rpb.Release, error)
-	ReconcileRelease(context.Context) (*rpb.Release, error)
 	UninstallRelease(context.Context, ...UninstallOption) (*rpb.Release, error)
 	GetDeployedRelease() (*rpb.Release, error)
 }
@@ -232,58 +228,6 @@ func (m manager) UpgradeRelease(ctx context.Context, opts ...UpgradeOption) (*rp
 		return nil, nil, fmt.Errorf("failed to upgrade release: %w", err)
 	}
 	return m.deployedRelease, upgradedRelease, err
-}
-
-// ReconcileRelease creates or patches resources as necessary to match the
-// deployed release's manifest.
-func (m manager) ReconcileRelease(ctx context.Context) (*rpb.Release, error) {
-	err := reconcileRelease(ctx, m.kubeClient, m.deployedRelease.Manifest)
-	return m.deployedRelease, err
-}
-
-func reconcileRelease(_ context.Context, kubeClient kube.Interface, expectedManifest string) error {
-	expectedInfos, err := kubeClient.Build(bytes.NewBufferString(expectedManifest), false)
-	if err != nil {
-		return err
-	}
-	return expectedInfos.Visit(func(expected *resource.Info, err error) error {
-		if err != nil {
-			return fmt.Errorf("visit error: %w", err)
-		}
-
-		helper := resource.NewHelper(expected.Client, expected.Mapping)
-		existing, err := helper.Get(expected.Namespace, expected.Name, expected.Export)
-		if apierrors.IsNotFound(err) {
-			if _, err := helper.Create(expected.Namespace, true, expected.Object); err != nil {
-				return fmt.Errorf("create error: %s", err)
-			}
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("could not get object: %w", err)
-		}
-
-		// Replicate helm's patch creation, which will create a Three-Way-Merge patch for
-		// native kubernetes Objects and fall back to a JSON merge patch for unstructured Objects such as CRDs
-		// We also extend the JSON merge patch by ignoring "remove" operations for fields added by kubernetes
-		// Reference in the helm source code:
-		// https://github.com/helm/helm/blob/1c9b54ad7f62a5ce12f87c3ae55136ca20f09c98/pkg/kube/client.go#L392
-		patch, patchType, err := createPatch(existing, expected)
-		if err != nil {
-			return fmt.Errorf("error creating patch: %w", err)
-		}
-
-		if patch == nil {
-			// nothing to do
-			return nil
-		}
-
-		_, err = helper.Patch(expected.Namespace, expected.Name, patchType, patch,
-			&metav1.PatchOptions{})
-		if err != nil {
-			return fmt.Errorf("patch error: %w", err)
-		}
-		return nil
-	})
 }
 
 func createPatch(existing runtime.Object, expected *resource.Info) ([]byte, apitypes.PatchType, error) {
