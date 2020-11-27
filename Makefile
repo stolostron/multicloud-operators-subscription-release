@@ -131,7 +131,7 @@ local:
 	@GOOS=darwin common/scripts/gobuild.sh build/_output/bin/$(IMG) ./cmd/manager
 
 export CONTAINER_NAME=e2e
-local-e2e: build build-images
+e2e: build build-images
 	build/run-e2e-tests.sh
 
 kind-setup: build-images
