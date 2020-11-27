@@ -17,7 +17,7 @@
 
 ###!!!!!!!! On travis this script is run on the .git level
 set -e
-echo -e "E2E TESTS GO HERE!"
+echo "E2E TESTS GO HERE!"
 
 # need to find a way to use the Makefile to set these
 REGISTRY=quay.io/open-cluster-management
@@ -43,17 +43,23 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
 
     echo -e "\nDownload and install KinD\n"
     GO111MODULE=on go get sigs.k8s.io/kind
-
-    kind create cluster
-    if [ $? != 0 ]; then
-            exit $?;
-    fi
-    sleep 15
-
 else
     echo -e "\nBuild is on Local ENV, will delete the API container first\n"
     docker kill e2e || true
 fi
+
+kind delete cluster
+if [ $? != 0 ]; then
+        exit $?;
+fi
+
+kind create cluster
+if [ $? != 0 ]; then
+        exit $?;
+fi
+
+sleep 15
+
 
 echo -e "\nPath for container in YAML $(grep 'image: .*' deploy/operator.yaml)\n"
 
@@ -81,11 +87,10 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     sleep 35
 fi
 
-echo -e "\nCheck if channel deploy is created\n" 
-kubectl get deploy $OPERATOR_NAME
-kubectl get po -A
-
+echo -e "\nCheck if subscription-release operator is created\n" 
+kubectl rollout status deployment/multicluster-operators-subscription-release
 if [ $? != 0 ]; then
+    echo "failed to deploy the subscription operator"
     exit $?;
 fi
 
@@ -102,7 +107,7 @@ kind get kubeconfig > cluster_config/hub
 # mess up the go.mod file when doing the local test
 echo -e "\nGet the applifecycle-backend-e2e data"
 rm -rf applifecycle-backend-e2e
-git clone https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/open-cluster-management/applifecycle-backend-e2e.git
+git clone --branch v0.1.5 https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/open-cluster-management/applifecycle-backend-e2e.git
 
 
 cd applifecycle-backend-e2e && make gobuild && cd -
