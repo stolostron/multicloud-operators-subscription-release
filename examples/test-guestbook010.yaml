@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: helmrelease-test
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: HelmRelease
+metadata:
+  name: guestbook-010
+  namespace: helmrelease-test
+repo:
+  chartName: gbapp
+  source:
+    helmRepo:
+      urls:
+        - https://raw.github.com/ianzhang366/guestbook-chart/master/gbapp-0.1.0.tgz
+    type: helmrepo
+  version: 0.1.0

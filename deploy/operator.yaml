@@ -61,10 +61,10 @@ spec:
       containers:
       - name: multicluster-operators-subscription-release
         # Replace this with the built image name
-        image: quay.io/open-cluster-management/multicluster-operators-subscription-release:community-latest
+        image: quay.io/open-cluster-management/multicluster-operators-subscription-release:latest
         command:
         - multicluster-operators-subscription-release
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         env:
         - name: CHARTS_DIR
           value: "/charts"
