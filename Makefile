@@ -134,10 +134,14 @@ export CONTAINER_NAME=e2e
 e2e: build build-images
 	build/run-e2e-tests.sh
 
+e2e-setup: e2e
+	build/set_up_e2e_local_dir.sh
+
 kind-setup: build-images
 	kind delete cluster
 	kind create cluster
 	kind load docker-image $(REGISTRY)/$(IMG):latest
+	kind get kubeconfig > cluster_config/hub
 	kubectl apply -f deploy/crds
 	kubectl apply -f deploy
 
