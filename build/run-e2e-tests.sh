@@ -30,9 +30,10 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     echo -e "Build is on Travis" 
 
 
-    echo -e "\nGet kubectl binary\n"
     # Download and install kubectl
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+    echo -e "\nGet kubectl binary\n"
+    PLATFORM=`uname -s | awk '{print tolower($0)}'`
+    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/$PLATFORM/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
     COMPONENT_VERSION=$(cat COMPONENT_VERSION 2> /dev/null)
     BUILD_IMAGE=${IMAGE_NAME}:${COMPONENT_VERSION}${COMPONENT_TAG_EXTENSION}
