@@ -29,11 +29,17 @@ OPERATOR_NAME=multicluster-operators-subscription-release
 if [ "$TRAVIS_BUILD" != 1 ]; then
     echo -e "Build is on Travis" 
 
-
     # Download and install kubectl
     echo -e "\nGet kubectl binary\n"
     PLATFORM=`uname -s | awk '{print tolower($0)}'`
-    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/$PLATFORM/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+    if [ "`which kubectl`" ]; then
+        echo "kubectl PATH is `which kubectl`"
+    else
+        mkdir -p $(pwd)/bin
+        curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/$PLATFORM/amd64/kubectl && mv kubectl $(pwd)/bin/ && chmod +x $(pwd)/bin/kubectl
+        export PATH=$PATH:$(pwd)/bin
+        echo "kubectl PATH is `which kubectl`"
+    fi
 
     COMPONENT_VERSION=$(cat COMPONENT_VERSION 2> /dev/null)
     BUILD_IMAGE=${IMAGE_NAME}:${COMPONENT_VERSION}${COMPONENT_TAG_EXTENSION}
