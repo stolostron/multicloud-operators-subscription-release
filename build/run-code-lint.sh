@@ -18,6 +18,7 @@ export PATH="${HADOLINT_PATH}":"${PATH}"
 pip install --user yamllint
 
 # Install markdown lint
+gem install chef-utils -v 16.6.14
 gem install mdl
 gem install awesome_bot
 
@@ -25,4 +26,6 @@ gem install awesome_bot
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b "$(go env GOPATH)"/bin v1.20.0
 
 # Start lint task
+make
+make
 make lint

@@ -27,7 +27,6 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.6 // indirect
 	github.com/onsi/gomega v1.10.1
-	github.com/open-cluster-management/applifecycle-backend-e2e v0.1.6 // indirect
 	github.com/opencontainers/image-spec v1.0.2-0.20190823105129-775207bd45b6 // indirect
 	github.com/opencontainers/runc v1.0.0-rc9 // indirect
 	github.com/operator-framework/operator-lib v0.2.0
