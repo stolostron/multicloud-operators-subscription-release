@@ -256,6 +256,24 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	if instance.Status.DeployedRelease == nil {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " contains a nil Status.DeployedRelease")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " contains a populated Status.DeployedRelease")
+	}
+
+	if helmOperatorManager.IsInstalled() {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " is installed")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " is not installed")
+	}
+
+	if helmOperatorManager.IsUpdateRequired() {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " requires an upgrade")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " does not require an upgrade")
+	}
+
 	return r.processHelmOperatorReconcile(request, instance, helmOperatorManagerFactory)
 }
 
