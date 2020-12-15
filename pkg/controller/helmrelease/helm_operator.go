@@ -49,6 +49,12 @@ const (
 
 	// OperatorSDKUpgradeForceAnnotation to perform the equalivent of `helm upgrade --force`
 	OperatorSDKUpgradeForceAnnotation = "helm.operator-sdk/upgrade-force"
+
+	// HelmhResourcePolicyAnnotation see: https://helm.sh/docs/howto/charts_tips_and_tricks
+	HelmhResourcePolicyAnnotation = "helm.sh/resource-policy"
+
+	// HelmhResourcePolicyAnnotationValue see: https://helm.sh/docs/howto/charts_tips_and_tricks
+	HelmhResourcePolicyAnnotationValue = "keep"
 )
 
 /*
@@ -220,6 +226,15 @@ func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstruct
 
 			return true // resource is already deleted
 		}
+	}
+
+	ants := resource.GetAnnotations()
+	if ants != nil && ants[HelmhResourcePolicyAnnotation] == HelmhResourcePolicyAnnotationValue {
+		klog.Info("Found a resource with ", HelmhResourcePolicyAnnotation, " annotation with the value '",
+			HelmhResourcePolicyAnnotationValue, "'. Skipping resource delete for ",
+			resource.GetNamespace(), "/", resource.GetName(), " ", resource.GroupVersionKind())
+
+		return true // skip resource delete
 	}
 
 	// found the resource so it's not deleted yet
