@@ -170,6 +170,14 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
+	// TODO introduce a generic annotation to trigger this feature
+	if err := r.hackMultiClusterHubRemoveCRDReferences(instance); err != nil {
+		klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", err)
+
+		return reconcile.Result{}, err
+	}
+
 	// setting the nil spec to "":"" allows helmrelease to reconcile with default chart values.
 	if instance.Spec == nil {
 		spec := make(map[string]interface{})
@@ -209,7 +217,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 			return reconcile.Result{}, errUpdate
 		}
 
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
 	if err := helmOperatorManager.Sync(context.TODO()); err != nil {
@@ -219,7 +227,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 			return reconcile.Result{}, errUpdate
 		}
 
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
 	// delete path, uninstall the helmrelease
@@ -254,6 +262,24 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		klog.Info("Upgrade is not required. Skipping Reconciling HelmRelease:", request)
 
 		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if instance.Status.DeployedRelease == nil {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " contains a nil Status.DeployedRelease")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " contains a populated Status.DeployedRelease")
+	}
+
+	if helmOperatorManager.IsInstalled() {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " is installed")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " is not installed")
+	}
+
+	if helmOperatorManager.IsUpdateRequired() {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " requires an upgrade")
+	} else {
+		klog.Info("HelmRelease ", instance.GetNamespace(), " ", instance.GetName(), " does not require an upgrade")
 	}
 
 	return r.processHelmOperatorReconcile(request, instance, helmOperatorManagerFactory)
