@@ -14,14 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-This file consist of functionalities that are originally from the operator-sdk helm operator
-https://github.com/operator-framework/operator-sdk/tree/master/pkg/helm
-
-The goal is to always use the operator-sdk api unless it's absolutely necessary to make changes
-to meet some of helmrelease's requirements.
-*/
-
 package helmrelease
 
 import (

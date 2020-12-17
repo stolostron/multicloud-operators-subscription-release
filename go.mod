@@ -43,14 +43,12 @@ require (
 	golang.org/x/net v0.0.0-20200822124328-c89045814202
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
 	golang.org/x/sys v0.0.0-20200814200057-3d37ad5750ed // indirect
-	gomodules.xyz/jsonpatch/v3 v3.0.1
 	google.golang.org/grpc v1.30.0 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
 	helm.sh/helm/v3 v3.4.1
 	k8s.io/api v0.19.3
-	k8s.io/apiextensions-apiserver v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/cli-runtime v0.19.3
 	k8s.io/client-go v12.0.0+incompatible
