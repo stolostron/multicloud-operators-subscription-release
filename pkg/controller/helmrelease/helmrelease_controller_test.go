@@ -138,8 +138,8 @@ func TestReconcile(t *testing.T) {
 	instanceResp = &appv1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(1))
-	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonInstallSuccessful))
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(2))
+	g.Expect(instanceResp.Status.Conditions[1].Reason).To(gomega.Equal(appv1.ReasonInstallSuccessful))
 
 	// trigger a update
 	var updateSpec interface{}
@@ -157,7 +157,7 @@ func TestReconcile(t *testing.T) {
 	// check if there exists an UpdateSuccessful reason
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 	instanceResp.Status.RemoveCondition(appv1.ConditionInitialized)
-	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonUpdateSuccessful))
+	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonUpgradeSuccessful))
 
 	// remove the deployed condition (UpdateSuccessful)
 	instanceResp.Status.RemoveCondition(appv1.ConditionDeployed)
@@ -185,8 +185,8 @@ func TestReconcile(t *testing.T) {
 	instanceResp = &appv1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(1))
-	g.Expect(instanceResp.Status.Conditions[0].Reason).To(gomega.Equal(appv1.ReasonUpdateSuccessful))
+	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(2))
+	g.Expect(instanceResp.Status.Conditions[1].Reason).To(gomega.Equal(appv1.ReasonUpgradeSuccessful))
 
 	//
 	//Github failed
@@ -314,8 +314,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	annotations := make(map[string]string)
-	annotations[OperatorSDKUpgradeForceAnnotation] = "true"
-	annotations[HelmReleaseUpgradeForceAnnotation] = "true"
+	annotations["helm.sdk.operatorframework.io/upgrade-force"] = "true"
 
 	instanceResp.SetAnnotations(annotations)
 	instanceResp.Repo.Version = "3-0.1.0"

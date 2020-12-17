@@ -17,11 +17,14 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -98,6 +101,8 @@ type HelmReleaseRepo struct {
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource
 	ConfigMapRef *corev1.ObjectReference `json:"configMapRef,omitempty"`
+	// InsecureSkipVerify is used to skip repo server's TLS certificate verification
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -156,17 +161,16 @@ const (
 	ConditionDeployed       HelmAppConditionType = "Deployed"
 	ConditionReleaseFailed  HelmAppConditionType = "ReleaseFailed"
 	ConditionIrreconcilable HelmAppConditionType = "Irreconcilable"
-	ConditionTimedout       HelmAppConditionType = "Timedout"
 
 	StatusTrue    ConditionStatus = "True"
 	StatusFalse   ConditionStatus = "False"
 	StatusUnknown ConditionStatus = "Unknown"
 
 	ReasonInstallSuccessful   HelmAppConditionReason = "InstallSuccessful"
-	ReasonUpdateSuccessful    HelmAppConditionReason = "UpdateSuccessful"
+	ReasonUpgradeSuccessful   HelmAppConditionReason = "UpgradeSuccessful"
 	ReasonUninstallSuccessful HelmAppConditionReason = "UninstallSuccessful"
 	ReasonInstallError        HelmAppConditionReason = "InstallError"
-	ReasonUpdateError         HelmAppConditionReason = "UpdateError"
+	ReasonUpgradeError        HelmAppConditionReason = "UpgradeError"
 	ReasonReconcileError      HelmAppConditionReason = "ReconcileError"
 	ReasonUninstallError      HelmAppConditionReason = "UninstallError"
 )
@@ -174,6 +178,18 @@ const (
 type HelmAppStatus struct {
 	Conditions      []HelmAppCondition `json:"conditions"`
 	DeployedRelease *HelmAppRelease    `json:"deployedRelease,omitempty"`
+}
+
+func (s *HelmAppStatus) ToMap() (map[string]interface{}, error) {
+	var out map[string]interface{}
+	jsonObj, err := json.Marshal(&s)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(jsonObj, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // SetCondition sets a condition on the status object. If the condition already
@@ -218,4 +234,20 @@ func (s *HelmAppStatus) RemoveCondition(conditionType HelmAppConditionType) *Hel
 	}
 
 	return s
+}
+
+// StatusFor safely returns a typed status block from a custom resource.
+func StatusFor(cr *unstructured.Unstructured) *HelmAppStatus {
+	switch s := cr.Object["status"].(type) {
+	case *HelmAppStatus:
+		return s
+	case map[string]interface{}:
+		var status *HelmAppStatus
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(s, &status); err != nil {
+			return &HelmAppStatus{}
+		}
+		return status
+	default:
+		return &HelmAppStatus{}
+	}
 }
