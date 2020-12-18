@@ -23,13 +23,13 @@ package helmrelease
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/ghodss/yaml"
-	"github.com/prometheus/common/log"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -121,7 +121,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	err := r.GetClient().Get(context.TODO(), request.NamespacedName, instance)
 	if apierrors.IsNotFound(err) {
 		klog.Info("Ignorable error. Failed to find HelmRelease, most likely it has been uninstalled: ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 
 		return reconcile.Result{}, nil
 	}
@@ -145,7 +145,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		err := yaml.Unmarshal([]byte("{\"\":\"\"}"), &spec)
 		if err != nil {
 			klog.Error("Failed to unmarshal default spec: ",
-				instance.GetNamespace(), "/", instance.GetName(), " ", err)
+				helmreleaseNsn(instance), " ", err)
 
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 		}
@@ -155,7 +155,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		err = r.GetClient().Update(context.TODO(), instance)
 		if err != nil {
 			klog.Error("Failed to update HelmRelease with default spec: ",
-				instance.GetNamespace(), "/", instance.GetName(), " ", err)
+				helmreleaseNsn(instance), " ", err)
 
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 		}
@@ -165,7 +165,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	helmOperatorManagerFactory, err := r.newHelmOperatorManagerFactory(instance)
 	if err != nil {
 		klog.Error("Failed to create new HelmOperatorManagerFactory: ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionIrreconcilable,
@@ -181,7 +181,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	manager, err := r.newHelmOperatorManager(instance, request, helmOperatorManagerFactory)
 	if err != nil {
 		klog.Error("Failed to create new HelmOperatorManager: ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionIrreconcilable,
@@ -194,10 +194,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
-	klog.Info("Sync Release ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Sync Release ", helmreleaseNsn(instance))
 
 	if err := manager.Sync(context.TODO()); err != nil {
-		klog.Error("Failed to sync HelmRelease ", instance.GetNamespace(), "/", instance.GetName(), " ", err)
+		klog.Error("Failed to sync HelmRelease ", helmreleaseNsn(instance), " ", err)
 
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionIrreconcilable,
@@ -207,7 +207,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		})
 		_ = r.updateResourceStatus(instance)
 
-		klog.Info("Requeue HelmRelease after one minute ", instance.GetNamespace(), "/", instance.GetName())
+		klog.Info("Requeue HelmRelease after one minute ")
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
@@ -228,10 +228,10 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	if !contains(instance.GetFinalizers(), finalizer) {
-		klog.V(1).Info("Adding finalizer (", finalizer, ") to ", instance.GetNamespace(), "/", instance.GetName())
+		klog.V(1).Info("Adding finalizer (", finalizer, ") to ", helmreleaseNsn(instance))
 		controllerutil.AddFinalizer(instance, finalizer)
 		if err := r.updateResource(instance); err != nil {
-			klog.Error("Failed to add uninstall finalizer to ", instance.GetNamespace(), "/", instance.GetName())
+			klog.Error("Failed to add uninstall finalizer to ", helmreleaseNsn(instance))
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 		}
 	}
@@ -339,15 +339,15 @@ func hasHelmUpgradeForceAnnotation(hr *appv1.HelmRelease) bool {
 
 func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helmoperator.Manager) (reconcile.Result, error) {
 	if instance.Status.DeployedRelease != nil {
-		log.Info("Release is not installed but status.DeployedRelease is populated. Possible Helm storage corruption")
+		klog.Info("Release is not installed but status.DeployedRelease is populated. Possible Helm storage corruption")
 	}
 
-	klog.Info("Installing Release ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Installing Release ", helmreleaseNsn(instance))
 
 	installedRelease, err := manager.InstallRelease(context.TODO())
 	if err != nil {
 		klog.Error("Failed to install HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionReleaseFailed,
 			Status:  appv1.StatusTrue,
@@ -366,12 +366,12 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 
 		if installedRelease != nil {
 			klog.Info("Failed to install HelmRelease and the installedRelease response is not nil. Proceed to uninstall ",
-				instance.GetNamespace(), "/", instance.GetName())
+				helmreleaseNsn(instance))
 
 			_, errUninstall := manager.UninstallRelease(context.TODO())
 			if errUninstall != nil && !errors.Is(errUninstall, driver.ErrReleaseNotFound) {
 				klog.Error("Failed to uninstall HelmRelease for install rollback",
-					instance.GetNamespace(), "/", instance.GetName(), " ", errUninstall)
+					helmreleaseNsn(instance), " ", errUninstall)
 
 				instance.Status.SetCondition(appv1.HelmAppCondition{
 					Type:    appv1.ConditionReleaseFailed,
@@ -384,7 +384,7 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 				return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 			}
 
-			klog.Info("Uninstalled Release for install failure ", instance.GetNamespace(), "/", instance.GetName())
+			klog.Info("Uninstalled Release for install failure ", helmreleaseNsn(instance))
 		}
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
@@ -392,14 +392,14 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-	klog.V(1).Info("Adding finalizer (", finalizer, ") to ", instance.GetNamespace(), "/", instance.GetName())
+	klog.V(1).Info("Adding finalizer (", finalizer, ") to ", helmreleaseNsn(instance))
 	controllerutil.AddFinalizer(instance, finalizer)
 	if err := r.updateResource(instance); err != nil {
-		klog.Error("Failed to add uninstall finalizer to ", instance.GetNamespace(), "/", instance.GetName(), " ", err)
+		klog.Error("Failed to add uninstall finalizer to ", helmreleaseNsn(instance), " ", err)
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
-	klog.Info("Installed HelmRelease ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Installed HelmRelease ", helmreleaseNsn(instance))
 
 	message := ""
 	if installedRelease.Info != nil {
@@ -418,19 +418,19 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 	err = r.updateResourceStatus(instance)
 	if err != nil {
 		klog.Error("Failed to update resource status for HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 	}
 
 	return reconcile.Result{}, err
 }
 
 func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helmoperator.Manager) (reconcile.Result, error) {
-	klog.Info("Upgrading Release ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Upgrading Release ", helmreleaseNsn(instance))
 
 	force := hasHelmUpgradeForceAnnotation(instance)
 	_, upgradedRelease, err := manager.UpgradeRelease(context.TODO(), release.ForceUpgrade(force))
 	if err != nil {
-		klog.Error("Failed to upgrade HelmRelease ", instance.GetNamespace(), "/", instance.GetName(), " ", err)
+		klog.Error("Failed to upgrade HelmRelease ", helmreleaseNsn(instance), " ", err)
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionReleaseFailed,
 			Status:  appv1.StatusTrue,
@@ -449,12 +449,12 @@ func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helm
 
 		if upgradedRelease != nil {
 			klog.Info("Failed to upgrade HelmRelease and the upgradedRelease response is not nil. Proceed to rollback ",
-				instance.GetNamespace(), "/", instance.GetName())
+				helmreleaseNsn(instance))
 
 			errRollback := manager.RollbackRelease(context.TODO())
 			if errRollback != nil && !errors.Is(errRollback, driver.ErrReleaseNotFound) {
 				klog.Error("Failed to rollback HelmRelease ",
-					instance.GetNamespace(), "/", instance.GetName(), " ", err)
+					helmreleaseNsn(instance), " ", err)
 
 				instance.Status.SetCondition(appv1.HelmAppCondition{
 					Type:    appv1.ConditionReleaseFailed,
@@ -467,14 +467,14 @@ func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helm
 				return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 			}
 
-			klog.Info("Rollbacked Release for upgrade failure ", instance.GetNamespace(), "/", instance.GetName())
+			klog.Info("Rollbacked Release for upgrade failure ", helmreleaseNsn(instance))
 		}
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-	klog.Info("Upgraded HelmRelease ", "force=", force, " for ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Upgraded HelmRelease ", "force=", force, " for ", helmreleaseNsn(instance))
 	message := ""
 	if upgradedRelease.Info != nil {
 		message = upgradedRelease.Info.Notes
@@ -492,7 +492,7 @@ func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helm
 	err = r.updateResourceStatus(instance)
 	if err != nil {
 		klog.Error("Failed to update resource status for HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 	}
 
 	return reconcile.Result{}, err
@@ -500,17 +500,17 @@ func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helm
 
 func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager helmoperator.Manager) (reconcile.Result, error) {
 	if !contains(instance.GetFinalizers(), finalizer) {
-		klog.Info("HelmRelease is terminated, skipping reconciliation ", instance.GetNamespace(), "/", instance.GetName())
+		klog.Info("HelmRelease is terminated, skipping reconciliation ", helmreleaseNsn(instance))
 
 		return reconcile.Result{}, nil
 	}
 
-	klog.Info("Uninstalling Release ", instance.GetNamespace(), "/", instance.GetName())
+	klog.Info("Uninstalling Release ", helmreleaseNsn(instance))
 
 	_, err := manager.UninstallRelease(context.TODO())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
 		klog.Error("Failed to uninstall HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionReleaseFailed,
 			Status:  appv1.StatusTrue,
@@ -521,7 +521,7 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
-	klog.Info("Uninstalled HelmRelease ", instance.GetNamespace(), ",", instance.GetName())
+	klog.Info("Uninstalled HelmRelease ", helmreleaseNsn(instance))
 
 	// no need to check for remaining resources when there is no DeployedRelease
 	// skip ahead to removing the finalizer and let the helmrelease terminate
@@ -530,13 +530,12 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 
 		if err := r.updateResource(instance); err != nil {
 			klog.Error("Failed to strip HelmRelease uninstall finalizer ",
-				instance.GetNamespace(), "/", instance.GetName(), " ", err)
+				helmreleaseNsn(instance), " ", err)
 
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 		}
 
-		klog.Info("Removed finalizer from HelmRelease ",
-			instance.GetNamespace(), ",", instance.GetName(), " requeue after 1 minute")
+		klog.Info("Removed finalizer from HelmRelease ", helmreleaseNsn(instance), " requeue after 1 minute")
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
@@ -591,12 +590,12 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 		})
 		_ = r.updateResourceStatus(instance)
 
-		klog.Info("Requeue HelmRelease after one minute ", instance.GetNamespace(), "/", instance.GetName())
+		klog.Info("Requeue HelmRelease after one minute ", helmreleaseNsn(instance))
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
-	klog.Info("HelmRelease ", instance.GetNamespace(), "/", instance.GetName(),
+	klog.Info("HelmRelease ", helmreleaseNsn(instance),
 		" all DeployedRelease resources are deleted/terminating")
 
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
@@ -611,7 +610,7 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 
 	if err := r.updateResource(instance); err != nil {
 		klog.Error("Failed to strip HelmRelease uninstall finalizer ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
@@ -625,8 +624,8 @@ func (r *ReconcileHelmRelease) ensureStatusReasonPopulated(
 	instance *appv1.HelmRelease, manager helmoperator.Manager) (reconcile.Result, error) {
 	expectedRelease, err := manager.GetDeployedRelease()
 	if err != nil {
-		log.Error(err, "Failed to get deployed release for HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName())
+		klog.Error(err, "Failed to get deployed release for HelmRelease ",
+			helmreleaseNsn(instance))
 		instance.Status.SetCondition(appv1.HelmAppCondition{
 			Type:    appv1.ConditionIrreconcilable,
 			Status:  appv1.StatusTrue,
@@ -659,8 +658,12 @@ func (r *ReconcileHelmRelease) ensureStatusReasonPopulated(
 	err = r.updateResourceStatus(instance)
 	if err != nil {
 		klog.Error("Failed to update resource status for HelmRelease ",
-			instance.GetNamespace(), "/", instance.GetName(), " ", err)
+			helmreleaseNsn(instance), " ", err)
 	}
 
 	return reconcile.Result{}, err
+}
+
+func helmreleaseNsn(hr *appv1.HelmRelease) string {
+	return fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName())
 }
