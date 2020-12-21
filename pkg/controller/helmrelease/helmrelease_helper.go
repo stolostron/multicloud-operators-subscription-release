@@ -163,10 +163,12 @@ func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.
 	if hr.Status.DeployedRelease == nil {
 		klog.Info("HelmRelease does not have any Status.DeployedRelease: ",
 			hr.GetNamespace(), "/", hr.GetName())
-	} else {
-		klog.Info("HelmRelease contains Status.DeployedRelease, attempting to strip CRDs from it: ",
-			hr.GetNamespace(), "/", hr.GetName())
+
+		return nil
 	}
+
+	klog.Info("HelmRelease contains Status.DeployedRelease, attempting to strip CRDs from it: ",
+		hr.GetNamespace(), "/", hr.GetName())
 
 	newManifest, changed := stripCRDs(hr.Status.DeployedRelease.Manifest)
 	if changed {
