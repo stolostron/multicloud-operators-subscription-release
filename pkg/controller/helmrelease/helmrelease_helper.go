@@ -21,21 +21,22 @@ import (
 	"fmt"
 	"strings"
 
+	"helm.sh/helm/v3/pkg/action"
+
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/klog"
 
-	"regexp"
-
+	"helm.sh/helm/v3/pkg/chartutil"
 	rspb "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	syaml "k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 )
 
 // nameFilter filters a set of Helm storage releases by name.
@@ -96,7 +97,7 @@ func (r *ReconcileHelmRelease) isMultiClusterHubOwnedResource(hr *appv1.HelmRele
 
 // Remove CRD references from Helm storage and HelmRelease's Status.DeployedRelease.Manifest
 // TODO add an annotation to trigger this feature instead of triggering on MultiClusterHub owned resource
-func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.HelmRelease) error {
+func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.HelmRelease, c *action.Configuration) error {
 	klog.V(3).Info("Running hackMultiClusterHubRemoveCRDReferences on ", hr.GetNamespace(), "/", hr.GetName())
 
 	isOwnedByMCH, err := r.isMultiClusterHubOwnedResource(hr)
@@ -151,7 +152,10 @@ func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.
 			klog.Info("Release: ", storageRelease.Name, " Status: ", storageRelease.Info.Status.String())
 		}
 
-		newManifest, changed := stripCRDs(storageRelease.Manifest)
+		newManifest, changed, err := stripCRDs(storageRelease.Manifest, c)
+		if err != nil {
+			return err
+		}
 		if changed {
 			klog.Info("Release: ", storageRelease.Name, " needs updating")
 
@@ -179,7 +183,10 @@ func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.
 	klog.Info("HelmRelease contains Status.DeployedRelease, attempting to strip CRDs from it: ",
 		hr.GetNamespace(), "/", hr.GetName())
 
-	newManifest, changed := stripCRDs(hr.Status.DeployedRelease.Manifest)
+	newManifest, changed, err := stripCRDs(hr.Status.DeployedRelease.Manifest, c)
+	if err != nil {
+		return err
+	}
 	if changed {
 		klog.Info("Status release: ", hr.GetName(), " needs updating")
 
@@ -200,38 +207,72 @@ func (r *ReconcileHelmRelease) hackMultiClusterHubRemoveCRDReferences(hr *appv1.
 	return nil
 }
 
-var sep = regexp.MustCompile("(?:^|\\s*\n)---\\s*")
+func stripCRDs(bigFile string, c *action.Configuration) (string, bool, error) {
+	changed := false
 
-func stripCRDs(bigFile string) (string, bool) {
-	// Making sure that any extra whitespace in YAML stream doesn't interfere in splitting documents correctly.
-	bigFileTmp := strings.TrimSpace(bigFile)
-	docs := sep.Split(bigFileTmp, -1)
-	// changed := false
-	crdsRemoved := []string{}
+	caps, err := getCapabilities(c)
+	if err != nil {
+		return "", false, err
+	}
 
-	for _, yamlString := range docs {
-		obj := &unstructured.Unstructured{}
+	manifests := releaseutil.SplitManifests(bigFile)
+	_, files, err := releaseutil.SortManifests(manifests, caps.APIVersions, releaseutil.InstallOrder)
+	if err != nil {
+		return "", false, fmt.Errorf("corrupted release record. You must manually delete the resources %w", err)
+	}
 
-		// decode YAML into unstructured.Unstructured
-		dec := syaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-		_, _, err := dec.Decode([]byte(yamlString), nil, obj)
-		if err != nil {
-			klog.Warningf("Warning ignoring deserializing error: %s", yamlString)
-
-			continue
-		}
-
-		if obj.GetKind() != "CustomResourceDefinition" {
-			crdsRemoved = append(crdsRemoved, yamlString)
+	var builder strings.Builder
+	for _, file := range files {
+		if file.Head != nil && file.Head.Kind == "CustomResourceDefinition" {
+			if file.Head.Metadata != nil {
+				klog.Info("CRD detected: ", file.Head.Metadata.Name)
+			}
+			changed = true
 		} else {
-			klog.Info("CRD detected: ", obj.GetName())
+			builder.WriteString("\n---\n" + file.Content)
 		}
 	}
 
-	if len(crdsRemoved) == len(docs) {
-		return bigFile, false
+	return builder.String(), changed, nil
+}
+
+// capabilities builds a Capabilities from discovery information. Took from https://github.com/helm/helm/blob/v3.4.2/pkg/action/action.go
+func getCapabilities(c *action.Configuration) (*chartutil.Capabilities, error) {
+	if c.Capabilities != nil {
+		return c.Capabilities, nil
+	}
+	dc, err := c.RESTClientGetter.ToDiscoveryClient()
+	if err != nil {
+		return nil, err
+	}
+	// force a discovery cache invalidation to always fetch the latest server version/capabilities.
+	dc.Invalidate()
+	kubeVersion, err := dc.ServerVersion()
+	if err != nil {
+		return nil, err
+	}
+	// Issue #6361:
+	// Client-Go emits an error when an API service is registered but unimplemented.
+	// We trap that error here and print a warning. But since the discovery client continues
+	// building the API object, it is correctly populated with all valid APIs.
+	// See https://github.com/kubernetes/kubernetes/issues/72051#issuecomment-521157642
+	apiVersions, err := action.GetVersionSet(dc)
+	if err != nil {
+		if discovery.IsGroupDiscoveryFailedError(err) {
+			klog.Info("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
+			klog.Info("WARNING: To fix this, kubectl delete apiservice <service-name>")
+		} else {
+			return nil, err
+		}
 	}
 
-	newBigFile := fmt.Sprintf("---\n%s", strings.Join(crdsRemoved, "\n---\n"))
-	return newBigFile, true
+	c.Capabilities = &chartutil.Capabilities{
+		APIVersions: apiVersions,
+		KubeVersion: chartutil.KubeVersion{
+			Version: kubeVersion.GitVersion,
+			Major:   kubeVersion.Major,
+			Minor:   kubeVersion.Minor,
+		},
+	}
+	return c.Capabilities, nil
 }

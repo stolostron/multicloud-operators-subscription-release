@@ -46,6 +46,7 @@ type Manager interface {
 	UninstallRelease(context.Context, ...UninstallOption) (*rpb.Release, error)
 	RollbackRelease(context.Context) error
 	GetDeployedRelease() (*rpb.Release, error)
+	GetActionConfig() *action.Configuration
 }
 
 type manager struct {
@@ -68,6 +69,10 @@ type manager struct {
 type InstallOption func(*action.Install) error
 type UpgradeOption func(*action.Upgrade) error
 type UninstallOption func(*action.Uninstall) error
+
+func (m manager) GetActionConfig() *action.Configuration {
+	return m.actionConfig
+}
 
 // ReleaseName returns the name of the release.
 func (m manager) ReleaseName() string {

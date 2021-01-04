@@ -130,14 +130,6 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
-	// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
-	// TODO introduce a generic annotation to trigger this feature
-	if err := r.hackMultiClusterHubRemoveCRDReferences(instance); err != nil {
-		klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", err)
-
-		return reconcile.Result{}, err
-	}
-
 	// setting the nil spec to "":"" allows helmrelease to reconcile with default chart values.
 	if instance.Spec == nil {
 		spec := make(map[string]interface{})
@@ -192,6 +184,14 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		_ = r.updateResourceStatus(instance)
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
+	// TODO introduce a generic annotation to trigger this feature
+	if err := r.hackMultiClusterHubRemoveCRDReferences(instance, manager.GetActionConfig()); err != nil {
+		klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", err)
+
+		return reconcile.Result{}, err
 	}
 
 	instance.Status.RemoveCondition(appv1.ConditionIrreconcilable)
@@ -366,7 +366,7 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 		if rollbackByUninstall && installedRelease != nil {
 			// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
 			// TODO introduce a generic annotation to trigger this feature
-			if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance); errRemoveCRDs != nil {
+			if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance, manager.GetActionConfig()); errRemoveCRDs != nil {
 				klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", errRemoveCRDs)
 
 				return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
@@ -448,7 +448,7 @@ func (r *ReconcileHelmRelease) upgrade(instance *appv1.HelmRelease, manager helm
 
 		// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
 		// TODO introduce a generic annotation to trigger this feature
-		if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance); errRemoveCRDs != nil {
+		if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance, manager.GetActionConfig()); errRemoveCRDs != nil {
 			klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", errRemoveCRDs)
 
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
