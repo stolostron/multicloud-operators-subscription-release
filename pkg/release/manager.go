@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/klog"
+
 	"helm.sh/helm/v3/pkg/action"
 	cpb "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/kube"
@@ -94,6 +96,7 @@ func (m *manager) Sync(ctx context.Context) error {
 	// retried.
 	for _, rel := range releases {
 		if rel.Info != nil && rel.Info.Status != rpb.StatusDeployed {
+			klog.Info("Helm storage backend deleting: ", rel.Name, "/", rel.Version, "/", rel.Info.Status)
 			_, err := m.storageBackend.Delete(rel.Name, rel.Version)
 			if err != nil && !notFoundErr(err) {
 				return fmt.Errorf("failed to delete stale release version: %w", err)

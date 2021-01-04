@@ -194,6 +194,17 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
+	instance.Status.RemoveCondition(appv1.ConditionIrreconcilable)
+
+	if instance.GetDeletionTimestamp() != nil {
+		return r.uninstall(instance, manager)
+	}
+
+	instance.Status.SetCondition(appv1.HelmAppCondition{
+		Type:   appv1.ConditionInitialized,
+		Status: appv1.StatusTrue,
+	})
+
 	klog.Info("Sync Release ", helmreleaseNsn(instance))
 
 	if err := manager.Sync(context.TODO()); err != nil {
@@ -213,15 +224,6 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	instance.Status.RemoveCondition(appv1.ConditionIrreconcilable)
-
-	if instance.GetDeletionTimestamp() != nil {
-		return r.uninstall(instance, manager)
-	}
-
-	instance.Status.SetCondition(appv1.HelmAppCondition{
-		Type:   appv1.ConditionInitialized,
-		Status: appv1.StatusTrue,
-	})
 
 	if !manager.IsInstalled() {
 		return r.install(instance, manager)
@@ -338,8 +340,13 @@ func hasHelmUpgradeForceAnnotation(hr *appv1.HelmRelease) bool {
 }
 
 func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helmoperator.Manager) (reconcile.Result, error) {
+	// If all the Helm release records are deleted, then the Helm operator will try to install the release again.
+	// In that case, if the install errors, then don't perform the uninstall rollback because it might lead to unintended data loss.
+	// See: https://github.com/operator-framework/operator-sdk/issues/4296
+	rollbackByUninstall := true
 	if instance.Status.DeployedRelease != nil {
-		klog.Info("Release is not installed but status.DeployedRelease is populated. Possible Helm storage corruption")
+		klog.Info("Release is not installed but status.DeployedRelease is populated. If the install error, skip rollback(uninstall)")
+		rollbackByUninstall = false
 	}
 
 	klog.Info("Installing Release ", helmreleaseNsn(instance))
@@ -356,15 +363,15 @@ func (r *ReconcileHelmRelease) install(instance *appv1.HelmRelease, manager helm
 		})
 		_ = r.updateResourceStatus(instance)
 
-		// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
-		// TODO introduce a generic annotation to trigger this feature
-		if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance); errRemoveCRDs != nil {
-			klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", errRemoveCRDs)
+		if rollbackByUninstall && installedRelease != nil {
+			// hack for MultiClusterHub to remove CRD outside of Helm/HelmRelease's control
+			// TODO introduce a generic annotation to trigger this feature
+			if errRemoveCRDs := r.hackMultiClusterHubRemoveCRDReferences(instance); errRemoveCRDs != nil {
+				klog.Error("Failed to hackMultiClusterHubRemoveCRDReferences: ", errRemoveCRDs)
 
-			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
-		}
+				return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+			}
 
-		if installedRelease != nil {
 			klog.Info("Failed to install HelmRelease and the installedRelease response is not nil. Proceed to uninstall ",
 				helmreleaseNsn(instance))
 
