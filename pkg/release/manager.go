@@ -13,31 +13,23 @@
 // limitations under the License.
 
 // copied and modified from github.com/operator-framework/operator-sdk/internal/helm/release
-// merged changes from https://github.com/operator-framework/operator-sdk/pull/3431
 
 package release
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
-	jsonpatch "gomodules.xyz/jsonpatch/v3"
+	"k8s.io/klog"
+
 	"helm.sh/helm/v3/pkg/action"
 	cpb "helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/kube"
-	helmkube "helm.sh/helm/v3/pkg/kube"
 	rpb "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/storage"
 	"helm.sh/helm/v3/pkg/storage/driver"
-	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
-	apitypes "k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/strategicpatch"
-	"k8s.io/cli-runtime/pkg/resource"
 
 	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
@@ -52,7 +44,9 @@ type Manager interface {
 	InstallRelease(context.Context, ...InstallOption) (*rpb.Release, error)
 	UpgradeRelease(context.Context, ...UpgradeOption) (*rpb.Release, *rpb.Release, error)
 	UninstallRelease(context.Context, ...UninstallOption) (*rpb.Release, error)
+	RollbackRelease(context.Context) error
 	GetDeployedRelease() (*rpb.Release, error)
+	GetActionConfig() *action.Configuration
 }
 
 type manager struct {
@@ -75,6 +69,10 @@ type manager struct {
 type InstallOption func(*action.Install) error
 type UpgradeOption func(*action.Upgrade) error
 type UninstallOption func(*action.Uninstall) error
+
+func (m manager) GetActionConfig() *action.Configuration {
+	return m.actionConfig
+}
 
 // ReleaseName returns the name of the release.
 func (m manager) ReleaseName() string {
@@ -103,6 +101,7 @@ func (m *manager) Sync(ctx context.Context) error {
 	// retried.
 	for _, rel := range releases {
 		if rel.Info != nil && rel.Info.Status != rpb.StatusDeployed {
+			klog.Info("Helm storage backend deleting: ", rel.Name, "/", rel.Version, "/", rel.Info.Status)
 			_, err := m.storageBackend.Delete(rel.Name, rel.Version)
 			if err != nil && !notFoundErr(err) {
 				return fmt.Errorf("failed to delete stale release version: %w", err)
@@ -167,28 +166,7 @@ func (m manager) InstallRelease(ctx context.Context, opts ...InstallOption) (*rp
 		}
 	}
 
-	installedRelease, err := install.Run(m.chart, m.values)
-	if err != nil {
-		// Workaround for helm/helm#3338
-		if installedRelease != nil {
-			uninstall := action.NewUninstall(m.actionConfig)
-			_, uninstallErr := uninstall.Run(m.releaseName)
-
-			// In certain cases, InstallRelease will return a partial release in
-			// the response even when it doesn't record the release in its release
-			// store (e.g. when there is an error rendering the release manifest).
-			// In that case the rollback will fail with a not found error because
-			// there was nothing to rollback.
-			//
-			// Only log a message about a rollback failure if the failure was caused
-			// by something other than the release not being found.
-			if uninstallErr != nil && !notFoundErr(uninstallErr) {
-				return nil, fmt.Errorf("failed installation (%s) and failed rollback: %w", err, uninstallErr)
-			}
-		}
-		return nil, fmt.Errorf("failed to install release: %w", err)
-	}
-	return installedRelease, nil
+	return install.Run(m.chart, m.values)
 }
 
 func ForceUpgrade(force bool) UpgradeOption {
@@ -210,91 +188,9 @@ func (m manager) UpgradeRelease(ctx context.Context, opts ...UpgradeOption) (*rp
 
 	upgradedRelease, err := upgrade.Run(m.releaseName, m.chart, m.values)
 	if err != nil {
-		// Workaround for helm/helm#3338
-		if upgradedRelease != nil {
-			rollback := action.NewRollback(m.actionConfig)
-			rollback.Force = true
-
-			// As of Helm 2.13, if UpgradeRelease returns a non-nil release, that
-			// means the release was also recorded in the release store.
-			// Therefore, we should perform the rollback when we have a non-nil
-			// release. Any rollback error here would be unexpected, so always
-			// log both the upgrade and rollback errors.
-			rollbackErr := rollback.Run(m.releaseName)
-			if rollbackErr != nil {
-				return nil, nil, fmt.Errorf("failed upgrade (%s) and failed rollback: %w", err, rollbackErr)
-			}
-		}
-		return nil, nil, fmt.Errorf("failed to upgrade release: %w", err)
+		return nil, nil, err
 	}
 	return m.deployedRelease, upgradedRelease, err
-}
-
-func createPatch(existing runtime.Object, expected *resource.Info) ([]byte, apitypes.PatchType, error) {
-	existingJSON, err := json.Marshal(existing)
-	if err != nil {
-		return nil, apitypes.StrategicMergePatchType, err
-	}
-	expectedJSON, err := json.Marshal(expected.Object)
-	if err != nil {
-		return nil, apitypes.StrategicMergePatchType, err
-	}
-
-	// Get a versioned object
-	versionedObject := helmkube.AsVersioned(expected)
-
-	// Unstructured objects, such as CRDs, may not have an not registered error
-	// returned from ConvertToVersion. Anything that's unstructured should
-	// use the jsonpatch.CreateMergePatch. Strategic Merge Patch is not supported
-	// on objects like CRDs.
-	_, isUnstructured := versionedObject.(runtime.Unstructured)
-
-	// On newer K8s versions, CRDs aren't unstructured but have a dedicated type
-	_, isV1CRD := versionedObject.(*apiextv1.CustomResourceDefinition)
-	_, isV1beta1CRD := versionedObject.(*apiextv1beta1.CustomResourceDefinition)
-	isCRD := isV1CRD || isV1beta1CRD
-
-	if isUnstructured || isCRD {
-		// fall back to generic JSON merge patch
-		patch, err := createJSONMergePatch(existingJSON, expectedJSON)
-		return patch, apitypes.JSONPatchType, err
-	}
-
-	patchMeta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-	if err != nil {
-		return nil, apitypes.StrategicMergePatchType, err
-	}
-
-	patch, err := strategicpatch.CreateThreeWayMergePatch(expectedJSON, expectedJSON, existingJSON, patchMeta, true)
-	return patch, apitypes.StrategicMergePatchType, err
-}
-
-func createJSONMergePatch(existingJSON, expectedJSON []byte) ([]byte, error) {
-	ops, err := jsonpatch.CreatePatch(existingJSON, expectedJSON)
-	if err != nil {
-		return nil, err
-	}
-
-	// We ignore the "remove" operations from the full patch because they are
-	// fields added by Kubernetes or by the user after the existing release
-	// resource has been applied. The goal for this patch is to make sure that
-	// the fields managed by the Helm chart are applied.
-	// All "add" operations without a value (null) can be ignored
-	patchOps := make([]jsonpatch.JsonPatchOperation, 0)
-	for _, op := range ops {
-		if op.Operation != "remove" && !(op.Operation == "add" && op.Value == nil) {
-			patchOps = append(patchOps, op)
-		}
-	}
-
-	// If there are no patch operations, return nil. Callers are expected
-	// to check for a nil response and skip the patch operation to avoid
-	// unnecessary chatter with the API server.
-	if len(patchOps) == 0 {
-		return nil, nil
-	}
-
-	return json.Marshal(patchOps)
 }
 
 // UninstallRelease performs a Helm release uninstall.
@@ -311,9 +207,17 @@ func (m manager) UninstallRelease(ctx context.Context, opts ...UninstallOption) 
 		}
 	}
 	uninstallResponse, err := uninstall.Run(m.releaseName)
-	if err != nil {
+	if uninstallResponse == nil {
 		return nil, err
 	}
 
-	return uninstallResponse.Release, nil
+	return uninstallResponse.Release, err
+}
+
+// RollbackRelease performs a Helm release rollback.
+func (m manager) RollbackRelease(ctx context.Context) error {
+	rollback := action.NewRollback(m.actionConfig)
+	rollback.Force = true
+
+	return rollback.Run(m.releaseName)
 }
