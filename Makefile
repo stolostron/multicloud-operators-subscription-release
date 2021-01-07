@@ -38,6 +38,8 @@ export TESTARGS ?= $(TESTARGS_DEFAULT)
 DEST ?= $(GOPATH)/src/$(GIT_HOST)/$(BASE_DIR)
 VERSION ?= $(shell cat COMPONENT_VERSION 2> /dev/null)
 IMAGE_NAME_AND_VERSION ?= $(REGISTRY)/$(IMG):$(VERSION)
+APACHE_BASIC_AUTH_IMAGE ?= apache-basic-auth-image
+APACHE_BASIC_AUTH_CONTAINER ?= apache-basic-auth-container
 
 
 LOCAL_OS := $(shell uname)
@@ -131,7 +133,7 @@ local:
 	@GOOS=darwin common/scripts/gobuild.sh build/_output/bin/$(IMG) ./cmd/manager
 
 export CONTAINER_NAME=e2e
-e2e: build build-images
+e2e: build build-images build-apache-basic-auth-image boot-apache-basic-auth-service
 	build/run-e2e-tests.sh
 
 e2e-setup: e2e
@@ -152,6 +154,12 @@ kind-setup: build-images
 build-images: build
 	@docker build -t ${IMAGE_NAME_AND_VERSION} -f build/Dockerfile .
 	@docker tag ${IMAGE_NAME_AND_VERSION} $(REGISTRY)/$(IMG):latest
+
+build-apache-basic-auth-image:
+	@docker build -t ${APACHE_BASIC_AUTH_IMAGE} -f apache-basic-auth/Dockerfile .
+
+boot-apache-basic-auth-service: build-apache-basic-auth-image
+	@docker run -d --name ${APACHE_BASIC_AUTH_CONTAINER}  -p 8080:8080 ${APACHE_BASIC_AUTH_IMAGE}
 
 build-latest-community-operator:
 	docker tag ${COMPONENT_DOCKER_REPO}/${COMPONENT_NAME}:${COMPONENT_VERSION}${COMPONENT_TAG_EXTENSION} ${COMPONENT_DOCKER_REPO}/${COMPONENT_NAME}:community-latest

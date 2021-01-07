@@ -1,0 +1,4 @@
+AuthName "Who are you?"
+AuthType basic
+AuthUserFile /var/www/html/chartBasicAuth/.htpasswd
+Require valid-user
