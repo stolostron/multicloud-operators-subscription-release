@@ -27,14 +27,14 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ghodss/yaml"
+	"helm.sh/helm/v3/pkg/kube"
 	"helm.sh/helm/v3/pkg/releaseutil"
 	"helm.sh/helm/v3/pkg/storage/driver"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -274,52 +274,6 @@ func contains(l []string, s string) bool {
 	return false
 }
 
-//isResourceDeleted finds the given resource, if it exists then delete it.
-// return true if the resource is already deleted.
-func (r *ReconcileHelmRelease) isResourceDeleted(resource *unstructured.Unstructured, hr *appv1.HelmRelease) bool {
-	klog.V(2).Info("Getting resource: ", resource.GetNamespace(), "/", resource.GetName(),
-		" ", resource.GroupVersionKind())
-
-	nsn := types.NamespacedName{Name: resource.GetName(), Namespace: resource.GetNamespace()}
-
-	// try to get the resource in the namespace
-	err := r.GetClient().Get(context.TODO(), nsn, resource)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return true // resource is already deleted
-		}
-
-		klog.V(2).Info("Ignorable error while attempting to fetch resource from namespace: ",
-			resource.GetNamespace(), "/", resource.GetName(), " ", resource.GroupVersionKind(), " - ", err)
-
-		// it's not in the namespace try looking for the resource in cluster scope
-		resource.SetNamespace("")
-
-		nsn = types.NamespacedName{Name: resource.GetName()}
-
-		err := r.GetClient().Get(context.TODO(), nsn, resource)
-		if err != nil {
-			klog.V(2).Info("Ignorable error while attempting to fetch resource from cluster: ",
-				resource.GetName(), " ", resource.GroupVersionKind(), " - ", err)
-
-			return true // resource is already deleted
-		}
-	}
-
-	// found the resource so it's not deleted yet
-
-	klog.Info("Removal of HelmRelease ", hr.GetNamespace(), "/", hr.GetName(),
-		" is blocked by resource: ", resource.GetNamespace(), "/", resource.GetName(),
-		" ", resource.GroupVersionKind())
-
-	if err = r.GetClient().Delete(context.TODO(), resource); err != nil {
-		klog.Error("Failed to delete resource: ", resource.GetNamespace(), "/", resource.GetName(),
-			" ", resource.GroupVersionKind(), " ", err)
-	}
-
-	return false
-}
-
 // returns the boolean representation of the annotation string
 // will return false if annotation is not set
 func hasHelmUpgradeForceAnnotation(hr *appv1.HelmRelease) bool {
@@ -516,15 +470,9 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 
 	_, err := manager.UninstallRelease(context.TODO())
 	if err != nil && !errors.Is(err, driver.ErrReleaseNotFound) {
-		klog.Error("Failed to uninstall HelmRelease ",
-			helmreleaseNsn(instance), " ", err)
-		instance.Status.SetCondition(appv1.HelmAppCondition{
-			Type:    appv1.ConditionReleaseFailed,
-			Status:  appv1.StatusTrue,
-			Reason:  appv1.ReasonUninstallError,
-			Message: err.Error(),
-		})
-		_ = r.updateResourceStatus(instance)
+		klog.Error("Failed to uninstall HelmRelease ", helmreleaseNsn(instance), " ", err)
+		r.updateUninstallResourceErrorStatus(instance, err)
+
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
@@ -536,8 +484,7 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 		controllerutil.RemoveFinalizer(instance, finalizer)
 
 		if err := r.updateResource(instance); err != nil {
-			klog.Error("Failed to strip HelmRelease uninstall finalizer ",
-				helmreleaseNsn(instance), " ", err)
+			klog.Error("Failed to strip HelmRelease uninstall finalizer ", helmreleaseNsn(instance), " ", err)
 
 			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 		}
@@ -547,63 +494,81 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
+	klog.Info("Checking to see if all the resources in Status.DeployedRelease.Manifest are deleted ",
+		helmreleaseNsn(instance))
+
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-	// find all the deployed resources and check to see if they still exists
-	isFoundResource := false
-	foundResource := &unstructured.Unstructured{}
-
-	resources := releaseutil.SplitManifests(instance.Status.DeployedRelease.Manifest)
-	for _, resource := range resources {
-		var u unstructured.Unstructured
-		if err := yaml.Unmarshal([]byte(resource), &u); err != nil {
-			klog.Error("Failed to unmarshal resource ", resource, " ", err)
-
-			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
-		}
-
-		gvk := u.GroupVersionKind()
-		if gvk.Empty() {
-			continue
-		}
-
-		o := &unstructured.Unstructured{}
-		o.SetName(u.GetName())
-		o.SetGroupVersionKind(u.GroupVersionKind())
-
-		if u.GetNamespace() == "" {
-			o.SetNamespace(instance.GetNamespace())
-		}
-
-		if r.isResourceDeleted(o, instance) {
-			// resource is already delete, check the next one.
-			continue
-		}
-
-		isFoundResource = true
-		foundResource = o
-	}
-
-	if isFoundResource {
-		message := "Failed to delete HelmRelease due to resource: " + foundResource.GroupVersionKind().String() + " " +
-			foundResource.GetNamespace() + "/" + foundResource.GetName() + " is not deleted yet. Checking again after one minute."
-
-		// at least one resource still exists, check again after one minute
-		instance.Status.SetCondition(appv1.HelmAppCondition{
-			Type:    appv1.ConditionReleaseFailed,
-			Status:  appv1.StatusTrue,
-			Reason:  appv1.ReasonUninstallError,
-			Message: message,
-		})
-		_ = r.updateResourceStatus(instance)
-
-		klog.Info("Requeue HelmRelease after one minute ", helmreleaseNsn(instance))
+	caps, err := getCapabilities(manager.GetActionConfig())
+	if err != nil {
+		klog.Error("Failed to get API Capabilities to perform cleanup check ", helmreleaseNsn(instance), " ", err)
+		r.updateUninstallResourceErrorStatus(instance, err)
 
 		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
 	}
 
+	manifests := releaseutil.SplitManifests(instance.Status.DeployedRelease.Manifest)
+
+	_, files, err := releaseutil.SortManifests(manifests, caps.APIVersions, releaseutil.UninstallOrder)
+	if err != nil {
+		klog.Error("Corrupted release record for ", helmreleaseNsn(instance), " ", err)
+		r.updateUninstallResourceErrorStatus(instance, err)
+
+		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	// do not delete resources that are annotated with the Helm resource policy 'keep'
+	_, filesToDelete := filterManifestsToKeep(files)
+	var builder strings.Builder
+	for _, file := range filesToDelete {
+		builder.WriteString("\n---\n" + file.Content)
+	}
+	resources, err := manager.GetActionConfig().KubeClient.Build(strings.NewReader(builder.String()), false)
+	if err != nil {
+		klog.Error("Unable to build kubernetes objects for delete ", helmreleaseNsn(instance), " ", err)
+		r.updateUninstallResourceErrorStatus(instance, err)
+
+		return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+	}
+
+	if len(resources) > 0 {
+		for _, resource := range resources {
+			err = resource.Get()
+			if err != nil {
+				if apierrors.IsNotFound(err) {
+					continue // resource is already delete, check the next one.
+				}
+				klog.Error("Unable to get resource ", resource.Namespace, "/", resource.Name,
+					" for ", helmreleaseNsn(instance), " ", err)
+				r.updateUninstallResourceErrorStatus(instance, err)
+
+				return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+			}
+
+			// found at least one resource that is not deleted then just delete everything again.
+			_, errs := manager.GetActionConfig().KubeClient.Delete(resources)
+			if errs != nil {
+				klog.Error("Errors caught while trying to delete resources ", joinErrors(errs))
+			}
+
+			message := "Failed to delete HelmRelease due to resource: " +
+				resource.Namespace + "/" + resource.Name +
+				" is not deleted yet. Checking again after one minute."
+			klog.Error(message)
+			instance.Status.SetCondition(appv1.HelmAppCondition{
+				Type:    appv1.ConditionReleaseFailed,
+				Status:  appv1.StatusTrue,
+				Reason:  appv1.ReasonUninstallError,
+				Message: message,
+			})
+			_ = r.updateResourceStatus(instance)
+
+			return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+		}
+	}
+
 	klog.Info("HelmRelease ", helmreleaseNsn(instance),
-		" all DeployedRelease resources are deleted/terminating")
+		" all Status.DeployedRelease.Manifest resources are deleted/terminating")
 
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 	instance.Status.SetCondition(appv1.HelmAppCondition{
@@ -625,6 +590,16 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 	// if everything goes well the next time the reconcile won't find the helmrelease anymore
 	// which will end the reconcile loop
 	return reconcile.Result{RequeueAfter: time.Minute * 1}, nil
+}
+
+func (r *ReconcileHelmRelease) updateUninstallResourceErrorStatus(instance *appv1.HelmRelease, err error) {
+	instance.Status.SetCondition(appv1.HelmAppCondition{
+		Type:    appv1.ConditionReleaseFailed,
+		Status:  appv1.StatusTrue,
+		Reason:  appv1.ReasonUninstallError,
+		Message: err.Error(),
+	})
+	_ = r.updateResourceStatus(instance)
 }
 
 func (r *ReconcileHelmRelease) ensureStatusReasonPopulated(
@@ -673,4 +648,35 @@ func (r *ReconcileHelmRelease) ensureStatusReasonPopulated(
 
 func helmreleaseNsn(hr *appv1.HelmRelease) string {
 	return fmt.Sprintf("%s/%s", hr.GetNamespace(), hr.GetName())
+}
+
+// Source from https://github.com/helm/helm/blob/v3.4.2/pkg/action/resource_policy.go
+func filterManifestsToKeep(manifests []releaseutil.Manifest) (keep, remaining []releaseutil.Manifest) {
+	for _, m := range manifests {
+		if m.Head.Metadata == nil || m.Head.Metadata.Annotations == nil || len(m.Head.Metadata.Annotations) == 0 {
+			remaining = append(remaining, m)
+			continue
+		}
+
+		resourcePolicyType, ok := m.Head.Metadata.Annotations[kube.ResourcePolicyAnno]
+		if !ok {
+			remaining = append(remaining, m)
+			continue
+		}
+
+		resourcePolicyType = strings.ToLower(strings.TrimSpace(resourcePolicyType))
+		if resourcePolicyType == kube.KeepPolicy {
+			keep = append(keep, m)
+		}
+
+	}
+	return keep, remaining
+}
+
+func joinErrors(errs []error) string {
+	es := make([]string, 0, len(errs))
+	for _, e := range errs {
+		es = append(es, e.Error())
+	}
+	return strings.Join(es, "; ")
 }
