@@ -816,7 +816,6 @@ func TestDeleteKeepCleanup(t *testing.T) {
 	instanceResp := &appv1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	time.Sleep(4 * time.Second)
 
