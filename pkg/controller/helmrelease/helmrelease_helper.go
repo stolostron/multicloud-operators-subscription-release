@@ -218,7 +218,7 @@ func stripCRDs(bigFile string, c *action.Configuration) (string, bool, error) {
 	manifests := releaseutil.SplitManifests(bigFile)
 	_, files, err := releaseutil.SortManifests(manifests, caps.APIVersions, releaseutil.InstallOrder)
 	if err != nil {
-		return "", false, fmt.Errorf("corrupted release record. You must manually delete the resources %w", err)
+		return "", false, fmt.Errorf("corrupted release record. %w", err)
 	}
 
 	var builder strings.Builder
@@ -259,8 +259,8 @@ func getCapabilities(c *action.Configuration) (*chartutil.Capabilities, error) {
 	apiVersions, err := action.GetVersionSet(dc)
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			klog.Info("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
-			klog.Info("WARNING: To fix this, kubectl delete apiservice <service-name>")
+			klog.Warning("The Kubernetes server has an orphaned API service. Server reports: ", err)
+			klog.Warning("To fix this, kubectl delete apiservice <service-name>")
 		} else {
 			return nil, err
 		}
