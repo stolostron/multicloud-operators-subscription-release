@@ -27,19 +27,13 @@ BUILD_IMAGE=${IMAGE_NAME}:latest
 OPERATOR_NAME=multicluster-operators-subscription-release
 
 if [ "$TRAVIS_BUILD" != 1 ]; then
-    echo -e "Build is on Travis" 
+    echo -e "Build is on Travis"
 
-    # Download and install kubectl
+
     echo -e "\nGet kubectl binary\n"
-    PLATFORM=`uname -s | awk '{print tolower($0)}'`
-    if [ "`which kubectl`" ]; then
-        echo "kubectl PATH is `which kubectl`"
-    else
-        mkdir -p $(pwd)/bin
-        curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/$PLATFORM/amd64/kubectl && mv kubectl $(pwd)/bin/ && chmod +x $(pwd)/bin/kubectl
-        export PATH=$PATH:$(pwd)/bin
-        echo "kubectl PATH is `which kubectl`"
-    fi
+    # Download and install kubectl
+    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
     COMPONENT_VERSION=$(cat COMPONENT_VERSION 2> /dev/null)
     BUILD_IMAGE=${IMAGE_NAME}:${COMPONENT_VERSION}${COMPONENT_TAG_EXTENSION}
 
@@ -93,7 +87,7 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     sleep 35
 fi
 
-echo -e "\nCheck if subscription-release operator is created\n" 
+echo -e "\nCheck if subscription-release operator is created\n"
 kubectl rollout status deployment/multicluster-operators-subscription-release
 if [ $? != 0 ]; then
     echo "failed to deploy the subscription operator"
@@ -124,10 +118,17 @@ ${E2E_BINARY_NAME} -cfg cluster_config &
 
 sleep 10
 
+function cleanup()
+{
+    echo -e "\nTerminate the running test server\n"
+	ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+
+	kubectl get po -A
+}
+
+trap cleanup EXIT
+
 echo -e "\nStart to run e2e test(s)\n"
 go test -v ./e2e
-
-echo -e "\nTerminate the test server\n"
-ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
 exit 0;
