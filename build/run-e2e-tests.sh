@@ -27,7 +27,7 @@ BUILD_IMAGE=${IMAGE_NAME}:latest
 OPERATOR_NAME=multicluster-operators-subscription-release
 
 if [ "$TRAVIS_BUILD" != 1 ]; then
-    echo -e "Build is on Travis" 
+    echo -e "Build is on Travis"
 
     # Download and install kubectl
     echo -e "\nGet kubectl binary\n"
@@ -93,7 +93,7 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     sleep 35
 fi
 
-echo -e "\nCheck if subscription-release operator is created\n" 
+echo -e "\nCheck if subscription-release operator is created\n"
 kubectl rollout status deployment/multicluster-operators-subscription-release
 if [ $? != 0 ]; then
     echo "failed to deploy the subscription operator"
@@ -112,7 +112,7 @@ kind get kubeconfig > cluster_config/hub
 # over here, we are build the test server on the fly since, the `go get` will
 # mess up the go.mod file when doing the local test
 echo -e "\nGet the applifecycle-backend-e2e data"
-go get github.com/open-cluster-management/applifecycle-backend-e2e@v0.1.6
+go get github.com/open-cluster-management/applifecycle-backend-e2e@v0.1.9
 
 
 E2E_BINARY_NAME="applifecycle-backend-e2e"
@@ -124,10 +124,17 @@ ${E2E_BINARY_NAME} -cfg cluster_config &
 
 sleep 10
 
+function cleanup()
+{
+    echo -e "\nTerminate the running test server\n"
+	ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+
+	kubectl get po -A
+}
+
+trap cleanup EXIT
+
 echo -e "\nStart to run e2e test(s)\n"
 go test -v ./e2e
-
-echo -e "\nTerminate the test server\n"
-ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
 
 exit 0;
