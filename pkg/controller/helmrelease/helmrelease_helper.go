@@ -259,8 +259,8 @@ func getCapabilities(c *action.Configuration) (*chartutil.Capabilities, error) {
 	apiVersions, err := action.GetVersionSet(dc)
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			klog.Info("WARNING: The Kubernetes server has an orphaned API service. Server reports: %s", err)
-			klog.Info("WARNING: To fix this, kubectl delete apiservice <service-name>")
+			klog.Warning("The Kubernetes server has an orphaned API service. Server reports: ", err)
+			klog.Warning("To fix this, kubectl delete apiservice <service-name>")
 		} else {
 			return nil, err
 		}
