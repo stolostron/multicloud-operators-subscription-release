@@ -100,6 +100,13 @@ if [ $? != 0 ]; then
     exit $?;
 fi
 
+echo -e "\nApply Apache service with basic auth and helm chart\n"
+kubectl apply -f apache-basic-auth/apache-basic-auth-service.yaml
+
+if [ "$TRAVIS_BUILD" != 1 ]; then
+    echo -e "\nWait for Apache pod to be ready\n"
+    sleep 35
+fi
 
 echo -e "\nRun API test server\n"
 mkdir -p cluster_config
