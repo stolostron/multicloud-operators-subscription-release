@@ -106,6 +106,13 @@ func schema_pkg_apis_apps_v1_HelmReleaseRepo(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
+					"digest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Digest is the helm repo chart digest",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"secretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Secret to use to access the helm-repo defined in the CatalogSource.",

@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/chart"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/kube"
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -74,14 +75,20 @@ func (f managerFactory) NewManager(cr *unstructured.Unstructured, overrideValues
 		return nil, fmt.Errorf("failed to inject owner references: %w", err)
 	}
 
-	crChart, err := loader.LoadDir(f.chartDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load chart dir: %w", err)
-	}
+	releaseName := cr.GetName()
 
-	releaseName, err := getReleaseName(storageBackend, crChart.Name(), cr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get helm release name: %w", err)
+	var crChart *chart.Chart
+
+	if cr.GetDeletionTimestamp() == nil {
+		crChart, err = loader.LoadDir(f.chartDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load chart dir: %w", err)
+		}
+
+		releaseName, err = getReleaseName(storageBackend, crChart.Name(), cr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get helm release name: %w", err)
+		}
 	}
 
 	crValues, ok := cr.Object["spec"].(map[string]interface{})

@@ -131,7 +131,7 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// setting the nil spec to "":"" allows helmrelease to reconcile with default chart values.
-	if instance.Spec == nil {
+	if instance.Spec == nil && instance.GetDeletionTimestamp() == nil {
 		spec := make(map[string]interface{})
 
 		err := yaml.Unmarshal([]byte("{\"\":\"\"}"), &spec)
@@ -551,7 +551,12 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 				klog.Error("Errors caught while trying to delete resources ", joinErrors(errs))
 			}
 
-			message := "Failed to delete HelmRelease due to resource: " +
+			gvk := ""
+			if resource.Mapping != nil {
+				gvk = resource.Mapping.GroupVersionKind.String()
+			}
+
+			message := "Failed to delete HelmRelease due to resource: " + gvk + " " +
 				resource.Namespace + "/" + resource.Name +
 				" is not deleted yet. Checking again after one minute."
 			klog.Error(message)
