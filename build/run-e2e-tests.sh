@@ -100,7 +100,7 @@ if [ $? != 0 ]; then
     exit $?;
 fi
 
-echo -e "\nApply Apache service with basic auth and helm chart\n"
+echo -e "\nApply the Apache service with basic auth and helm chart\n"
 kubectl apply -f apache-basic-auth/apache-basic-auth-service.yaml
 
 if [ "$TRAVIS_BUILD" != 1 ]; then
