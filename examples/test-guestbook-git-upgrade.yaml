@@ -1,0 +1,16 @@
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: HelmRelease
+metadata:
+  name: guestbook
+  namespace: helmrelease-git-test
+repo:
+  chartName: nginx-chart
+  source:
+    github:
+      branch: chart-upgrade
+      chartPath: nginx-chart
+      urls:
+        - https://github.com/pezhang/helm-release-API-test.git
+    type: git
+  version: 0.2.0
