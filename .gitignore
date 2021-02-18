@@ -1,4 +1,6 @@
 # Temporary Build Files
+build-harness
+build-harness-extensions
 build/_output
 build/_test
 applifecycle-backend-e2e
