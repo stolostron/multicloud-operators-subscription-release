@@ -1,5 +1,7 @@
 # multicloud-operators-subscription-release
 
+test prow
+
 [![Build](https://api.travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)](https://api.travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release)
 [![Go Report Card](https://goreportcard.com/badge/github.com/open-cluster-management/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/open-cluster-management/multicloud-operators-subscription-release)
