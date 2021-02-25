@@ -195,17 +195,13 @@ func (m manager) UpgradeRelease(ctx context.Context, opts ...UpgradeOption) (*rp
 
 // UninstallRelease performs a Helm release uninstall.
 func (m manager) UninstallRelease(ctx context.Context, opts ...UninstallOption) (*rpb.Release, error) {
-	// Get history of this release
-	if _, err := m.storageBackend.History(m.releaseName); err != nil {
-		return nil, fmt.Errorf("failed to get release history: %w", err)
-	}
-
 	uninstall := action.NewUninstall(m.actionConfig)
 	for _, o := range opts {
 		if err := o(uninstall); err != nil {
 			return nil, fmt.Errorf("failed to apply uninstall option: %w", err)
 		}
 	}
+
 	uninstallResponse, err := uninstall.Run(m.releaseName)
 	if uninstallResponse == nil {
 		return nil, err

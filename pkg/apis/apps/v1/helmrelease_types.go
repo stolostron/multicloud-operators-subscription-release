@@ -97,6 +97,8 @@ type HelmReleaseRepo struct {
 	ChartName string `json:"chartName,omitempty"`
 	// Version is the chart version
 	Version string `json:"version,omitempty"`
+	// Digest is the helm repo chart digest
+	Digest string `json:"digest,omitempty"`
 	// Secret to use to access the helm-repo defined in the CatalogSource.
 	SecretRef *corev1.ObjectReference `json:"secretRef,omitempty"`
 	// Configuration parameters to access the helm-repo defined in the CatalogSource

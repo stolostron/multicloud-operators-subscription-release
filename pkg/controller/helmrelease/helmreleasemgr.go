@@ -48,6 +48,10 @@ import (
 //newHelmOperatorManagerFactory create a new manager returns a helmManagerFactory
 func (r ReconcileHelmRelease) newHelmOperatorManagerFactory(
 	s *appv1.HelmRelease) (helmoperator.ManagerFactory, error) {
+	if s.GetDeletionTimestamp() != nil {
+		return helmoperator.NewManagerFactory(r.Manager, ""), nil
+	}
+
 	chartDir, err := downloadChart(r.GetClient(), s)
 	if err != nil {
 		klog.Error(err, " - Failed to download the chart")
