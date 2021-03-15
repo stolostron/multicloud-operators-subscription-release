@@ -1,11 +1,26 @@
 approvers:
-- kuanf
+- arewm
+- gurnben
+- ianzhang366
+- kyl-bempah
 - jnpacker
 - mikeshng
 - rokej
-reviewers:
+- ray-harris
+- schmidtd
+- smithbw88
+- tpouyer
 - xiangjingli
+reviewers:
+- arewm
+- gurnben
 - ianzhang366
-- sahare
-- rwellon
-- itdove
+- kyl-bempah
+- jnpacker
+- mikeshng
+- rokej
+- ray-harris
+- schmidtd
+- smithbw88
+- tpouyer
+- xiangjingli
