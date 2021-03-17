@@ -61,7 +61,7 @@ spec:
       containers:
       - name: multicluster-operators-subscription-release
         # Replace this with the built image name
-        image: quay.io/open-cluster-management/multicluster-operators-subscription-release:latest
+        image: quay.io/open-cluster-management/multicluster-operators-subscription-release:community-latest
         command:
         - multicluster-operators-subscription-release
         imagePullPolicy: IfNotPresent
