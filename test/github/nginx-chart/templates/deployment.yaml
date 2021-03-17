@@ -4,6 +4,7 @@ metadata:
   name: nginx-deployment
   labels:
     app: guestbook
+    replicas: "{{ .Values.replicaCount }}"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
