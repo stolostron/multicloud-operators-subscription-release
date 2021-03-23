@@ -33,7 +33,7 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved.
 
 ## References
 
-- Access the following multicloud-operators repositories: 
+- Access the following multicloud-operators repositories:
 
     - [multicloud-operators-application](https://github.com/open-cluster-management/multicloud-operators-application)
     - [multicloud-operators-channel](https://github.com/open-cluster-management/multicloud-operators-channel)
