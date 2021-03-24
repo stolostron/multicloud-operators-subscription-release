@@ -1,0 +1,16 @@
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: HelmRelease
+metadata:
+  name: guestbook
+  namespace: helmrelease-helmrepo-spec-test
+repo:
+  chartName: nginx-chart
+  source:
+    helmRepo:
+      urls:
+        - https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/nginx-chart-0.1.0.tgz
+    type: helmrepo
+  version: 0.1.0
+spec:
+  replicaCount: 3
