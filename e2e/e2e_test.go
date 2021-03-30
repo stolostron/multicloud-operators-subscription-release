@@ -104,6 +104,7 @@ func TestE2ESuite(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+
 	for _, tID := range stageTestIDs {
 		if err := runner(tID, true); err != nil {
 			t.Fatal(err)
