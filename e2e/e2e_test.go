@@ -97,7 +97,6 @@ func TestE2ESuite(t *testing.T) {
 	}
 
 	testIDs := []string{"RHACM4K-2346", "RHACM4K-1680", "RHACM4K-1701", "RHACM4K-2352", "RHACM4K-2347", "RHACM4K-2570", "RHACM4K-2569"}
-
 	stageTestIDs := []string{"RHACM4K-2348", "RHACM4K-1732", "RHACM4K-2566", "RHACM4K-2568"}
 
 	for _, tID := range testIDs {
@@ -105,12 +104,11 @@ func TestE2ESuite(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	t.Logf("HelmRelease e2e sub tests (1/2) %v passed", testIDs)
-
 	for _, tID := range stageTestIDs {
 		if err := runner(tID, true); err != nil {
 			t.Fatal(err)
 		}
 	}
-	t.Logf("HelmRelease e2e sub tests (2/2) %v passed", stageTestIDs)
+
+	t.Logf("The e2e tests %v, stage tests %v passed", testIDs, stageTestIDs)
 }
