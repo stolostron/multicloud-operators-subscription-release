@@ -100,6 +100,13 @@ if [ $? != 0 ]; then
     exit $?;
 fi
 
+echo -e "\nApply the Apache service with basic auth and helm chart\n"
+kubectl apply -f apache-basic-auth/apache-basic-auth-service.yaml
+
+if [ "$TRAVIS_BUILD" != 1 ]; then
+    echo -e "\nWait for Apache pod to be ready\n"
+    sleep 35
+fi
 
 echo -e "\nRun API test server\n"
 mkdir -p cluster_config
@@ -112,7 +119,7 @@ kind get kubeconfig > cluster_config/hub
 # over here, we are build the test server on the fly since, the `go get` will
 # mess up the go.mod file when doing the local test
 echo -e "\nGet the applifecycle-backend-e2e data"
-go get github.com/open-cluster-management/applifecycle-backend-e2e@v0.2.1
+go get github.com/open-cluster-management/applifecycle-backend-e2e@v0.2.3
 
 
 export PATH=$PATH:~/go/bin
@@ -141,6 +148,6 @@ function cleanup()
 trap cleanup EXIT
 
 echo -e "\nStart to run e2e test(s)\n"
-go test -v ./e2e
+go test -v ./e2e -timeout 30m
 
 exit 0;
