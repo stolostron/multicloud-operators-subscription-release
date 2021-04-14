@@ -126,7 +126,6 @@ echo -e "\nGet latest version tag of applifecycle-backend-e2e: $LATEST_TAG"
 echo -e "\nGet the applifecycle-backend-e2e data"
 go get github.com/open-cluster-management/applifecycle-backend-e2e@$LATEST_TAG
 
-
 export PATH=$PATH:~/go/bin
 E2E_BINARY_NAME="applifecycle-backend-e2e"
 
