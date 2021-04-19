@@ -438,7 +438,7 @@ func TestDownloadGitRepo(t *testing.T) {
 
 	destRepo := filepath.Join(dir, "test")
 	commitID, err := DownloadGitRepo(nil, nil, destRepo,
-		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "")
+		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "main")
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destRepo, "OWNERS"))
