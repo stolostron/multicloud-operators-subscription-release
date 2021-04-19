@@ -764,7 +764,7 @@ func Test_generateResourceListForGit(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git#main"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
