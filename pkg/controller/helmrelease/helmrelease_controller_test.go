@@ -302,7 +302,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -682,7 +682,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
+						"https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
 				},
 			},
 			ChartName: "nginx-ingress",
@@ -815,7 +815,7 @@ func Test_generateResourceListForHelm(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
