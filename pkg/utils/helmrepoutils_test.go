@@ -152,6 +152,7 @@ func TestDownloadChartGitHub(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -181,6 +182,7 @@ func TestDownloadChartGit(t *testing.T) {
 				Git: &appv1.Git{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -323,6 +325,7 @@ func TestDownloadChartFromGitHub(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -352,6 +355,7 @@ func TestDownloadChartFromGit(t *testing.T) {
 				Git: &appv1.Git{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",

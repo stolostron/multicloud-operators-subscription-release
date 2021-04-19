@@ -92,6 +92,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -219,6 +220,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -261,6 +263,7 @@ func TestReconcile(t *testing.T) {
 				Git: &appv1.Git{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -409,6 +412,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -466,6 +470,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -532,6 +537,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -579,6 +585,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -621,6 +628,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -650,6 +658,7 @@ func TestReconcile(t *testing.T) {
 				GitHub: &appv1.GitHub{
 					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -764,8 +773,9 @@ func Test_generateResourceListForGit(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git#main"},
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
+					Branch:    "main",
 				},
 			},
 			ChartName: "subscription-release-test-1",
