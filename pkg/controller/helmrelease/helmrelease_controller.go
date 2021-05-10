@@ -130,6 +130,13 @@ func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.R
 		return reconcile.Result{}, err
 	}
 
+	if instance.Repo.Source == nil {
+		klog.Error("Failed to detect Repo.Source from HelmRelease ", helmreleaseNsn(instance), ". Setting requeue to false.")
+		//TODO set error status here
+
+		return reconcile.Result{Requeue: false}, nil
+	}
+
 	// setting the nil spec to "":"" allows helmrelease to reconcile with default chart values.
 	if instance.Spec == nil && instance.GetDeletionTimestamp() == nil {
 		spec := make(map[string]interface{})
