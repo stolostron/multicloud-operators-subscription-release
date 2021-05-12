@@ -127,7 +127,7 @@ func DownloadChart(configMap *corev1.ConfigMap,
 //DownloadChartFromGit downloads a chart into the charsDir
 func DownloadChartFromGit(configMap *corev1.ConfigMap, secret *corev1.Secret, destRepo string, s *appv1.HelmRelease) (chartDir string, err error) {
 	if s.Repo.Source.GitHub == nil && s.Repo.Source.Git == nil {
-		err := fmt.Errorf("git type but Repo.GitHub and Repo.Git is not defined")
+		err := fmt.Errorf("git type, need Repo.Source.Git or Repo.Source.GitHub to be populated.")
 		return "", err
 	}
 
