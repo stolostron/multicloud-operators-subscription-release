@@ -149,7 +149,7 @@ func generateResourceList(mgr manager.Manager, s *appv1.HelmRelease) (kube.Resou
 
 	chart, err := loader.LoadDir(chartDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load chart dir: %w", err)
+		return nil, fmt.Errorf("failed to load chart dir, most likely the given chart name is incorrect: %w", err)
 	}
 
 	clientv1, err := v1.NewForConfig(mgr.GetConfig())

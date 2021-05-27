@@ -82,7 +82,7 @@ func (f managerFactory) NewManager(cr *unstructured.Unstructured, overrideValues
 	if cr.GetDeletionTimestamp() == nil {
 		crChart, err = loader.LoadDir(f.chartDir)
 		if err != nil {
-			return nil, fmt.Errorf("failed to load chart dir: %w", err)
+			return nil, fmt.Errorf("failed to load chart dir, most likely the given chart name is incorrect: %w", err)
 		}
 
 		releaseName, err = getReleaseName(storageBackend, crChart.Name(), cr)
