@@ -17,7 +17,7 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## What is the multicloud-operators-subscription-release?
+## What is the multicloud-operators-subscription-release? 
 
 The `multicloud-operators-subscription-release` is composed of the helmrelease controller which will manage the helmrelease CR. Download the chart from the helmrepo or github and then call the operator-sdk helm-operator reconcile to start the deployment of each chart.
 
