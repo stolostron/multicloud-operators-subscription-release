@@ -15,7 +15,7 @@
     - [Getting Started](#getting-started)
     - [References](#references)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc generated TOC please keep comment here to allow auto update  -->
 
 ## What is the multicloud-operators-subscription-release? 
 
