@@ -193,6 +193,11 @@ func DownloadGitRepo(configMap *corev1.ConfigMap,
 			klog.Error(err, "- Failed to remove all: ", destRepo)
 		}
 
+		err = os.MkdirAll(destRepo, os.ModePerm)
+		if err != nil {
+			return "", err
+		}
+
 		if strings.HasPrefix(url, "http") {
 			klog.Info("Connecting to Git server via HTTP")
 
