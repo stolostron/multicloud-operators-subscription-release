@@ -23,10 +23,11 @@ import (
 )
 
 const (
-	defaultAddr     = "http://localhost:8765"
-	runEndpoint     = "/run"
-	clusterEndpoint = "/clusters"
-	Success         = "succeed"
+	defaultAddr      = "http://localhost:8765"
+	runEndpoint      = "/run"
+	stageRunEndpoint = "/run/stage"
+	clusterEndpoint  = "/clusters"
+	Success          = "succeed"
 )
 
 type TResponse struct {
@@ -37,8 +38,12 @@ type TResponse struct {
 	Details interface{} `json:"details"`
 }
 
-func runner(runID string) error {
+func runner(runID string, runStage bool) error {
 	URL := fmt.Sprintf("%s%s?id=%s", defaultAddr, runEndpoint, runID)
+	if runStage {
+		URL = fmt.Sprintf("%s%s?id=%s", defaultAddr, stageRunEndpoint, runID)
+	}
+
 	resp, err := http.Get(URL)
 
 	if err != nil {
@@ -91,13 +96,20 @@ func TestE2ESuite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testIDs := []string{"release-001"}
+	testIDs := []string{"RHACM4K-2346", "RHACM4K-1680", "RHACM4K-1701", "RHACM4K-2352", "RHACM4K-2347", "RHACM4K-2570", "RHACM4K-2569"}
+	stageTestIDs := []string{"RHACM4K-2348", "RHACM4K-1732", "RHACM4K-2566", "RHACM4K-2568"}
 
 	for _, tID := range testIDs {
-		if err := runner(tID); err != nil {
+		if err := runner(tID, false); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	t.Logf("channel e2e tests %v passed", testIDs)
+	for _, tID := range stageTestIDs {
+		if err := runner(tID, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Logf("The e2e tests %v, stage tests %v passed", testIDs, stageTestIDs)
 }

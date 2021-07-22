@@ -1,6 +1,6 @@
 module github.com/open-cluster-management/multicloud-operators-subscription-release
 
-go 1.15
+go 1.16
 
 require (
 	github.com/MakeNowJust/heredoc v0.0.0-20171113091838-e9091a26100e // indirect
@@ -14,6 +14,7 @@ require (
 	github.com/emicklei/go-restful v2.11.1+incompatible // indirect
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.3.0 // indirect
 	github.com/go-logr/zapr v0.3.0 // indirect
 	github.com/go-openapi/spec v0.19.5
@@ -30,18 +31,16 @@ require (
 	github.com/opencontainers/runc v1.0.0-rc9 // indirect
 	github.com/operator-framework/operator-lib v0.2.0
 	github.com/rogpeppe/go-internal v1.5.0 // indirect
-	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/yvasiyarov/go-metrics v0.0.0-20150112132944-c25f46c4b940 // indirect
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
 	go.uber.org/zap v1.14.1 // indirect
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad // indirect
-	golang.org/x/net v0.0.0-20200822124328-c89045814202
+	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
+	golang.org/x/net v0.0.0-20210326060303-6b1517762897
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	golang.org/x/sys v0.0.0-20200814200057-3d37ad5750ed // indirect
 	google.golang.org/grpc v1.30.0 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1

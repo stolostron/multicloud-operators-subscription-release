@@ -1,0 +1,27 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: apache-basic-auth-pod
+  labels:
+    app: apache-basic-auth
+spec:
+  subdomain: chart-web
+  containers:
+  - name: apache-basic-auth
+    image: quay.io/pezhang/apache-basic-auth:latest
+    ports:
+    - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chart-web
+spec:
+  clusterIP: None
+  selector:
+    app: apache-basic-auth
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
