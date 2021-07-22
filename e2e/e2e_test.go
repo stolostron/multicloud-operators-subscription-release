@@ -91,7 +91,7 @@ func TestE2ESuite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testIDs := []string{"release-001"}
+	testIDs := []string{"RHACM4K-2346"}
 
 	for _, tID := range testIDs {
 		if err := runner(tID); err != nil {
