@@ -91,6 +91,7 @@ func TestE2ESuite(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// List of tests to run
 	testIDs := []string{"RHACM4K-2346"}
 
 	for _, tID := range testIDs {
