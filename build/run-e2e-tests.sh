@@ -27,7 +27,7 @@ BUILD_IMAGE=${IMAGE_NAME}:latest
 OPERATOR_NAME=multicluster-operators-subscription-release
 
 if [ "$TRAVIS_BUILD" != 1 ]; then
-    echo -e "Build is on Travis" 
+    echo -e "Build is on Travis"
 
     # Download and install kubectl
     echo -e "\nGet kubectl binary\n"
@@ -93,13 +93,20 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     sleep 35
 fi
 
-echo -e "\nCheck if subscription-release operator is created\n" 
+echo -e "\nCheck if subscription-release operator is created\n"
 kubectl rollout status deployment/multicluster-operators-subscription-release
 if [ $? != 0 ]; then
     echo "failed to deploy the subscription operator"
     exit $?;
 fi
 
+echo -e "\nApply the Apache service with basic auth and helm chart\n"
+kubectl apply -f apache-basic-auth/apache-basic-auth-service.yaml
+
+if [ "$TRAVIS_BUILD" != 1 ]; then
+    echo -e "\nWait for Apache pod to be ready\n"
+    sleep 35
+fi
 
 echo -e "\nRun API test server\n"
 mkdir -p cluster_config
@@ -114,20 +121,38 @@ kind get kubeconfig > cluster_config/hub
 echo -e "\nGet the applifecycle-backend-e2e data"
 go get github.com/open-cluster-management/applifecycle-backend-e2e@v0.2.5
 
+# Only latest tag with format "v0~9*.0~9*.0~9*" is picked up
+LATEST_TAG=`git ls-remote --tags https://github.com/open-cluster-management/applifecycle-backend-e2e.git| awk '{print $2}' | sed 's$refs/tags/$$' | grep "v[0-9]*\.[0-9]*\.[0-9]*$" | sort -nr | head -n1`
+echo -e "\nGet latest version tag of applifecycle-backend-e2e: $LATEST_TAG"
+echo -e "\nGet the applifecycle-backend-e2e data"
+go get github.com/open-cluster-management/applifecycle-backend-e2e@$LATEST_TAG
 
+export PATH=$PATH:~/go/bin
 E2E_BINARY_NAME="applifecycle-backend-e2e"
 
 echo -e "\nTerminate the running test server\n"
-ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+E2E_PS=$(ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}')
+if [ "$E2E_PS" != "" ]; then
+    kill -9 $E2E_PS
+fi
 
 ${E2E_BINARY_NAME} -cfg cluster_config &
 
 sleep 10
 
-echo -e "\nStart to run e2e test(s)\n"
-go test -v ./e2e
+function cleanup()
+{
+    echo -e "\nTerminate the running test server\n"
+	ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+   	echo -e "\nRunning images\n"
+	kubectl get deploy -A -o jsonpath='{.items[*].spec.template.spec.containers[*].image}' | xargs -n1 echo
 
-echo -e "\nTerminate the test server\n"
-ps aux | grep ${E2E_BINARY_NAME} | grep -v 'grep' | awk '{print $2}' | xargs kill -9
+	kubectl get po -A
+}
+
+trap cleanup EXIT
+
+echo -e "\nStart to run e2e test(s)\n"
+go test -v ./e2e -timeout 30m
 
 exit 0;
