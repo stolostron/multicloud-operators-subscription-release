@@ -112,7 +112,7 @@ type ReconcileHelmRelease struct {
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileHelmRelease) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileHelmRelease) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	klog.V(1).Info("Reconciling HelmRelease: ", request.Namespace, "/", request.Name)
 
 	// Fetch the HelmRelease instance
