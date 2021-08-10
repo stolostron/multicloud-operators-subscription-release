@@ -251,7 +251,15 @@ func downloadChartFromURL(configMap *corev1.ConfigMap,
 	destRepo string,
 	s *appv1.HelmRelease,
 	url string) (chartDir string, err error) {
-	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo, s.Repo.InsecureSkipVerify)
+
+	digestTrim := s.Repo.Digest
+	if digestTrim != "" {
+		if len(digestTrim) >= 6 {
+			digestTrim = digestTrim[0:6]
+		}
+	}
+
+	chartZip, downloadErr := downloadFile(s.Namespace, configMap, url, secret, destRepo, s.Repo.InsecureSkipVerify, digestTrim)
 	if downloadErr != nil {
 		klog.Error(downloadErr, " - url: ", url)
 		return "", downloadErr
@@ -293,7 +301,8 @@ func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	fileURL string,
 	secret *corev1.Secret,
 	chartsDir string,
-	insecureSkipVerify bool) (string, error) {
+	insecureSkipVerify bool,
+	digestTrim string) (string, error) {
 	klog.V(4).Info("fileURL: ", fileURL)
 
 	URLP, downloadErr := url.Parse(fileURL)
@@ -303,6 +312,10 @@ func downloadFile(parentNamespace string, configMap *corev1.ConfigMap,
 	}
 
 	fileName := filepath.Base(URLP.RequestURI())
+	if digestTrim != "" {
+		fileName = fileName + "." + digestTrim
+	}
+
 	klog.V(4).Info("fileName: ", fileName)
 	// Create the file
 	chartZip := filepath.Join(chartsDir, fileName)
