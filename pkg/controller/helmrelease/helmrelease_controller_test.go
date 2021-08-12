@@ -60,10 +60,11 @@ func TestReconcile(t *testing.T) {
 	t.Log("Setup test reconcile")
 	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
 
-	stopMgr, mgrStopped := StartTestManager(mgr, g)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+	mgrStopped := StartTestManager(ctx, mgr, g)
 
 	defer func() {
-		close(stopMgr)
+		cancel()
 		mgrStopped.Wait()
 	}()
 
@@ -120,7 +121,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Status().Update(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	instanceResp = &appv1.HelmRelease{}
 	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
@@ -134,7 +135,7 @@ func TestReconcile(t *testing.T) {
 	err = c.Update(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
-	time.Sleep(4 * time.Second)
+	time.Sleep(6 * time.Second)
 
 	// check if there exists an InstallSuccessful reason again
 	instanceResp = &appv1.HelmRelease{}
@@ -750,10 +751,11 @@ func Test_generateResourceListForGit(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
 
-	stopMgr, mgrStopped := StartTestManager(mgr, g)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+	mgrStopped := StartTestManager(ctx, mgr, g)
 
 	defer func() {
-		close(stopMgr)
+		cancel()
 		mgrStopped.Wait()
 	}()
 
@@ -801,10 +803,11 @@ func Test_generateResourceListForHelm(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 	g.Expect(Add(mgr)).NotTo(gomega.HaveOccurred())
 
-	stopMgr, mgrStopped := StartTestManager(mgr, g)
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Minute)
+	mgrStopped := StartTestManager(ctx, mgr, g)
 
 	defer func() {
-		close(stopMgr)
+		cancel()
 		mgrStopped.Wait()
 	}()
 

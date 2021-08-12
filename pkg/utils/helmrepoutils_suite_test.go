@@ -17,6 +17,7 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	stdlog "log"
 	"os"
 	"path/filepath"
@@ -62,19 +63,17 @@ func TestMain(m *testing.M) {
 }
 
 // StartTestManager adds recFn
-func StartTestManager(mgr manager.Manager, g *gomega.GomegaWithT) (chan struct{}, *sync.WaitGroup) {
-	stop := make(chan struct{})
-
+func StartTestManager(ctx context.Context, mgr manager.Manager, g *gomega.GomegaWithT) *sync.WaitGroup {
 	wg := &sync.WaitGroup{}
 
 	wg.Add(1)
 
 	go func() {
-		defer wg.Done()
-		g.Expect(mgr.Start(stop)).NotTo(gomega.HaveOccurred())
+		wg.Done()
+		mgr.Start(ctx)
 	}()
 
 	time.Sleep(2 * time.Second)
 
-	return stop, wg
+	return wg
 }
