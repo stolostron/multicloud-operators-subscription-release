@@ -11,6 +11,7 @@ require (
 	github.com/emicklei/go-restful v2.11.1+incompatible // indirect
 	github.com/garyburd/redigo v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
+	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-openapi/spec v0.19.5
 	github.com/gofrs/uuid v3.3.0+incompatible // indirect
 	github.com/gorilla/handlers v1.4.2 // indirect
@@ -27,6 +28,7 @@ require (
 	github.com/yvasiyarov/go-metrics v0.0.0-20150112132944-c25f46c4b940 // indirect
 	github.com/yvasiyarov/gorelic v0.0.7 // indirect
 	github.com/yvasiyarov/newrelic_platform_go v0.0.0-20160601141957-9c099fbc30e9 // indirect
+	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b
 	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781
 	google.golang.org/grpc v1.30.0 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1

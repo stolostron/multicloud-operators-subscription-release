@@ -506,7 +506,7 @@ func (r *ReconcileHelmRelease) uninstall(instance *appv1.HelmRelease, manager he
 
 	instance.Status.RemoveCondition(appv1.ConditionReleaseFailed)
 
-	caps, err := getCapabilities(manager.GetActionConfig())
+	caps, err := GetCapabilities(manager.GetActionConfig())
 	if err != nil {
 		klog.Error("Failed to get API Capabilities to perform cleanup check ", helmreleaseNsn(instance), " ", err)
 		r.updateUninstallResourceErrorStatus(instance, err)

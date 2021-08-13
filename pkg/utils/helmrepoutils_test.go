@@ -217,6 +217,7 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 				},
 			},
 			ChartName: "subscription-release-test-1",
+			Digest:    "long-fake-digest-that-is-very-long",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -228,6 +229,9 @@ func TestDownloadChartHelmRepo(t *testing.T) {
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destDir, "Chart.yaml"))
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(destDir, "../", "subscription-release-test-1-0.1.0.tgz.long-f"))
 	assert.NoError(t, err)
 }
 
@@ -390,6 +394,7 @@ func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 				},
 			},
 			ChartName: "subscription-release-test-1",
+			Digest:    "short",
 		},
 	}
 	dir, err := ioutil.TempDir("/tmp", "charts")
@@ -402,9 +407,76 @@ func TestDownloadChartFromHelmRepoHTTP(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(chartDir, "Chart.yaml"))
 	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "../", "subscription-release-test-1-0.1.0.tgz.short"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartFromHelmRepoHTTPNoDigest(t *testing.T) {
+	hr := &appv1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{
+						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	chartDir, err := DownloadChartFromHelmRepo(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "Chart.yaml"))
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "../", "subscription-release-test-1-0.1.0.tgz"))
+	assert.NoError(t, err)
 }
 
 func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
+	hr := &appv1.HelmRelease{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "subscription-release-test-1-cr",
+			Namespace: "default",
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{"file:../../test/helmrepo/subscription-release-test-1-0.1.0.tgz"},
+				},
+			},
+			ChartName: "subscription-release-test-1",
+			Digest:    "digest",
+		},
+	}
+	dir, err := ioutil.TempDir("/tmp", "charts")
+	assert.NoError(t, err)
+
+	defer os.RemoveAll(dir)
+
+	chartDir, err := DownloadChartFromHelmRepo(nil, nil, dir, hr)
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "Chart.yaml"))
+	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "../", "subscription-release-test-1-0.1.0.tgz.digest"))
+	assert.NoError(t, err)
+}
+
+func TestDownloadChartFromHelmRepoLocalNoDigest(t *testing.T) {
 	hr := &appv1.HelmRelease{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "subscription-release-test-1-cr",
@@ -430,6 +502,9 @@ func TestDownloadChartFromHelmRepoLocal(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(chartDir, "Chart.yaml"))
 	assert.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(chartDir, "../", "subscription-release-test-1-0.1.0.tgz"))
+	assert.NoError(t, err)
 }
 
 func TestDownloadGitRepo(t *testing.T) {
@@ -440,7 +515,7 @@ func TestDownloadGitRepo(t *testing.T) {
 
 	destRepo := filepath.Join(dir, "test")
 	commitID, err := DownloadGitRepo(nil, nil, destRepo,
-		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "main")
+		[]string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"}, "main", true)
 	assert.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(destRepo, "OWNERS"))
