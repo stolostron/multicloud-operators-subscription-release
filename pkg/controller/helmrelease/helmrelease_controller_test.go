@@ -283,6 +283,57 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.DeployedRelease).To(gomega.BeNil())
 
 	//
+	//Git alt source succeeded
+	//
+	t.Log("Git alt source succeeded test")
+
+	helmReleaseName = "example-git-alt-source-succeeded"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git/wrongurl"},
+					ChartPath: "test/github/nginx-chart",
+					Branch:    "main",
+				},
+			},
+			AltSource: &appv1.AltSource{
+				SourceType: appv1.GitSourceType,
+				Git: &appv1.Git{
+					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					ChartPath: "test/github/nginx-chart",
+					Branch:    "main",
+				},
+			},
+			ChartName: "nginx-chart",
+		},
+	}
+
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(6 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
+
+	//
 	//helmRepo succeeds
 	//
 	t.Log("helmrepo succeed test")
@@ -350,7 +401,7 @@ func TestReconcile(t *testing.T) {
 	//
 	//helmRepo failure
 	//
-	t.Log("Github failure test")
+	t.Log("helmRepo failure test")
 
 	helmReleaseName = "example-helmrepo-failure"
 	helmReleaseKey = types.NamespacedName{
@@ -387,6 +438,53 @@ func TestReconcile(t *testing.T) {
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	g.Expect(instanceResp.Status.DeployedRelease).To(gomega.BeNil())
+
+	//
+	//helmRepo alt source succeeded
+	//
+	t.Log("helmRepo alt source succeeded test")
+
+	helmReleaseName = "example-helmrepo-alt-source-succeeded"
+	helmReleaseKey = types.NamespacedName{
+		Name:      helmReleaseName,
+		Namespace: helmReleaseNS,
+	}
+	instance = &appv1.HelmRelease{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "HelmRelease",
+			APIVersion: "apps.open-cluster-management.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      helmReleaseName,
+			Namespace: helmReleaseNS,
+		},
+		Repo: appv1.HelmReleaseRepo{
+			Source: &appv1.Source{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/wrongurl"},
+				},
+			},
+			AltSource: &appv1.AltSource{
+				SourceType: appv1.HelmRepoSourceType,
+				HelmRepo: &appv1.HelmRepo{
+					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+				},
+			},
+			ChartName: "subscription-release-test-1",
+		},
+	}
+
+	err = c.Create(context.TODO(), instance)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	time.Sleep(6 * time.Second)
+
+	instanceResp = &appv1.HelmRelease{}
+	err = c.Get(context.TODO(), helmReleaseKey, instanceResp)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 
 	//
 	//Github succeed create-delete
