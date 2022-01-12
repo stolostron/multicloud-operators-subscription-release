@@ -3,7 +3,7 @@
 [![Build](https://api.travis-ci.com/stolostron/multicloud-operators-subscription-release.svg?branch=main)](https://api.travis-ci.com/stolostron/multicloud-operators-subscription-release.svg?branch=main)
 [![GoDoc](https://godoc.org/github.com/stolostron/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/stolostron/multicloud-operators-subscription-release)
 [![Go Report Card](https://goreportcard.com/badge/github.com/stolostron/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/stolostron/multicloud-operators-subscription-release)
-[![Sonarcloud Status](https://sonarcloud.io/api/project_badges/measure?project=stolostron_multicloud-operators-subscription-release&metric=coverage)](https://sonarcloud.io/api/project_badges/measure?project=stolostron_multicloud-operators-subscription-release&metric=coverage)
+[![Sonarcloud Status](https://sonarcloud.io/api/project_badges/measure?project=open-cluster-management_multicloud-operators-subscription-release&metric=coverage)](https://sonarcloud.io/api/project_badges/measure?project=open-cluster-management_multicloud-operators-subscription-release&metric=coverage)
 [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
