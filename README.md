@@ -1,8 +1,8 @@
 # multicloud-operators-subscription-release
 
-[![Build](https://api.travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)](https://api.travis-ci.com/open-cluster-management/multicloud-operators-subscription-release.svg?branch=master)
-[![GoDoc](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/open-cluster-management/multicloud-operators-subscription-release)
-[![Go Report Card](https://goreportcard.com/badge/github.com/open-cluster-management/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/open-cluster-management/multicloud-operators-subscription-release)
+[![Build](https://api.travis-ci.com/stolostron/multicloud-operators-subscription-release.svg?branch=master)](https://api.travis-ci.com/stolostron/multicloud-operators-subscription-release.svg?branch=master)
+[![GoDoc](https://godoc.org/github.com/stolostron/multicloud-operators-subscription-release?status.svg)](https://godoc.org/github.com/stolostron/multicloud-operators-subscription-release)
+[![Go Report Card](https://goreportcard.com/badge/github.com/stolostron/multicloud-operators-subscription-release)](https://goreportcard.com/report/github.com/stolostron/multicloud-operators-subscription-release)
 [![Sonarcloud Status](https://sonarcloud.io/api/project_badges/measure?project=open-cluster-management_multicloud-operators-subscription-release&metric=coverage)](https://sonarcloud.io/api/project_badges/measure?project=open-cluster-management_multicloud-operators-subscription-release&metric=coverage)
 [![License](https://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
@@ -35,9 +35,9 @@ Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved.
 
 - Access the following multicloud-operators repositories:
 
-    - [multicloud-operators-application](https://github.com/open-cluster-management/multicloud-operators-application)
-    - [multicloud-operators-channel](https://github.com/open-cluster-management/multicloud-operators-channel)
-    - [multicloud-operators-deployable](https://github.com/open-cluster-management/multicloud-operators-deployable)
-    - [multicloud-operators-placementrule](https://github.com/open-cluster-management/multicloud-operators-placementrule)
-    - [multicloud-operators-subscription](https://github.com/open-cluster-management/multicloud-operators-subscription)
-    - [multicloud-operators-subscription-release](https://github.com/open-cluster-management/multicloud-operators-subscription-release)
+    - [multicloud-operators-application](https://github.com/stolostron/multicloud-operators-application)
+    - [multicloud-operators-channel](https://github.com/stolostron/multicloud-operators-channel)
+    - [multicloud-operators-deployable](https://github.com/stolostron/multicloud-operators-deployable)
+    - [multicloud-operators-placementrule](https://github.com/stolostron/multicloud-operators-placementrule)
+    - [multicloud-operators-subscription](https://github.com/stolostron/multicloud-operators-subscription)
+    - [multicloud-operators-subscription-release](https://github.com/stolostron/multicloud-operators-subscription-release)

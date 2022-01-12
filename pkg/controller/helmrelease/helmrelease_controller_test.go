@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
+	appv1 "github.com/stolostron/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
 var (
@@ -90,7 +90,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -212,7 +212,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
 				},
 			},
@@ -254,7 +254,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
 				},
 			},
@@ -297,7 +297,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/stolostron/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -356,7 +356,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
-					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/wrongurl"},
+					Urls: []string{"https://raw.github.com/stolostron/multicloud-operators-subscription-release/wrongurl"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -397,7 +397,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -454,7 +454,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -520,7 +520,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -567,7 +567,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -609,7 +609,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
@@ -638,7 +638,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 				},
 			},
@@ -689,7 +689,7 @@ func Test_generateResourceListForGit(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 				},
 			},
@@ -740,7 +740,7 @@ func Test_generateResourceListForHelm(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/stolostron/multicloud-operators-subscription-release/master/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -801,7 +801,7 @@ func TestDeleteKeepCleanup(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/master/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
+						"https://raw.githubusercontent.com/stolostron/multicloud-operators-subscription-release/master/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
 				},
 			},
 			ChartName: "nginx-ingress",

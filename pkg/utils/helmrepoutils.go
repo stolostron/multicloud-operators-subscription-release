@@ -47,7 +47,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
+	appv1 "github.com/stolostron/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
 //GetHelmRepoClient returns an *http.client to access the helm repo
