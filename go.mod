@@ -1,4 +1,4 @@
-module github.com/open-cluster-management/multicloud-operators-subscription-release
+module github.com/stolostron/multicloud-operators-subscription-release
 
 go 1.17
 

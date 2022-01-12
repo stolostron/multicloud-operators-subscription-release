@@ -18,7 +18,7 @@ The environment variable `CHARTS_DIR` must be set when developing, it specifies 
 ## Launch Dev mode
 
 ```shell
-git clone git@github.com:open-cluster-management/multicloud-operators-subscription-release.git
+git clone git@github.com:stolostron/multicloud-operators-subscription-release.git
 cd multicloud-operators-subscription-release
 export GITHUB_USER=<github_user>
 export GITHUB_TOKEN=<github_token>
@@ -31,7 +31,7 @@ kubectl apply -f deploy/crds
 ## Build a local image
 
 ```shell
-git clone git@github.com:open-cluster-management/multicloud-operators-subscription-release.git
+git clone git@github.com:stolostron/multicloud-operators-subscription-release.git
 cd multicloud-operators-subscription-release
 export GITHUB_USER=<github_user>
 export GITHUB_TOKEN=<github_token>

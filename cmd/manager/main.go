@@ -23,7 +23,7 @@ import (
 
 	"k8s.io/klog"
 
-	"github.com/open-cluster-management/multicloud-operators-subscription-release/cmd/manager/exec"
+	"github.com/stolostron/multicloud-operators-subscription-release/cmd/manager/exec"
 )
 
 func main() {

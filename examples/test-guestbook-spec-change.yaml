@@ -11,7 +11,7 @@ repo:
       branch: main
       chartPath: /test/github/nginx-chart
       urls:
-        - https://github.com/open-cluster-management/multicloud-operators-subscription-release.git
+        - https://github.com/stolostron/multicloud-operators-subscription-release.git
     type: git
   version: 0.1.0
 spec:
