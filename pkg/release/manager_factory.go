@@ -31,8 +31,8 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	crmanager "sigs.k8s.io/controller-runtime/pkg/manager"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
-	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/client"
+	appv1 "github.com/stolostron/multicloud-operators-subscription-release/pkg/apis/apps/v1"
+	"github.com/stolostron/multicloud-operators-subscription-release/pkg/client"
 )
 
 // ManagerFactory creates Managers that are specific to custom resources. It is

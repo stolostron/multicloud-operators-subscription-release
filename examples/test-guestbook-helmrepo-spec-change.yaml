@@ -9,7 +9,7 @@ repo:
   source:
     helmRepo:
       urls:
-        - https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/nginx-chart-0.1.0.tgz
+        - https://raw.githubusercontent.com/stolostron/multicloud-operators-subscription-release/main/test/helmrepo/nginx-chart-0.1.0.tgz
     type: helmrepo
   version: 0.1.0
 spec:
