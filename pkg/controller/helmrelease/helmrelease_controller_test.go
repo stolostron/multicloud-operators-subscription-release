@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appv1 "github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/apis/apps/v1"
+	appv1 "github.com/stolostron/multicloud-operators-subscription-release/pkg/apis/apps/v1"
 )
 
 var (
@@ -91,7 +91,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -191,7 +191,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(len(instanceResp.Status.Conditions)).To(gomega.Equal(2))
 	g.Expect(instanceResp.Status.Conditions[1].Reason).To(gomega.Equal(appv1.ReasonUpgradeSuccessful))
 
-	instanceResp.Repo.Source.GitHub.Urls[0] = "https://github.com/open-cluster-management/multicloud-operators-subscription-release-wrongurl.git"
+	instanceResp.Repo.Source.GitHub.Urls[0] = "https://github.com/stolostron/multicloud-operators-subscription-release-wrongurl.git"
 
 	err = c.Delete(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -219,7 +219,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
 					Branch:    "main",
 				},
@@ -262,7 +262,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "wrong path",
 					Branch:    "main",
 				},
@@ -305,7 +305,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git/wrongurl"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git/wrongurl"},
 					ChartPath: "test/github/nginx-chart",
 					Branch:    "main",
 				},
@@ -313,7 +313,7 @@ func TestReconcile(t *testing.T) {
 			AltSource: &appv1.AltSource{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/nginx-chart",
 					Branch:    "main",
 				},
@@ -357,7 +357,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/stolostron/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -393,7 +393,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(instanceResp.Status.DeployedRelease).NotTo(gomega.BeNil())
 	g.Expect(instanceResp.Repo.Version).Should(gomega.Equal("3-0.1.0"))
 
-	instanceResp.Repo.Source.HelmRepo.Urls[0] = "https://github.com/open-cluster-management/multicloud-operators-subscription-release-wrongurl"
+	instanceResp.Repo.Source.HelmRepo.Urls[0] = "https://github.com/stolostron/multicloud-operators-subscription-release-wrongurl"
 
 	err = c.Delete(context.TODO(), instanceResp)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
@@ -421,7 +421,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
-					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/wrongurl"},
+					Urls: []string{"https://raw.github.com/stolostron/multicloud-operators-subscription-release/wrongurl"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -462,13 +462,13 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
-					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/wrongurl"},
+					Urls: []string{"https://raw.github.com/stolostron/multicloud-operators-subscription-release/wrongurl"},
 				},
 			},
 			AltSource: &appv1.AltSource{
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
-					Urls: []string{"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+					Urls: []string{"https://raw.github.com/stolostron/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",
@@ -509,7 +509,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -567,7 +567,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -634,7 +634,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -682,7 +682,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -725,7 +725,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 					Branch:    "main",
 				},
@@ -755,7 +755,7 @@ func TestReconcile(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitHubSourceType,
 				GitHub: &appv1.GitHub{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-1",
 					Branch:    "main",
 				},
@@ -790,7 +790,7 @@ func TestReconcile(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.githubusercontent.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
+						"https://raw.githubusercontent.com/stolostron/multicloud-operators-subscription-release/main/test/helmrepo/nginx-ingress-1.40.0_keep.tgz"},
 				},
 			},
 			ChartName: "nginx-ingress",
@@ -873,7 +873,7 @@ func Test_generateResourceListForGit(t *testing.T) {
 			Source: &appv1.Source{
 				SourceType: appv1.GitSourceType,
 				Git: &appv1.Git{
-					Urls:      []string{"https://github.com/open-cluster-management/multicloud-operators-subscription-release.git"},
+					Urls:      []string{"https://github.com/stolostron/multicloud-operators-subscription-release.git"},
 					ChartPath: "test/github/subscription-release-test-3",
 					Branch:    "main",
 				},
@@ -926,7 +926,7 @@ func Test_generateResourceListForHelm(t *testing.T) {
 				SourceType: appv1.HelmRepoSourceType,
 				HelmRepo: &appv1.HelmRepo{
 					Urls: []string{
-						"https://raw.github.com/open-cluster-management/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
+						"https://raw.github.com/stolostron/multicloud-operators-subscription-release/main/test/helmrepo/subscription-release-test-3-0.1.0.tgz"},
 				},
 			},
 			ChartName: "subscription-release-test-1",

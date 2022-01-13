@@ -19,8 +19,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/open-cluster-management/multicloud-operators-subscription-release/pkg/internal/util/k8sutil"
 	"github.com/operator-framework/operator-lib/handler"
+	"github.com/stolostron/multicloud-operators-subscription-release/pkg/internal/util/k8sutil"
 	"helm.sh/helm/v3/pkg/kube"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
