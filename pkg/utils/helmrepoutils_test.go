@@ -64,7 +64,7 @@ func TestGetConfig(t *testing.T) {
 	}
 
 	configMapResp, err := GetConfigMap(c, configMapNS, configMapRef)
-	assert.NoError(t, err)
+	assert.Error(t, err)
 
 	assert.Nil(t, configMapResp)
 
