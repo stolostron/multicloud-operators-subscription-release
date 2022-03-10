@@ -34,7 +34,7 @@ require (
 	k8s.io/api v0.21.3
 	k8s.io/apimachinery v0.21.3
 	k8s.io/cli-runtime v0.21.3
-	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/client-go v0.21.3
 	k8s.io/klog v1.0.0
 	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/controller-runtime v0.9.1
@@ -169,5 +169,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
-
-replace k8s.io/client-go => k8s.io/client-go v0.21.3
