@@ -134,7 +134,7 @@ if [ "$E2E_PS" != "" ]; then
     kill -9 $E2E_PS
 fi
 
-${E2E_BINARY_NAME} -cfg cluster_config &
+~/go/bin/${E2E_BINARY_NAME} -cfg cluster_config &
 
 sleep 10
 
