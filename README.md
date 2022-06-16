@@ -23,7 +23,7 @@ The `multicloud-operators-subscription-release` is composed of the helmrelease c
 
 Go to the [Contributing guide](CONTRIBUTING.md) to learn how to get involved.
 
-## Getting started
+## Getting started 
 
 - Clone and build an image with the [Development guide](docs/development.md).
 
