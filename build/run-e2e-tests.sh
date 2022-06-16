@@ -54,12 +54,12 @@ else
     docker kill e2e || true
 fi
 
-kind delete cluster --image=kindest/node:v1.21.1
+kind delete cluster 
 if [ $? != 0 ]; then
         exit $?;
 fi
 
-kind create cluster
+kind create cluster --image=kindest/node:v1.21.1
 if [ $? != 0 ]; then
         exit $?;
 fi
