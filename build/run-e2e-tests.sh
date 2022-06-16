@@ -48,7 +48,7 @@ if [ "$TRAVIS_BUILD" != 1 ]; then
     sed -i -e "s|image: .*:latest$|image: $BUILD_IMAGE|" deploy/operator.yaml
 
     echo -e "\nDownload and install KinD\n"
-    GO111MODULE=on go get sigs.k8s.io/kind
+    GO111MODULE=on go get sigs.k8s.io/kind@v0.13.0
 else
     echo -e "\nBuild is on Local ENV, will delete the API container first\n"
     docker kill e2e || true
